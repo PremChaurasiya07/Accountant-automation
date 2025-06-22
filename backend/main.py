@@ -22,7 +22,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Or restrict to your frontend origin e.g. ["http://localhost:3000"]
+    allow_origins=["http://localhost:3000","https://vyapari.vercel.app"],  # Or restrict to your frontend origin e.g. ["http://localhost:3000"]
     allow_credentials=True,
     allow_methods=["*"],  # Allow POST, GET, OPTIONS, etc.
     allow_headers=["*"],
