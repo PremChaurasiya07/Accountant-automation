@@ -10,7 +10,7 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 
 ### CONFIGS
 GOOGLE_REDIRECT_URL = "http://localhost:8000/auth/callback"
-FRONTEND_REDIRECT = "http://localhost:3000/"
+FRONTEND_REDIRECT = "https://vyapari.vercel.app"
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 
 ### MODELS
@@ -90,7 +90,7 @@ def auth_callback(request: Request):
     except Exception as e:
         raise HTTPException(status_code=400, detail="Invalid token")
 
-    response = RedirectResponse(url="http://localhost:3000/dashboard")
+    response = RedirectResponse(url=f"{FRONTEND_REDIRECT}/dashboard")
     response.set_cookie(
         key="access_token", value=access_token,
         httponly=True, secure=False, samesite="Lax", max_age=60 * 60 * 24
