@@ -13,40 +13,49 @@ export default function HomePage() {
   const router = useRouter()
 
   useEffect(() => {
-    const initAuth = async () => {
-      // 🔁 1. Check for access_token in URL hash
+    const handleOAuthRedirect = async () => {
       const hash = window.location.hash.slice(1)
       const params = new URLSearchParams(hash)
       const access_token = params.get("access_token")
       const refresh_token = params.get("refresh_token")
 
       if (access_token && refresh_token) {
-        // 🪄 2. Set Supabase session
-        const { error } = await supabase.auth.setSession({ access_token, refresh_token })
+        const { error } = await supabase.auth.setSession({
+          access_token,
+          refresh_token,
+        })
+
         if (error) {
-          console.error("Failed to set session:", error.message)
+          console.error("❌ Error setting session:", error.message)
+          router.push("/login")
+          return
         }
-        // 🧹 3. Remove token hash from URL
-        window.history.replaceState(null, "", window.location.pathname)
+
+        window.history.replaceState({}, document.title, "/")
       }
 
-      // 👤 4. Try fetching user
-      const { data, error: getUserError } = await supabase.auth.getUser()
-      if (data?.user) {
-        setUser(data.user)
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser()
+
+      if (error || !user) {
+        console.error("❌ User not found or error:", error?.message)
+        router.push("/login")
       } else {
-        console.warn("User not found", getUserError)
-        setUser(null)
+        console.log("✅ Logged in as:", user.email)
+        setUser(user)
       }
 
       setLoading(false)
     }
 
-    initAuth()
+    handleOAuthRedirect()
   }, [router])
 
-  if (loading) return <div className="text-center mt-10">Loading...</div>
-
+  if (loading) {
+    return <div className="text-center mt-10">Signing you in...</div>
+  }
   return (
     <DashboardLayout>
       <DashboardContent />
