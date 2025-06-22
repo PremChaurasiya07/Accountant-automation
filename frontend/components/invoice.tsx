@@ -679,7 +679,7 @@ function numberToWords(num: number): string {
                     window.open(response.url, '_blank'); // Open PDF in new tab
                 }
             } else {
-                throw new Error(response.message || "Failed to create invoice.");
+                throw new Error(response.detail || "Failed to create invoice.");
             }
         } catch (e: any) {
             console.error("Error creating invoice", e);
