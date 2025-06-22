@@ -1,7 +1,7 @@
 // utils/auth.ts
 export const handleEmailAuth = async (email: string, password: string) => {
   try {
-    const res = await fetch("http://localhost:8000/auth/login", {
+    const res = await fetch("/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include", // Required for cookies
@@ -15,7 +15,7 @@ export const handleEmailAuth = async (email: string, password: string) => {
     const error = await res.json();
 
     if (error.detail.includes("Invalid login credentials")) {
-      const signupRes = await fetch("http://localhost:8000/auth/signup", {
+      const signupRes = await fetch("/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
