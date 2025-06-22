@@ -388,11 +388,10 @@ interface Message {
 }
 
 const ChatBot: FC = () => {
-  const { userId } = useUserId();
-  const { userSession } = useUserId();
+  const { userId, userSession } = useUserId();
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState("");
-  const [sellerdata, setsellerdata] = useState(null);
+  const [sellerdata, setsellerdata] = useState<any>(null);
   const [messages, setMessages] = useState<Message[]>([{
     id: 1,
     text: "Hi! I'm your CA Assistant. How can I help you today?",
@@ -492,7 +491,7 @@ const ChatBot: FC = () => {
 
     fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/voice_bot`, {
       method: "POST",
-      credentials:"include",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${userSession?.access_token}`,
@@ -501,12 +500,16 @@ const ChatBot: FC = () => {
     })
       .then((res) => res.json())
       .then((data) => {
-        const isLink = typeof data === "string" && data.includes("http");
+        const botMessageText = data?.url
+          ? `${data.message}\n${data.url}`
+          : data?.message || "✅ Invoice processed.";
+
         const botMessage = {
           id: Date.now() + 1,
-          text: typeof data === "string" ? data : JSON.stringify(data.url),
+          text: botMessageText,
           isBot: true,
         };
+
         setMessages((prev) => [...prev, botMessage]);
       })
       .catch(() => {
@@ -603,10 +606,17 @@ const ChatBot: FC = () => {
                           : "bg-green-100 text-green-900"
                       }`}
                     >
-                      {msg.text.includes("http") ? (
-                        <Link href={msg.text} target="_blank" className="underline text-blue-500">
-                          {msg.text}
-                        </Link>
+                      {typeof msg.text === "string" && msg.text.includes("http") ? (
+                        <>
+                          {msg.text.split("http")[0]}
+                          <Link
+                            href={`http${msg.text.split("http")[1]}`}
+                            target="_blank"
+                            className="underline text-blue-500 ml-1"
+                          >
+                            🔗 View Invoice
+                          </Link>
+                        </>
                       ) : (
                         msg.text
                       )}
@@ -651,4 +661,3 @@ const ChatBot: FC = () => {
 };
 
 export default ChatBot;
-
