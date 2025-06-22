@@ -38,7 +38,7 @@ export const handleEmailAuth = async (email: string, password: string) => {
 
 
 export const startGoogleOAuth = () => {
-  window.location.href = `https://uphbohvnxayrtkxxdizk.supabase.co/auth/v1/authorize?provider=google&redirect_to=https://accountant-automation.onrender.com`;
+  window.location.href = `https://uphbohvnxayrtkxxdizk.supabase.co/auth/v1/authorize?provider=google&redirect_to=https://vyapari.vercel.app/auth/callback`;
 
 };
 
