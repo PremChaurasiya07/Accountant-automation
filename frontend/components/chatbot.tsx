@@ -392,13 +392,11 @@ const ChatBot: FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [sellerdata, setsellerdata] = useState<any>(null);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 1,
-      text: "Hi! I'm your CA Assistant. How can I help you today?",
-      isBot: true,
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([{
+    id: 1,
+    text: "Hi! I'm your CA Assistant. How can I help you today?",
+    isBot: true,
+  }]);
 
   const [isListening, setIsListening] = useState(false);
   const [recognitionInstance, setRecognitionInstance] = useState<any>(null);
@@ -502,9 +500,13 @@ const ChatBot: FC = () => {
     })
       .then((res) => res.json())
       .then((data) => {
+        const botMessageText = data?.url
+          ? `${data.message}\n${data.url}`
+          : data?.message ;
+
         const botMessage = {
           id: Date.now() + 1,
-          text: data?.url || data?.message || "✅ Invoice processed.",
+          text: botMessageText,
           isBot: true,
         };
 
@@ -604,10 +606,17 @@ const ChatBot: FC = () => {
                           : "bg-green-100 text-green-900"
                       }`}
                     >
-                      {msg.text?.startsWith("http") ? (
-                        <Link href={msg.text} target="_blank" className="underline text-blue-500">
-                          🔗 View Invoice
-                        </Link>
+                      {typeof msg.text === "string" && msg.text.includes("http") ? (
+                        <>
+                          {msg.text.split("http")[0]}
+                          <Link
+                            href={`http${msg.text.split("http")[1]}`}
+                            target="_blank"
+                            className="underline text-blue-500 ml-1"
+                          >
+                            🔗 View Invoice
+                          </Link>
+                        </>
                       ) : (
                         msg.text
                       )}
