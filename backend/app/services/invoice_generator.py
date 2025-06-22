@@ -1680,21 +1680,23 @@ def generate_invoice_pdf3(invoice_data, filename="tax_invoice.pdf"):
         total_amount = 0
 
         for i, item in enumerate(items, 1):
-            desc_text = f"<b>{safe_str(item['name'])}</b>"
+            desc_text = f"<b>{safe_str(item.get('name'))}</b>"
             if item.get('description'):
-                desc_text += f"<br/>{safe_str(item['description'])}"
+                desc_text += f"<br/>{safe_str(item.get('description'))}"
             row = [
                 Paragraph(str(i), small_style),
                 Paragraph(desc_text, small_style),
-                Paragraph(safe_str(item['hsn']), small_style),
-                Paragraph(f"{safe_str(item['gst_rate'])}%", small_style),
-                Paragraph(f"{safe_str(item['quantity'])} {item['unit']}", small_style),
-                Paragraph(f"{item['rate']:.2f}", small_style),
-                Paragraph(safe_str(item['unit']), small_style),
-                Paragraph(f"{item['amount']:.2f}", small_style)
+                Paragraph(safe_str(item.get('hsn')), small_style),
+                Paragraph(f"{safe_str(item.get('gst_rate'))}%", small_style),
+                Paragraph(f"{safe_str(item.get('quantity'))} {safe_str(item.get('unit'))}", small_style),
+                Paragraph(f"{item.get('rate', 0):.2f}", small_style),
+                Paragraph(safe_str(item.get('unit')), small_style),
+                Paragraph(f"{item.get('amount', 0):.2f}", small_style)
             ]
             data_rows.append(row)
-            total_amount += item['amount']
+            total_amount += item.get('amount', 0)
+            print('mid')
+
 
         # Add blank rows to maintain minimum height before totals
         min_content_rows = 9 
@@ -1780,14 +1782,14 @@ def generate_invoice_pdf3(invoice_data, filename="tax_invoice.pdf"):
 4. Certified that above particulars are true & correct."""
         
         bank_details_content = f"""<b>Company's Bank Details</b><br/>
-<b>Bank Name:</b> <font name='Helvetica'>{safe_str(data['bank']['name'])}</font><br/>
-<b>A/c No.:</b> <font name='Helvetica'>{safe_str(data['bank']['account'])}</font><br/>
-<b>Branch & IFS Code:</b> <font name='Helvetica'>{safe_str(data['bank']['branch_ifsc'])}</font>"""
+<b>Bank Name:</b> <font name='Helvetica'>{safe_str(data.get('bank', {}).get('name', ''))}</font><br/>
+<b>A/c No.:</b> <font name='Helvetica'>{safe_str(data.get('bank', {}).get('account', ''))}</font><br/>
+<b>Branch & IFS Code:</b> <font name='Helvetica'>{safe_str(data.get('bank', {}).get('ifsc', ''))}</font>"""
 
         declaration_paragraph = Paragraph(declaration_text, small_style)
         bank_details_paragraph = Paragraph(bank_details_content, bank_details_style)
         
-        for_company_paragraph = Paragraph(f"<b>for {safe_str(data['company']['name'])}</b>", small_right_align_style)
+        for_company_paragraph = Paragraph(f"<b>for {safe_str(data.get('company', {}).get('name', ''))}</b>", small_right_align_style)
         authorized_signatory_paragraph = Paragraph("<b>Authorized Signatory</b>", small_right_align_style)
 
         table_data = [
