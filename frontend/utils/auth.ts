@@ -1,7 +1,7 @@
 // utils/auth.ts
 export const handleEmailAuth = async (email: string, password: string) => {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/login`, {
+    const res = await fetch("http://localhost:8000/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include", // Required for cookies
@@ -15,7 +15,7 @@ export const handleEmailAuth = async (email: string, password: string) => {
     const error = await res.json();
 
     if (error.detail.includes("Invalid login credentials")) {
-      const signupRes = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/signup`, {
+      const signupRes = await fetch("http://localhost:8000/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -38,7 +38,7 @@ export const handleEmailAuth = async (email: string, password: string) => {
 
 
 export const startGoogleOAuth = () => {
-  window.location.href = `https://uphbohvnxayrtkxxdizk.supabase.co/auth/v1/authorize?provider=google&redirect_to=https://vyapari.vercel.app`;
+  window.location.href = `https://uphbohvnxayrtkxxdizk.supabase.co/auth/v1/authorize?provider=google&redirect_to=https://accountant-automation.onrender.com`;
 
 };
 
