@@ -492,6 +492,7 @@ const ChatBot: FC = () => {
 
     fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/voice_bot`, {
       method: "POST",
+      credentials:"include",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${userSession?.access_token}`,
