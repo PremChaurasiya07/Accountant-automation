@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase"
 import { User } from "@supabase/supabase-js"
 import { DashboardContent } from "@/components/dashboard-content"
 import { DashboardLayout } from "@/components/dashboard-layout"
+import { ProtectedRoute } from "@/components/ui/protected-route"
 
 export default function HomePage() {
   const [user, setUser] = useState<User | null>(null)
@@ -57,8 +58,10 @@ export default function HomePage() {
     return <div className="text-center mt-10">Signing you in...</div>
   }
   return (
+    <ProtectedRoute>
     <DashboardLayout>
       <DashboardContent />
     </DashboardLayout>
+    </ProtectedRoute>
   )
 }

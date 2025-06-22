@@ -7,9 +7,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { supabase } from "@/lib/supabase" // your initialized client
+import { useRouter } from "next/navigation"
 
 export function Navbar() {
   const { setTheme } = useTheme()
+  const router =useRouter()
 
 const handleLogout = async () => {
   try {
@@ -22,7 +24,7 @@ const handleLogout = async () => {
     })
 
     // Optionally reload or redirect
-    window.location.href = "/login"
+   router.push('/login')
   } catch (err) {
     console.error("Logout failed", err)
   }
