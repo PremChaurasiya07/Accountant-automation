@@ -27,13 +27,13 @@ export default function Dashboard() {
         }
       }
 
-      // // Step 2: Refresh session
-      // const { error: refreshError } = await supabase.auth.refreshSession()
-      // if (refreshError) {
-      //   await supabase.auth.signOut()
-      //   router.push("/login")
-      //   return
-      // }
+      // Step 2: Refresh session
+      const { error: refreshError } = await supabase.auth.refreshSession()
+      if (refreshError) {
+        await supabase.auth.signOut()
+        router.push("/login")
+        return
+      }
 
       // Step 3: Get current user
       const {

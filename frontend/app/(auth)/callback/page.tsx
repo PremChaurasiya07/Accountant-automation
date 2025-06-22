@@ -21,7 +21,7 @@ export default function AuthCallback() {
       supabase.auth.setSession({ access_token, refresh_token })
         .then(() => {
           window.history.replaceState({}, document.title, "/"); // clean up URL
-          router.push("/dashboard"); // or wherever you want to go
+          router.push("/"); // or wherever you want to go
         });
     } else {
       console.error("Missing tokens in callback URL");
