@@ -16,7 +16,7 @@ const handleLogout = async () => {
     await supabase.auth.signOut()
 
     // Also clear FastAPI session
-    await fetch("http://localhost:8000/auth/logout", {
+    await fetch("https://accountant-automation.onrender.com/auth/logout", {
       method: "POST",
       credentials: "include",
     })
