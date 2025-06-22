@@ -1,7 +1,7 @@
 // utils/auth.ts
 export const handleEmailAuth = async (email: string, password: string) => {
   try {
-    const res = await fetch("/auth/login", {
+    const res = await fetch("/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include", // Required for cookies
@@ -15,7 +15,7 @@ export const handleEmailAuth = async (email: string, password: string) => {
     const error = await res.json();
 
     if (error.detail.includes("Invalid login credentials")) {
-      const signupRes = await fetch("/auth/signup", {
+      const signupRes = await fetch("/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -38,7 +38,7 @@ export const handleEmailAuth = async (email: string, password: string) => {
 
 
 export const startGoogleOAuth = () => {
-  window.location.href = `https://uphbohvnxayrtkxxdizk.supabase.co/auth/v1/authorize?provider=google&redirect_to=https://vyapari.vercel.app/auth/callback`;
+  window.location.href = `https://uphbohvnxayrtkxxdizk.supabase.co/auth/v1/authorize?provider=google&redirect_to=https://vyapari.vercel.app/callback`;
 
 };
 
