@@ -293,7 +293,7 @@ async def edit_invoice(request: Request):
         for item in parsed.get("items", []):
             new_items.append({
                 "product_id": invoice_id,
-                "item_name": f"{item['name']}",
+                "item_name": item['name'],
                 "hsn_code": item["hsn"],
                 "gst_rate": item["gst_rate"],
                 "item_rate": item["amount"],
