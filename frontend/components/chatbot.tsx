@@ -504,7 +504,7 @@ const ChatBot: FC = () => {
         const isLink = typeof data === "string" && data.includes("http");
         const botMessage = {
           id: Date.now() + 1,
-          text: typeof data === "string" ? data : JSON.stringify(data),
+          text: typeof data === "string" ? data : JSON.stringify(data.url),
           isBot: true,
         };
         setMessages((prev) => [...prev, botMessage]);
