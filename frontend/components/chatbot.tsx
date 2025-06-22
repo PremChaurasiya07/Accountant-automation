@@ -490,7 +490,7 @@ const ChatBot: FC = () => {
 
     const updatedtext = text.concat(` invoice no: ${invoice_no}, seller data is ${JSON.stringify(sellerdata)}`);
 
-    fetch("http://localhost:8000/voice_bot", {
+    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/voice_bot`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

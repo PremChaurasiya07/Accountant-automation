@@ -17,12 +17,6 @@ const handleLogout = async () => {
   try {
     await supabase.auth.signOut()
 
-    // Also clear FastAPI session
-    await fetch("https://accountant-automation.onrender.com/auth/logout", {
-      method: "POST",
-      credentials: "include",
-    })
-
     // Optionally reload or redirect
    router.push('/login')
   } catch (err) {
