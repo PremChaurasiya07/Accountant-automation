@@ -23,8 +23,8 @@ export default function AuthCallback() {
           console.error("Error setting session", error)
           router.push("/login")
         } else {
-          window.history.replaceState({}, document.title, "/dashboard") // clean up
-          router.replace("/dashboard")
+          window.history.replaceState({}, document.title, "/") // clean up
+          router.replace("/")
         }
       })
     } else {
