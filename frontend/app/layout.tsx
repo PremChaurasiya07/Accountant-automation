@@ -10,6 +10,7 @@ import ChatBot from "@/components/chatbot"
 import { UserProvider } from "@/hooks/context/UserContext"
 import { LoadingProvider } from "@/hooks/context/loading-context"
 import { usePathname } from "next/navigation" // 🟡 Import this
+import { Analytics } from "@vercel/analytics/next"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -33,6 +34,7 @@ export default function RootLayout({
           <UserProvider>
             <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
               {children}
+              <Analytics />
               <Toaster />
               {showChatBot && <ChatBot />} {/* ✅ Conditionally render */}
             </ThemeProvider>
