@@ -65,7 +65,7 @@ export default function AddProduct() {
     if (form.image) formData.append("image", form.image)
 
     try {
-      const res = await fetch("http://localhost:8000/api/add-product", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/add-product`, {
         method: "POST",
         body: formData,
       })
