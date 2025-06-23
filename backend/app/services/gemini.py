@@ -24,7 +24,15 @@ Important:
 - This JSON will be parsed directly. Any non-JSON output will cause failure.
 
 Give only valid JSON output matching the structure below. Do not explain. Do not include the phrase "here is the JSON". Do not include markdown. This is an example format only; values are placeholders:
-If the `template_id` is "temp3", then respond ONLY in this format. Do not use any other format.
+
+Additional instructions:
+- For each item, calculate amount = quantity × rate (round to 2 decimals).
+- For each item, calculate gst_amount = (amount × gst_rate / 100) (round to 2 decimals).
+- Then calculate subtotal = sum of all item amounts.
+- Then calculate total_gst = sum of all gst_amount.
+- Then calculate total = subtotal + total_gst (rounded to nearest integer).
+- Then convert total into `amount_in_words` field (e.g., "INR Twenty Seven Thousand Six Hundred Ninety One Only").
+
 If the `invoice.date` field is not provided by the user, use the `{today_date}` value as the default.
 {
 "intent":(create/edit/delete/query any one),
