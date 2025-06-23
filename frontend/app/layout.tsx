@@ -9,23 +9,19 @@ import { Toaster } from "@/components/ui/toaster"
 import ChatBot from "@/components/chatbot"
 import { UserProvider } from "@/hooks/context/UserContext"
 import { LoadingProvider } from "@/hooks/context/loading-context"
-import { usePathname } from "next/navigation" // 🟡 Import this
+import { usePathname } from "next/navigation"
 import { Analytics } from "@vercel/analytics/next"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "Vyapari",
-  description: "Bussiness tool at your hand",
+  description: "Business tool at your hand",
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const pathname = usePathname(); // 🟡 Get current path
-  const showChatBot = pathname !== "/login"; // 🔒 Restrict for login
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+  const showChatBot = pathname !== "/login" // ⛔ Hide ChatBot on login
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -36,7 +32,7 @@ export default function RootLayout({
               {children}
               <Analytics />
               <Toaster />
-              {showChatBot && <ChatBot />} {/* ✅ Conditionally render */}
+              {showChatBot && <ChatBot />}
             </ThemeProvider>
           </UserProvider>
         </LoadingProvider>
