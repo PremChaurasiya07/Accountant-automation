@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { handleEmailAuth, startGoogleOAuth } from "../../../utils/auth"; // Make sure this path is correct
-
+import googleicon from '../../../public/google-icon.svg'
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -64,7 +64,7 @@ export default function LoginPage() {
         className="w-full py-2 px-4 rounded border flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800"
       >
         <img
-          src="/google-icon.svg"
+          src={googleicon}
           alt="Google logo"
           className="w-5 h-5 mr-2"
         />
