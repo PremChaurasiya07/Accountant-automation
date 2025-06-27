@@ -1,14 +1,20 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { handleEmailAuth, startGoogleOAuth } from "../../../utils/auth"; // Make sure this path is correct
-import googleicon from '../../../public/google-icon.svg'
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    // Animate form fade-in
+    setShowForm(true);
+  }, []);
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -23,57 +29,64 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleLogin = async() => {
-    startGoogleOAuth(); // Triggers OAuth redirect
-    
+  const handleGoogleLogin = async () => {
+    startGoogleOAuth();
   };
 
   return (
-    <div className="max-w-md mx-auto mt-20 p-6 border rounded-lg shadow bg-white dark:bg-gray-900">
-      <h1 className="text-2xl font-bold mb-4 text-center">Welcome 👋</h1>
-
-      <input
-        type="email"
-        className="w-full mb-3 px-4 py-2 border rounded bg-gray-100 dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
-        placeholder="Email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-      />
-      <input
-        type="password"
-        className="w-full mb-4 px-4 py-2 border rounded bg-gray-100 dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
-        placeholder="Password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        required
-      />
-
-      <button
-        onClick={handleSubmit}
-        disabled={loading}
-        className="w-full mb-3 py-2 px-4 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-50"
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <div
+        className={`max-w-md w-full p-8 border rounded-xl shadow-xl bg-white dark:bg-gray-900 transform transition-all duration-700 ${
+          showForm ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"
+        }`}
       >
-        {loading ? "Loading..." : "Continue with Email"}
-      </button>
+        <h1 className="text-3xl font-bold mb-6 text-center text-gray-800 dark:text-white">
+          Welcome 👋
+        </h1>
 
-      <div className="text-center my-4 text-gray-500">or</div>
-
-      <button
-        onClick={handleGoogleLogin}
-        className="w-full py-2 px-4 rounded border flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-800"
-      >
-        <img
-          src={googleicon}
-          alt="Google logo"
-          className="w-5 h-5 mr-2"
+        <input
+          type="email"
+          className="w-full mb-4 px-4 py-3 border rounded-lg bg-gray-50 dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
         />
-        Continue with Google
-      </button>
+        <input
+          type="password"
+          className="w-full mb-6 px-4 py-3 border rounded-lg bg-gray-50 dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
 
-      {typeof error === "string" && error && (
-        <p className="text-red-500 mt-4 text-center">{error}</p>
-      )}
+        <button
+          onClick={handleSubmit}
+          disabled={loading}
+          className="w-full mb-4 py-3 px-4 rounded-lg bg-blue-600 text-white font-semibold hover:scale-[1.03] hover:bg-blue-700 active:scale-95 disabled:opacity-50 transition-all"
+        >
+          {loading ? "Loading..." : "Continue with Email"}
+        </button>
+
+        <div className="text-center my-4 text-gray-500 dark:text-gray-400">or</div>
+
+        <button
+          onClick={handleGoogleLogin}
+          className="w-full py-3 px-4 rounded-lg border flex items-center justify-center gap-2 hover:scale-[1.03] hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
+        >
+          <img
+            src="/google-icon.svg"
+            alt="Google logo"
+            className="w-5 h-5"
+          />
+          <span className="font-medium">Continue with Google</span>
+        </button>
+
+        {error && (
+          <p className="text-red-500 mt-4 text-center">{error}</p>
+        )}
+      </div>
     </div>
   );
 }

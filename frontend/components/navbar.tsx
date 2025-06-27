@@ -1,39 +1,75 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { supabase } from "@/lib/supabase" // your initialized client
+import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 
 export function Navbar() {
   const { setTheme } = useTheme()
-  const router =useRouter()
+  const router = useRouter()
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
 
-const handleLogout = async () => {
-  try {
-    await supabase.auth.signOut()
+  // Fetch logo URL on mount
+  useEffect(() => {
+    const fetchLogo = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
 
-    // Optionally reload or redirect
-   router.push('/login')
-  } catch (err) {
-    console.error("Logout failed", err)
+        if (user) {
+          const { data, error } = await supabase
+            .from("sellers_record")
+            .select("logo")
+            .eq("user_id", user.id) // Adjust if your user ID field is named differently
+            .single()
+          
+          if (error) {
+            console.error("Error fetching logo:", error)
+          } else if (data?.logo) {
+            // If you stored a public URL directly
+            setLogoUrl(data.logo)
+
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching user:", err)
+      }
+    }
+
+    fetchLogo()
+  }, [])
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut()
+      router.push("/login")
+    } catch (err) {
+      console.error("Logout failed", err)
+    }
   }
-}
-
 
   return (
     <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-14 items-center px-4 lg:px-6">
         <div className="flex items-center gap-2">
           <SidebarTrigger />
-          <div className="font-semibold">ModernDash</div>
+          <div className="font-semibold">Vyapari</div>
         </div>
 
         <div className="ml-auto flex items-center space-x-4">
+          {/* Theme Switch */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">
@@ -43,24 +79,39 @@ const handleLogout = async () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setTheme("light")}>Light</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("dark")}>Dark</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme("system")}>System</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("light")}>
+                Light
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("dark")}>
+                Dark
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("system")}>
+                System
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {/* Profile Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="/placeholder.svg?height=32&width=32" alt="User" />
-                  <AvatarFallback>JD</AvatarFallback>
+                  {logoUrl ? (
+                    <AvatarImage src={logoUrl} alt="User logo" />
+                  ) : (
+                    <AvatarImage
+                      src={`https://source.boringavatars.com/marble/32?colors=264653,2a9d8f,e9c46a,f4a261,e76f51`}
+                      alt="Default avatar"
+                    />
+                  )}
+                  <AvatarFallback>U</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
-              <DropdownMenuItem>Profile</DropdownMenuItem>
-              <DropdownMenuItem>Settings</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push("/profile")}>
+                Profile
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

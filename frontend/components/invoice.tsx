@@ -55,6 +55,9 @@ interface Seller {
     sign?: string;
     stamp?: string;
     pan_no?: string;
+    bank_name?: string;
+    account_no?: string;
+    ifsc_code?: string;
 }
 
 interface Client {
@@ -619,6 +622,9 @@ function numberToWords(num: number): string {
             seller_sign: seller.sign,
             seller_stamp: seller.stamp,
             seller_contact: seller.contact,
+            seller_Bank_name: seller.bank_name,
+            seller_Account_no: seller.account_no,
+            seller_IFSC_code: seller.ifsc_code,
         };
 
         console.log("Invoice data to send:", dataToSend);
@@ -797,10 +803,9 @@ function numberToWords(num: number): string {
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             {/* These should ideally come from the seller state, not hardcoded */}
-            <p><span className="font-semibold">Bank Name:</span> HDFC BANK</p>
-            <p><span className="font-semibold">Bank A/C No.:</span> 5000075489740</p>
-            <p><span className="font-semibold">IFSC Code:</span> HDFC0008178</p>
-            <p><span className="font-semibold">Branch:</span> Vasai E, Sativali</p>
+             <p>Bank Name : {seller?.bank_name}</p>
+              <p>Bank A/C No: {seller?.account_no}</p>
+              <p>IFSC Code: {seller?.ifsc_code}</p>
           </CardContent>
         </Card>
       </div>

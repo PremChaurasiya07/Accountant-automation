@@ -22,19 +22,23 @@ async def save_seller_details(
     contact: str = Form(""),
     email: str = Form(""),
 
+    bank_name: str = Form(""),
+    account_no: str = Form(""),
+    ifsc_code: str = Form(""),
+
     logo: UploadFile = File(None),
     signature: UploadFile = File(None),
     stamp: UploadFile = File(None),
 ):
     user = await get_current_user(request)
-    user_id = user.id  # Or `user.id` depending on Supabase response structure
+    user_id = user.id
 
-    # Upload files
-    logo_url =await upload_file(logo, "logos", user_id=user_id) if logo else None
-    signature_url =await upload_file(signature, "signatures", user_id=user_id) if signature else None
-    stamp_url =await upload_file(stamp, "stamps", user_id=user_id) if stamp else None
+    # Upload files (if provided)
+    logo_url = await upload_file(logo, "logos", user_id=user_id) if logo else None
+    signature_url = await upload_file(signature, "signatures", user_id=user_id) if signature else None
+    stamp_url = await upload_file(stamp, "stamps", user_id=user_id) if stamp else None
 
-    # Insert into DB
+    # Prepare data to insert
     data = {
         "user_id": user_id,
         "name": company_name,
@@ -42,17 +46,83 @@ async def save_seller_details(
         "gst_no": gstin,
         "contact": contact,
         "email": email,
-        "logo": logo_url,
-        "sign": signature_url,
-        "stamp": stamp_url,
+        "bank_name": bank_name,
+        "account_no": account_no,
+        "ifsc_code": ifsc_code,
+        "logo": logo_url["url"] if logo_url else None,
+        "sign": signature_url["url"] if signature_url else None,
+        "stamp": stamp_url["url"] if stamp_url else None,
     }
 
+    # Insert into DB
     res = supabase.table("sellers_record").insert(data).execute()
+
     return {"status": "success", "data": res.data}
 
 
 
+@router.post("/seller/update")
+async def update_seller_details(
+    request: Request,
+    company_name: str = Form(...),
+    address: str = Form(""),
+    gstin: str = Form(""),
+    contact: str = Form(""),
+    email: str = Form(""),
 
+    bank_name: str = Form(""),
+    account_no: str = Form(""),
+    ifsc_code: str = Form(""),
+
+    logo: UploadFile = File(None),
+    signature: UploadFile = File(None),
+    stamp: UploadFile = File(None),
+):
+    user = await get_current_user(request)
+    user_id = user.id
+
+    # Upload new files if provided
+    logo_url = await upload_file(logo, "logos", user_id=user_id) if logo else None
+    signature_url = await upload_file(signature, "signatures", user_id=user_id) if signature else None
+    stamp_url = await upload_file(stamp, "stamps", user_id=user_id) if stamp else None
+
+    # Prepare update fields
+    update_data = {
+        "name": company_name,
+        "address": address,
+        "gst_no": gstin,
+        "contact": contact,
+        "email": email,
+        "bank_name": bank_name,
+        "account_no": account_no,
+        "ifsc_code": ifsc_code,
+    }
+
+    # Add only updated files
+    if logo_url: update_data["logo"] = logo_url
+    if signature_url: update_data["sign"] = signature_url
+    if stamp_url: update_data["stamp"] = stamp_url
+
+    # Run update
+    res = supabase.table("sellers_record").update(update_data).eq("user_id", user_id).execute()
+
+    return {"status": "updated", "data": res.data}
+
+@router.delete("/delete-user")
+async def delete_user_and_data(request: Request):
+    user = await get_current_user(request)
+    user_id = user.id
+
+    # 1. Delete from sellers_record
+    supabase.table("sellers_record").delete().eq("user_id", user_id).execute()
+
+    # TODO: Delete from other tables if needed
+    supabase.table("invoices_record").delete().eq("user_id", user_id).execute()
+
+    # 2. Delete user from Supabase Auth
+    supabase.delete_user(user_id)
+
+    return {"status": "deleted", "message": "User and associated data deleted"}
 
 # Pydantic schema
 class ProductItem(BaseModel):
@@ -209,8 +279,9 @@ async def create_invoice(request: Request):
 @router.post("/edit")
 async def edit_invoice(request: Request):
     try:
+        print('a')
         data = await request.json()
-
+        print('b')
         # Parse and validate invoice data
         try:
             redefined_data = parsed_info(data)
@@ -218,6 +289,7 @@ async def edit_invoice(request: Request):
             # parsed = parse_invoice(json.loads(redefined_data))
         except Exception as parse_error:
             raise HTTPException(status_code=400, detail=f"Parsing failed: {str(parse_error)}")
+        print('c')
 
         invoice_no = data.get("invoice_no")
         if not invoice_no:

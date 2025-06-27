@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTrigger } from "@/components
 import { Loader, Plus } from "lucide-react";
 import { supabase } from "../../lib/supabase"; // ensure you have this client setup
 import { DashboardLayout } from "@/components/dashboard-layout";
+import { useUserId } from "@/hooks/context/UserContext";
 
 interface LedgerEntryItem {
   type: "debit" | "credit";
@@ -18,6 +19,7 @@ interface LedgerEntryItem {
 }
 
 const Ledger: React.FC = () => {
+  const {userId}= useUserId()
   const [entries, setEntries] = useState<LedgerEntryItem[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [tagInput, setTagInput] = useState("");
@@ -29,45 +31,59 @@ const Ledger: React.FC = () => {
     tags: []
   });
 
-  useEffect(() => {
-    const fetchInvoiceDebits = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("invoices_record")
-        .select(`
-            id,
-            invoice_no,
-            invoice_date,
-            buyer_id,
-            buyers_record(name),
-            items_record(item_rate, qty, gst_rate)
-        `).order("invoice_date", { ascending: false });
+useEffect(() => {
+  const fetchInvoiceDebits = async () => {
+    if (!userId) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("invoices_record")
+      .select(`
+        id,
+        invoice_no,
+        invoice_date,
+        buyer_id,
+        buyers_record(name),
+        items_record(item_rate, qty, gst_rate)
+      `)
+      .eq("user_id", userId)
+      .order("invoice_date", { ascending: false });
 
-      if (error) {
-        console.error("Error fetching invoice debits:", error);
-        return;
-      }
+    if (error) {
+      console.error("Error fetching invoice debits:", error);
+      setLoading(false);
+      return;
+    }
 
-      const formattedEntries: LedgerEntryItem[] = (data || []).map((invoice: any) => {
-        const totalAmount = (invoice.items_record || []).reduce(
-            (sum: number, item: any) => sum + item.item_rate * item.qty * (1+item.gst_rate),
-            0
-        );
-        setLoading(false)
-        return {
-            type: "debit",
-            amount: totalAmount.toFixed(2),
-            description: `Invoice No: ${invoice.invoice_no} on ${invoice.invoice_date}`,
-            tags: [invoice.buyers_record?.name || "Unknown"]
-        };
-        });
+    const formattedEntries: LedgerEntryItem[] = (data || []).map((invoice: any) => {
+     const totalAmount = (invoice.items_record || []).reduce(
+  (sum: number, item: any) => {
+    const totalWithoutGst = Number(item.item_rate) || 0;
+    const gstFraction = Number(item.gst_rate) / 100 || 0;
+    const itemTotal = totalWithoutGst * (1 + gstFraction);
+    // console.log(`Item:`, item, `Item Total With GST:`, itemTotal);
+    return sum + itemTotal;
+  },
+  0
+);
 
 
-      setEntries(formattedEntries);
-    };
+      return {
+        type: "debit",
+        amount: totalAmount.toFixed(2),
+        description: `Invoice No: ${invoice.invoice_no} on ${invoice.invoice_date}`,
+        tags: [invoice.buyers_record?.name || "Unknown"],
+      };
+    });
 
-    fetchInvoiceDebits();
-  }, []);
+    setEntries(formattedEntries);
+    setLoading(false);
+  };
+
+  fetchInvoiceDebits();
+}, [userId]);
+
+
+
 
   const handleAddEntry = () => {
     if (!newEntry.amount) return;

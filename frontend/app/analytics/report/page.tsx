@@ -60,12 +60,12 @@ export default function Reports() {
         if (!dailyMap[day]) dailyMap[day] = { sales: 0, purchase: 0 }
 
         invoice.items_record.forEach(item => {
-          const total = item.item_rate * item.qty
+          const total = item.item_rate 
           monthlyMap[month].sales += total
-          monthlyMap[month].purchase += total * 0.7
+          monthlyMap[month].purchase +=0 //further purchase handling logic is required
 
           dailyMap[day].sales += total
-          dailyMap[day].purchase += total * 0.7
+          dailyMap[day].purchase +=0
         })
       })
 
@@ -105,7 +105,7 @@ export default function Reports() {
               <CardContent>
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={monthlyData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                    <AreaChart data={monthlyData} margin={{ top: 20, right: 30, left: 30, bottom: 5 }}>
                       <defs>
                         <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
@@ -137,8 +137,8 @@ export default function Reports() {
               </CardHeader>
               <CardContent>
                 <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={dailyData}>
+                  <ResponsiveContainer width="100%" height="100%" >
+                    <LineChart data={dailyData} margin={{left:32}}>
                       <XAxis dataKey="date" tickFormatter={(tick) => dayjs(tick).format("DD MMM")} />
                       <YAxis />
                       <Tooltip formatter={(value: any) => [`₹${value.toLocaleString()}`, '']} labelFormatter={(label) => `Date: ${label}`} />

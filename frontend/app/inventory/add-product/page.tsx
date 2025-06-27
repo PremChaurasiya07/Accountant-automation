@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import {
   Card,
@@ -14,15 +15,19 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
-import { motion } from "framer-motion"
 import Image from "next/image"
 import { useUserId } from "@/hooks/context/UserContext"
+import { motion } from "framer-motion"
+import { supabase } from "@/lib/supabase"
 
-export default function AddProduct() {
+export default function AddOrEditProduct() {
+  const searchParams = useSearchParams()
+  const productId = searchParams.get("id")
   const { userId } = useUserId()
   const { toast } = useToast()
-  const [preview, setPreview] = useState<string | null>(null)
+  const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [preview, setPreview] = useState<string | null>(null)
 
   const [form, setForm] = useState({
     name: "",
@@ -35,6 +40,31 @@ export default function AddProduct() {
     alertStock: "",
     image: null as File | null,
   })
+
+  useEffect(() => {
+    if (!productId || !userId) return
+    const fetchProduct = async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .eq("id", productId)
+        .single()
+      if (error) {
+        toast({ title: "❌ Error fetching", description: error.message, variant: "destructive" })
+      } else {
+        setForm({
+          ...data,
+          gst: data.gst?.toString() ?? "",
+          rate: data.rate?.toString() ?? "",
+          stock: data.stock?.toString() ?? "",
+          alertStock: data.alert_stock?.toString() ?? "",
+          image: null,
+        })
+        if (data.image_url) setPreview(data.image_url)
+      }
+    }
+    fetchProduct()
+  }, [productId, userId])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -53,6 +83,7 @@ export default function AddProduct() {
     setIsSubmitting(true)
 
     const formData = new FormData()
+    if (productId) formData.append("id", productId)
     formData.append("name", form.name)
     formData.append("description", form.description)
     formData.append("hsn", form.hsn)
@@ -63,6 +94,7 @@ export default function AddProduct() {
     formData.append("alertStock", form.alertStock)
     formData.append("user_id", userId || "")
     if (form.image) formData.append("image", form.image)
+    if (productId) formData.append("id", productId)
 
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/add-product`, {
@@ -70,31 +102,16 @@ export default function AddProduct() {
         body: formData,
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.message || "Failed to add product")
+      if (!res.ok) throw new Error(data.message || "Failed to save product")
 
       toast({
-        title: "✅ Product Added",
+        title: productId ? "✅ Product Updated" : "✅ Product Added",
         description: `${data.product.name} saved successfully`,
       })
 
-      setForm({
-        name: "",
-        description: "",
-        hsn: "",
-        gst: "",
-        rate: "",
-        stock: "",
-        unit: "",
-        alertStock: "",
-        image: null,
-      })
-      setPreview(null)
+      // router.push("/inventory")
     } catch (err: any) {
-      toast({
-        title: "❌ Error",
-        description: err.message,
-        variant: "destructive",
-      })
+      toast({ title: "❌ Error", description: err.message, variant: "destructive" })
     } finally {
       setIsSubmitting(false)
     }
@@ -104,8 +121,12 @@ export default function AddProduct() {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Add Product</h1>
-          <p className="text-muted-foreground">Add new products to inventory</p>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {productId ? "Edit Product" : "Add Product"}
+          </h1>
+          <p className="text-muted-foreground">
+            {productId ? "Update product information" : "Add new products to inventory"}
+          </p>
         </div>
 
         <Card
@@ -116,11 +137,13 @@ export default function AddProduct() {
         >
           <CardHeader>
             <CardTitle>🧾 Product Information</CardTitle>
-            <CardDescription>Enter details for the new product</CardDescription>
+            <CardDescription>
+              {productId ? "Edit and update your product details." : "Enter details for the new product."}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} encType="multipart/form-data" className="space-y-4">
-              <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
                   <Label>Product Name *</Label>
                   <Input name="name" value={form.name} onChange={handleChange} required placeholder="e.g., Cotton Shirt" />
@@ -177,7 +200,7 @@ export default function AddProduct() {
                     Saving...
                   </>
                 ) : (
-                  "Add Product"
+                  productId ? "Update Product" : "Add Product"
                 )}
               </Button>
             </form>

@@ -1784,7 +1784,7 @@ def generate_invoice_pdf3(invoice_data, filename="tax_invoice.pdf"):
         bank_details_content = f"""<b>Company's Bank Details</b><br/>
 <b>Bank Name:</b> <font name='Helvetica'>{safe_str(data.get('bank', {}).get('name', ''))}</font><br/>
 <b>A/c No.:</b> <font name='Helvetica'>{safe_str(data.get('bank', {}).get('account', ''))}</font><br/>
-<b>Branch & IFS Code:</b> <font name='Helvetica'>{safe_str(data.get('bank', {}).get('ifsc', ''))}</font>"""
+<b>Branch & IFS Code:</b> <font name='Helvetica'>{safe_str(data.get('bank', {}).get('branch_ifsc', ''))}</font>"""
 
         declaration_paragraph = Paragraph(declaration_text, small_style)
         bank_details_paragraph = Paragraph(bank_details_content, bank_details_style)

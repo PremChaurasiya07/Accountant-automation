@@ -84,15 +84,15 @@ const navigation = [
   //     { name: "Track", href: "/eway-bill/track" },
   //   ],
   // },
-  // {
-  //   name: "Income Tax Filing",
-  //   href: "/income-tax",
-  //   icon: Receipt,
-  //   children: [
-  //     { name: "Upload Docs", href: "/income-tax/upload" },
-  //     { name: "Filing Status", href: "/income-tax/status" },
-  //   ],
-  // },
+  {
+    name: "Income Tax Filing",
+    href: "/income-tax",
+    icon: Receipt,
+    children: [
+      { name: "Download Reports", href: "/ITR/report" },
+      // { name: "Filing Status", href: "/income-tax/status" },
+    ],
+  },
   
 ]
 

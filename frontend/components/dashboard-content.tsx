@@ -23,16 +23,17 @@ const dashboardCards = [
     ],
   },
   {
+    id: "ledger", title: "Ledger", description: "Financial records and transactions", icon: BookOpen,
+    color: "bg-purple-500", href: "/ledger",
+  },
+  {
     id: "inventory", title: "Inventory", description: "Track products and stock", icon: Package, color: "bg-green-500",
     actions: [
       { name: "Add Product", icon: Plus, href: "/inventory/add-product" },
       { name: "View Stock", icon: Eye, href: "/inventory/view-stock" },
     ],
   },
-  {
-    id: "ledger", title: "Ledger", description: "Financial records and transactions", icon: BookOpen,
-    color: "bg-purple-500", href: "/ledger",
-  },
+  
   {
     id: "analytics", title: "Analytics", description: "Business insights and reports", icon: BarChart3, color: "bg-indigo-500",
     actions: [
@@ -40,11 +41,15 @@ const dashboardCards = [
     ],
   },
   {
-    id: "eway-bill", title: "E-Way Bill", description: "Electronic waybill management", icon: Truck, color: "bg-orange-500", comingSoon: true,
+    id: "income-tax", title: "Income Tax Filing", description: "Tax filing and documentation", icon: Receipt, color: "bg-red-500", 
+     actions: [
+      { name: "Download ITR Reports", icon: FileBarChart, href: "/ITR/report" },
+    ],
   },
   {
-    id: "income-tax", title: "Income Tax Filing", description: "Tax filing and documentation", icon: Receipt, color: "bg-red-500", comingSoon: true,
+    id: "eway-bill", title: "E-Way Bill", description: "Electronic waybill management", icon: Truck, color: "bg-orange-500", comingSoon: true,
   },
+  
 ]
 
 export function DashboardContent() {

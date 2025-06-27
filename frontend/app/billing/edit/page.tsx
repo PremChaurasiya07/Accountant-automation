@@ -195,6 +195,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { MoreVertical } from "lucide-react";
 
 import { useEffect, useState } from "react";
@@ -208,23 +209,28 @@ interface Invoice {
   date: string;
   invoiceNumber: string;
   pdf_url?: string;
-  name?: string; // Optional client name for display
+  name?: string;
 }
 
 export default function EditBilling() {
-  const {userId}= useUserId()
+  const { userId } = useUserId();
   const router = useRouter();
   const [invoicedata, setInvoicedata] = useState<Invoice[]>([]);
+  const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
   const [loadingPdfId, setLoadingPdfId] = useState<string | null>(null);
   const [loading, setloading] = useState<boolean>(false);
   const [getinvoice, setinvoice] = useState<boolean>(false);
+  const [filterText, setFilterText] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
-      setinvoice(true)
-      if(!userId) return
-      const { data, error } = await supabase.from("invoices_record").select("*").eq("user_id", userId);
-      console.log("Fetched data:", data);
+      setinvoice(true);
+      if (!userId) return;
+      const { data, error } = await supabase
+        .from("invoices_record")
+        .select("*")
+        .eq("user_id", userId);
+
       if (error) {
         console.error("Error fetching invoices:", error);
       } else {
@@ -233,14 +239,24 @@ export default function EditBilling() {
           date: item.invoice_date,
           invoiceNumber: item.invoice_no,
           pdf_url: item.invoice_url,
-          name: item.sellers_record?.name
+          name: item.sellers_record?.name,
         }));
         setInvoicedata(simplifiedInvoices);
-        setinvoice(false)
+        setFilteredInvoices(simplifiedInvoices);
+        setinvoice(false);
       }
     };
     fetchData();
   }, [userId]);
+
+  useEffect(() => {
+    const filtered = invoicedata.filter(
+      (invoice) =>
+        invoice.invoiceNumber.toLowerCase().includes(filterText.toLowerCase()) ||
+        invoice.date.includes(filterText)
+    );
+    setFilteredInvoices(filtered);
+  }, [filterText, invoicedata]);
 
   const handlePreviewClick = async (invoiceId: string) => {
     setLoadingPdfId(invoiceId);
@@ -264,154 +280,136 @@ export default function EditBilling() {
   };
 
   const handleEditClick = (id: string) => {
-    
     router.push(`edit/${id}`);
-    setloading(true)
+    setloading(true);
   };
 
   const handleDeleteClick = async (id: string, invoice_number: string) => {
-    setloading(true)
-  const confirmed = confirm("Are you sure you want to delete this invoice?");
-  if (!confirmed) return;
+    setloading(true);
+    const confirmed = confirm("Are you sure you want to delete this invoice?");
+    if (!confirmed) return;
 
-  try {
-    // Step 1: Fetch invoice to get buyer_id
-    const { data: invoiceData, error: fetchError } = await supabase
-      .from("invoices_record")
-      .select("buyer_id, invoice_url")
-      .eq("id", id)
-      .single();
-      
+    try {
+      const { data: invoiceData, error: fetchError } = await supabase
+        .from("invoices_record")
+        .select("buyer_id, invoice_url")
+        .eq("id", id)
+        .single();
 
-    if (fetchError || !invoiceData) {
-      alert("Failed to fetch invoice details.");
-      return;
+      if (fetchError || !invoiceData) {
+        alert("Failed to fetch invoice details.");
+        return;
+      }
+
+      const { error: invoiceDeleteError } = await supabase
+        .from("invoices_record")
+        .delete()
+        .eq("id", id);
+
+      if (invoiceDeleteError) {
+        alert("Failed to delete invoice record.");
+        return;
+      }
+
+      const safeInvoiceNo = invoice_number.replaceAll(/\W+/g, "-");
+      const { error: storageError } = await supabase.storage
+        .from("invoices")
+        .remove([`${userId}/${safeInvoiceNo}.pdf`]);
+
+      if (storageError) {
+        alert("Invoice deleted but failed to remove PDF from storage.");
+      }
+
+      setInvoicedata((prev) => prev.filter((i) => i.id !== id));
+      setloading(false);
+    } catch (err) {
+      console.error(err);
+      alert("An unexpected error occurred during deletion.");
     }
+  };
 
-    const buyerId = invoiceData.buyer_id;
-
-    // // Step 2: Delete buyer record
-    // if (buyerId) {
-    //   const { error: buyerDeleteError } = await supabase
-    //     .from("buyers_record")
-    //     .delete()
-    //     .eq("id", buyerId);
-
-    //   if (buyerDeleteError) {
-    //     alert("Failed to delete buyer record.");
-    //     return;
-    //   }
-    // }
-
-    // Step 3: Delete invoice record
-
-    const { error: invoiceDeleteError } = await supabase
-      .from("invoices_record")
-      .delete()
-      .eq("id", id);
-
-    if (invoiceDeleteError) {
-      alert("Failed to delete invoice record.");
-      return;
-    }
-
-    // Step 4: Delete PDF from Supabase storage
-    const safeInvoiceNo = invoice_number.replaceAll(/\W+/g, "-");
-    const { error: storageError } = await supabase.storage
-      .from("invoices")
-      .remove([`${userId}/${safeInvoiceNo}.pdf`]);
-
-    if (storageError) {
-      alert("Invoice deleted but failed to remove PDF from storage.");
-    }
-
-    // Step 5: Update UI
-    setInvoicedata((prev) => prev.filter((i) => i.id !== id));
-    setloading(false)
-  } catch (err) {
-    console.error(err);
-    alert("An unexpected error occurred during deletion.");
-  }
-};
-
-
-  
-
-  
   return (
     <DashboardLayout>
-
-      {
-        (loading)?<div className="flex justify-center align-middle flex-1 mt-64"><SvgLoader/></div>: <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Edit Billing</h1>
-          <p className="text-muted-foreground">
-            Select an invoice to preview, edit, or delete.
-          </p>
+      {loading ? (
+        <div className="flex justify-center align-middle flex-1 mt-64">
+          <SvgLoader />
         </div>
+      ) : (
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Edit Billing</h1>
+            <p className="text-muted-foreground">
+              Select an invoice to preview, edit, or delete.
+            </p>
+          </div>
 
-        <Card>
-          <CardContent className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mt-6">
-            {invoicedata.length === 0 ? (
-              <div className="col-span-full text-center text-muted-foreground py-10">
-                {(getinvoice)?<div className="flex justify-center"><SvgLoader/></div>: "No invoices found."}
-              </div>
-            ) : (
-              invoicedata.map((invoice) => (
-                <Card
-                  key={invoice.id}
-                  className="relative group hover:shadow-lg transition-shadow flex flex-col justify-between"
-                >
-                  {/* Vertical three dots menu */}
-                  <div className="absolute top-0 right-0 z-10">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="rounded-full">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEditClick(invoice.id)}>
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDeleteClick(invoice.id,invoice.invoiceNumber)}>
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+          <div className="flex items-center space-x-4">
+            <Input
+              placeholder="Search by invoice number or date"
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
 
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-lg">Invoice #{invoice.invoiceNumber}</CardTitle>
-                  </CardHeader>
+          <Card>
+            <CardContent className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mt-6">
+              {filteredInvoices.length === 0 ? (
+                <div className="col-span-full text-center text-muted-foreground py-10">
+                  {getinvoice ? <div className="flex justify-center"><SvgLoader /></div> : "No invoices found."}
+                </div>
+              ) : (
+                filteredInvoices.map((invoice) => (
+                  <Card
+                    key={invoice.id}
+                    className="relative group hover:shadow-lg transition-shadow flex flex-col justify-between"
+                  >
+                    <div className="absolute top-0 right-0 z-10">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="rounded-full">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEditClick(invoice.id)}>
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDeleteClick(invoice.id, invoice.invoiceNumber)}>
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
 
-                  <CardContent>
-                    {/* <p className="text-sm text-muted-foreground">To: {invoice.name}</p> */}
-                    <p className="text-sm text-muted-foreground">Date: {invoice.date}</p>
-                    
-                  </CardContent>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg">Invoice #{invoice.invoiceNumber}</CardTitle>
+                    </CardHeader>
 
-                  <div className="p-4 pt-0 mt-auto flex justify-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handlePreviewClick(invoice.id);
-                      }}
-                      disabled={loadingPdfId === invoice.id}
-                    >
-                      {loadingPdfId === invoice.id ? "Loading..." : "Preview"}
-                    </Button>
-                  </div>
-                </Card>
-              ))
-            )}
-          </CardContent>
-        </Card>
-      </div>
-      }
-      
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground">Date: {invoice.date}</p>
+                    </CardContent>
+
+                    <div className="p-4 pt-0 mt-auto flex justify-center">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePreviewClick(invoice.id);
+                        }}
+                        disabled={loadingPdfId === invoice.id}
+                      >
+                        {loadingPdfId === invoice.id ? "Loading..." : "Preview"}
+                      </Button>
+                    </div>
+                  </Card>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

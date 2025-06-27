@@ -1,15 +1,15 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { useUserId } from '@/hooks/context/UserContext'
-import { supabase } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
-import { useToast } from '@/components/ui/use-toast' // 👈 import from shadcn
+import { useEffect, useState } from "react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useUserId } from "@/hooks/context/UserContext"
+import { supabase } from "@/lib/supabase"
+import { useRouter } from "next/navigation"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function CompanyInfoForm() {
   const { userId } = useUserId()
@@ -17,22 +17,74 @@ export default function CompanyInfoForm() {
   const { toast } = useToast()
 
   const [loading, setLoading] = useState(false)
+  const [isUpdate, setIsUpdate] = useState(false)
+
   const [formData, setFormData] = useState({
-    companyName: '',
-    address: '',
-    gstin: '',
-    contact: '',
-    email: '',
+    companyName: "",
+    address: "",
+    gstin: "",
+    contact: "",
+    email: "",
     logo: null as File | null,
     signature: null as File | null,
     stamp: null as File | null,
+    bankName: "",
+    accountNo: "",
+    ifscCode: "",
   })
 
   const [previews, setPreviews] = useState({
-    logo: '',
-    signature: '',
-    stamp: '',
+    logo: "",
+    signature: "",
+    stamp: "",
   })
+
+  useEffect(() => {
+    if (!userId) return
+
+    const fetchSellerData = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("sellers_record")
+          .select("*")
+          .eq("user_id", userId)
+          .single()
+
+        if (error || !data) return
+
+        setIsUpdate(true)
+        setFormData(prev => ({
+          ...prev,
+          companyName: data.name || "",
+          address: data.address || "",
+          gstin: data.gst_no || "",
+          contact: data.contact || "",
+          email: data.email || "",
+          bankName: data.bank_name || "",
+          accountNo: data.account_no || "",
+          ifscCode: data.ifsc_code || "",
+        }))
+
+        const parseAndSetPreview = (field: "logo" | "signature" | "stamp", value: string) => {
+          try {
+            const parsed = JSON.parse(value)
+            if (parsed?.url) {
+              setPreviews(prev => ({ ...prev, [field]: parsed.url }))
+            }
+          } catch {}
+        }
+
+        if (data.logo) parseAndSetPreview("logo", data.logo)
+        if (data.signature) parseAndSetPreview("signature", data.signature)
+        if (data.stamp) parseAndSetPreview("stamp", data.stamp)
+
+      } catch (err) {
+        console.error("Failed to fetch seller info:", err)
+      }
+    }
+
+    fetchSellerData()
+  }, [userId])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -69,30 +121,34 @@ export default function CompanyInfoForm() {
     form.append("gstin", formData.gstin)
     form.append("contact", formData.contact)
     form.append("email", formData.email)
+    form.append("bank_name", formData.bankName)
+    form.append("account_no", formData.accountNo)
+    form.append("ifsc_code", formData.ifscCode)
     if (formData.logo) form.append("logo", formData.logo)
     if (formData.signature) form.append("signature", formData.signature)
     if (formData.stamp) form.append("stamp", formData.stamp)
 
     try {
       const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
 
-      const res = await fetch("http://localhost:8000/invoice/seller", {
+      const res = await fetch(`http://localhost:8000/invoice/seller${isUpdate ? "/update" : ""}`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${session?.access_token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: form,
       })
 
-      const data = await res.json()
+      const result = await res.json()
 
       if (res.ok) {
-        toast({ title: "Saved", description: "Company info saved successfully" })
+        toast({ title: "Success", description: isUpdate ? "Updated successfully" : "Saved successfully" })
         router.push("/billing/create")
       } else {
         toast({
-          title: "Failed to save company info",
-          description: data.detail || "Please try again later.",
+          title: "Failed",
+          description: result.detail || "Try again later.",
           variant: "destructive"
         })
       }
@@ -141,7 +197,7 @@ export default function CompanyInfoForm() {
               />
             </div>
 
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="gstin">GSTIN</Label>
                 <Input
@@ -162,9 +218,7 @@ export default function CompanyInfoForm() {
                   placeholder="e.g., 7806164180"
                 />
               </div>
-            </div>
-
-            <div className="space-y-2">
+              <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
@@ -175,9 +229,12 @@ export default function CompanyInfoForm() {
                 placeholder="e.g., company@email.com"
               />
             </div>
+            </div>
+
+            
 
             <div className="grid md:grid-cols-3 gap-4">
-              {['logo', 'signature', 'stamp'].map(type => (
+              {["logo", "signature", "stamp"].map(type => (
                 <div className="space-y-2" key={type}>
                   <Label htmlFor={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</Label>
                   <Input
@@ -198,8 +255,41 @@ export default function CompanyInfoForm() {
               ))}
             </div>
 
+            <div className="grid md:grid-cols-3 gap-4">
+              <div className="space-y-2 ">
+              <Label htmlFor="bankName">Bank Name</Label>
+              <Input
+                id="bankName"
+                name="bankName"
+                value={formData.bankName}
+                onChange={handleChange}
+                placeholder="e.g., HDFC Bank"
+              />
+              </div>
+              <div className="space-y-2 ">
+              <Label htmlFor="accountNo">A/c Number</Label>
+              <Input
+                id="accountNo"
+                name="accountNo"
+                value={formData.accountNo}
+                onChange={handleChange}
+                placeholder="e.g., 1234567890"
+              />
+              </div>
+              <div className="space-y-2 ">
+              <Label htmlFor="ifscCode">Branch & IFSC Code</Label>
+              <Input
+                id="ifscCode"
+                name="ifscCode"
+                value={formData.ifscCode}
+                onChange={handleChange}
+                placeholder="e.g., HDFC0001234"
+              />
+              </div>
+            </div>
+
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Saving..." : "Save Company Info"}
+              {loading ? (isUpdate ? "Updating..." : "Saving...") : (isUpdate ? "Update Info" : "Save Info")}
             </Button>
           </form>
         </CardContent>
