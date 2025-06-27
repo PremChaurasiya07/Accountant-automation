@@ -132,7 +132,7 @@ export default function CompanyInfoForm() {
       const { data: { session } } = await supabase.auth.getSession()
       const token = session?.access_token
 
-      const res = await fetch(`http://localhost:8000/invoice/seller${isUpdate ? "/update" : ""}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/invoice/seller${isUpdate ? "/update" : ""}`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

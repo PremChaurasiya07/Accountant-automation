@@ -356,6 +356,11 @@ const ChatBot: FC = () => {
       text: "Hi! I'm your CA Assistant. How can I help you today?",
       isBot: true,
     },
+    {
+      id: 2,
+      text: "Please specify buyer name, address, product name, qauntity, rate/pcs, which is mandatory for better results.",
+      isBot: true,
+    },
   ]);
 
   const [isListening, setIsListening] = useState(false);
