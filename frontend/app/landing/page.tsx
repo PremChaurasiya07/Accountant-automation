@@ -54,7 +54,7 @@ export default function LandingPage() {
             Create invoices, manage inventory, and file GST — all by voice.
           </p>
           <Button
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/login')}
             className="mt-8 text-lg px-6 py-4 bg-white text-blue-700 font-semibold hover:bg-gray-100"
           >
             🚀 Get Started Free
@@ -190,7 +190,7 @@ export default function LandingPage() {
             Start using Vyapari today — it’s free and powerful.
           </p>
           <Button
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/login')}
             className="mt-8 text-lg px-6 py-4 bg-white text-blue-700 font-semibold hover:bg-gray-100"
           >
             Try Now for Free

@@ -12,7 +12,7 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     const checkUser = async () => {
       const { data, error } = await supabase.auth.getUser()
       if (!data.user) {
-        router.replace("/login")
+        router.replace("/landing")
       }
       setLoading(false)
     }

@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabase"
 import { useUserId } from "@/hooks/context/UserContext"
 import { useToast } from "@/components/ui/use-toast"
 import DeleteConfirmationModal from "@/components/DeleteConfirmationModal"
+import { Loader2 } from "lucide-react"
 
 interface SellerData {
   name: string
@@ -175,7 +176,7 @@ export default function SellerProfile() {
                 <div className="flex justify-between items-center pt-6">
                   <Button onClick={handleEdit}>Edit Profile</Button>
                   <Button variant="destructive" onClick={() => setShowDeleteModal(true)}>
-                    Delete Account
+                    {deleting?<Loader2/>:"Delete Account"}
                   </Button>
                 </div>
               </>

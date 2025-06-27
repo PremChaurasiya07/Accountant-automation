@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import RootClient from './root-client';
+import { ProtectedRoute } from "@/components/ui/protected-route";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -31,7 +32,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-title" content="Vyapari" />
       </head>
       <body className={inter.className}>
-        <RootClient>{children}</RootClient>
+       
+          <RootClient>{children}</RootClient>
+        
       </body>
     </html>
   );

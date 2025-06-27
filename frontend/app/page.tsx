@@ -28,7 +28,7 @@ export default function HomePage() {
 
         if (error) {
           console.error("❌ Error setting session:", error.message)
-          router.push("/landing")
+          router.push("/login")
           return
         }
 
@@ -42,7 +42,7 @@ export default function HomePage() {
 
       if (error || !user) {
         console.error("❌ User not found or error:", error?.message)
-        router.push("/landing")
+        router.push("/login")
       } else {
         console.log("✅ Logged in as:", user.email)
         setUser(user)
