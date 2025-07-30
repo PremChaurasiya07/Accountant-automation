@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import {
   FileText, Package, BookOpen, Truck, Receipt, BarChart3,
   Plus, Edit, Eye, FileBarChart,
+  Group,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -24,7 +25,11 @@ const dashboardCards = [
   },
   {
     id: "ledger", title: "Ledger", description: "Financial records and transactions", icon: BookOpen,
-    color: "bg-purple-500", href: "/ledger",
+    color: "bg-purple-500", 
+    actions: [
+      { name: "General", icon: Group, href: "/ledger" },
+      { name: "Buyer", icon: Group, href: "/ledger/buyer" },
+    ],
   },
   {
     id: "inventory", title: "Inventory", description: "Track products and stock", icon: Package, color: "bg-green-500",

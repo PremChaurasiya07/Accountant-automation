@@ -7,7 +7,7 @@ from datetime import date
 load_dotenv()
 
 # Set your API key
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+genai.configure(api_key=os.environ["GEMINI_API_KEY_1"])
 
 
 today = date.today().isoformat()

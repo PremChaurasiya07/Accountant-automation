@@ -52,7 +52,7 @@ const navigation = [
     icon: BookOpen,
     children: [
       { name: "General", href: "/ledger" },
-      // { name: "Sales", href: "/ledger/sales" },
+      { name: "Buyer", href: "/ledger/buyer" },
       // { name: "Purchase", href: "/ledger/purchase" },
     ],
   },

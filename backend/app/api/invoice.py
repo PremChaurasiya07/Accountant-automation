@@ -206,7 +206,7 @@ async def create_invoice(request: Request):
             invoice_no=invoice_no
         )
         storage_url = storage_result["url"]
-        file_path = storage_result["filename"]
+        # file_path = storage_result["filename"]
 
         # Insert buyer
         buyer_data = {
