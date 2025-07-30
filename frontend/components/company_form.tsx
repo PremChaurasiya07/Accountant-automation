@@ -308,7 +308,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useUserId } from "@/hooks/context/UserContext";
-import { ChevronLeft, ChevronRight, CheckCircle, Search, PlusCircle, Trash2, FileInvoice, Building, Landmark, Image as ImageIcon, UploadCloud } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle, Search, PlusCircle, Trash2, Building, Landmark, Image as ImageIcon, UploadCloud } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Image from 'next/image';
 import {
