@@ -17,7 +17,7 @@ export default function RootClient({ children }: { children: React.ReactNode }) 
       <UserProvider>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}
-          <Analytics />
+          {/* <Analytics /> */}
           <Toaster />
           {showChatBot && <ChatBot />}
         </ThemeProvider>
