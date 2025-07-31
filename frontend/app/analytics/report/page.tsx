@@ -157,8 +157,6 @@
 //   )
 // }
 
-
-
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -167,17 +165,18 @@ import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DateRange } from "react-day-picker";
-import { DatePickerWithRange } from "../../../components/ui/date-range-picker"; // Assuming you have this component from shadcn/ui examples
+import { DatePickerWithRange } from "../../../components/ui/date-range-picker";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from "recharts";
-import { BarChart3, TrendingUp, FileText, IndianRupee, Crown, User, Star } from "lucide-react";
+import { TrendingUp, FileText, IndianRupee, Crown, Star } from "lucide-react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import dayjs from "dayjs";
 
 // --- Helper Components ---
 
+// StatCard component for displaying key metrics. It's already responsive by design.
 const StatCard = ({ title, value, icon, description }: { title: string, value: string, icon: React.ReactNode, description: string }) => (
   <Card>
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -191,6 +190,7 @@ const StatCard = ({ title, value, icon, description }: { title: string, value: s
   </Card>
 );
 
+// CustomTooltip for charts, designed to be compact and readable.
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
@@ -327,12 +327,13 @@ export default function Reports() {
     if (loading) {
       return (
         <div className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28" />)}
+          {/* Responsive skeleton loader */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 rounded-lg" />)}
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <Skeleton className="h-96 lg:col-span-2" />
-            <Skeleton className="h-96" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Skeleton className="h-96 rounded-lg lg:col-span-2" />
+            <Skeleton className="h-96 rounded-lg" />
           </div>
         </div>
       );
@@ -340,20 +341,23 @@ export default function Reports() {
     
     return (
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {/* Responsive grid for stats. 1 col on mobile, 2 on sm, 4 on lg */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard title="Total Revenue" value={`₹${analyticsData.totalRevenue.toLocaleString()}`} icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />} description="Total sales in the selected period" />
           <StatCard title="Total Invoices" value={analyticsData.invoiceCount.toLocaleString()} icon={<FileText className="h-4 w-4 text-muted-foreground" />} description="Total invoices generated" />
           <StatCard title="Average Sale" value={`₹${analyticsData.avgSale.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`} icon={<IndianRupee className="h-4 w-4 text-muted-foreground" />} description="Average value per invoice" />
           <StatCard title="Top Customer" value={analyticsData.topCustomers[0]?.[0] || 'N/A'} icon={<Crown className="h-4 w-4 text-muted-foreground" />} description="Customer with highest spending" />
         </div>
 
+        {/* Responsive grid for charts. 1 col on mobile/tablet, 3-col layout on lg */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle>Revenue Overview</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-80">
+              {/* Responsive chart container with adjusted height for mobile */}
+              <div className="h-72 md:h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
                     <defs>
@@ -382,10 +386,10 @@ export default function Reports() {
                 {analyticsData.topProducts.map(([name, data]: [string, any]) => (
                   <div key={name} className="flex justify-between items-center text-sm">
                     <div>
-                      <p className="font-medium">{name}</p>
+                      <p className="font-medium truncate pr-2">{name}</p>
                       <p className="text-xs text-muted-foreground">{data.quantity} units sold</p>
                     </div>
-                    <p className="font-bold">₹{data.sales.toLocaleString()}</p>
+                    <p className="font-bold whitespace-nowrap">₹{data.sales.toLocaleString()}</p>
                   </div>
                 ))}
               </div>
@@ -398,9 +402,12 @@ export default function Reports() {
 
   return (
     <DashboardLayout>
-      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-        <div className="flex items-center justify-between space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Analytics Dashboard</h1>
+      {/* Use responsive padding for different screen sizes */}
+      <div className="flex-1 space-y-4 p-4 sm:p-6 md:p-8 pt-6">
+        {/* Responsive header: stacks on mobile, row on larger screens */}
+        <div className="flex flex-col items-start space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+          {/* Responsive font size for the title */}
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Analytics Dashboard</h1>
           <div className="flex items-center space-x-2">
             <DatePickerWithRange date={date} setDate={setDate} />
           </div>

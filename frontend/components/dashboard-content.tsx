@@ -20,7 +20,7 @@ const dashboardCards = [
     id: "billing", title: "Billing", description: "Manage invoices and billing", icon: FileText, color: "bg-blue-500",
     actions: [
       { name: "Create", icon: Plus, href: "/billing/create" },
-      { name: "Edit / Delete / Preview", icon: Edit, href: "/billing/edit" },
+      { name: "Edit/Delete", icon: Edit, href: "/billing/edit" },
     ],
   },
   {
@@ -51,9 +51,9 @@ const dashboardCards = [
       { name: "Download ITR Reports", icon: FileBarChart, href: "/ITR/report" },
     ],
   },
-  {
-    id: "eway-bill", title: "E-Way Bill", description: "Electronic waybill management", icon: Truck, color: "bg-orange-500", comingSoon: true,
-  },
+  // {
+  //   id: "eway-bill", title: "E-Way Bill", description: "Electronic waybill management", icon: Truck, color: "bg-orange-500", comingSoon: true,
+  // },
   
 ]
 

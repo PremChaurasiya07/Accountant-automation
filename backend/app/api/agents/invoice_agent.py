@@ -140,8 +140,10 @@
 #             response_payload["url"] = tool_result["data"]["url"]
             
 #         return response_payload
+
 import json
 import os
+import re
 from datetime import date
 from typing import Dict, Any
 
@@ -157,32 +159,51 @@ from utils.semantic import get_context_for_query
 # Use a more robust session store like Redis in production
 AGENT_SESSIONS: Dict[str, Any] = {}
 
-# Final, Most Robust Prompt Template
+# --- NEW, MORE FLEXIBLE PROMPT TEMPLATE ---
 agent_prompt_template = PromptTemplate.from_template("""
-You are an expert Vyapari (merchant) assistant AI. Your goal is to help the user manage invoices by following a strict set of instructions.
+You are an expert Vyapari (merchant) assistant AI. Your primary goal is to accurately understand the user's intent and then take the correct action.
 
 **Your Response Options:**
 You have two ways to respond. Choose one based on your goal.
 
 **Option 1: Use a Tool**
-When you need to get information or save data, use a tool. Your response MUST be in this exact format:
+When you need to get information or perform an action, use a tool. Your response MUST be in this exact format:
 Thought: Your reasoning for using the tool.
 Action: The name of the tool to use, which must be one of [{tool_names}].
 Action Input: The input for the tool.
-
 
 **Option 2: Respond to the User**
 When you need to ask the user for more information, or when you have the final answer, respond directly to them. Your response MUST be in this exact format:
 Thought: Your reasoning for responding to the user.
 Final Answer: The message you want to send to the user.
 
-
 ---
-**CRITICAL WORKFLOW FOR CREATING AN INVOICE:**
-1.  **Get Number:** Use the `get_next_invoice_number` tool.
-2.  **Ask for Details:** After you get the number, you MUST ask the user for the buyer and item details. Use **Option 2 (Respond to the User)** for this step.
-3.  **Confirm:** After the user provides details, summarize everything and ask for confirmation. Use **Option 2 (Respond to the User)** for this step.
-4.  **Create:** ONLY after the user confirms, use the `create_new_invoice` tool (**Option 1**). The `Action Input` should be a JSON object containing all the gathered details.
+**PRIMARY DIRECTIVE: HOW TO THINK AND ACT**
+
+Your first and most important job is to understand the user's intent.
+
+1.  **Is the user asking a question?**
+    * If the user asks a question about past invoices, sales, or customers (e.g., "what was my last sale?", "show me the invoice for ABC Corp", "how much did I sell last month?"), you **MUST** use the `query_past_invoices` tool to find the answer for them.
+    * **DO NOT** try to create an invoice if they are asking a question. Answer their question first.
+
+2.  **Does the user want to create a NEW invoice?**
+    * If the user explicitly asks to create a new bill or invoice (e.g., "make a new bill", "create an invoice"), and **ONLY** in this case, you must start the **Invoice Creation Workflow** below.
+
+3.  **Does the user want to edit an invoice?**
+    * If the user wants to edit an existing invoice, use the `load_invoice_for_editing` tool.
+
+4.  **Is the user's request unclear?**
+    * If you are not sure what the user wants, ask clarifying questions using **Option 2**.
+
+**Invoice Creation Workflow:**
+Follow these steps **ONLY** after you have determined the user wants to create a new invoice.
+    * **Step 1: Get Number:** Use the `get_next_invoice_number` tool.
+    * **Step 2: Ask for Details:** After getting the number, ask the user for the buyer and item details.
+    * **Step 3: Confirm:** After the user provides details, summarize everything and ask for confirmation.
+    * **Step 4: Create:** ONLY after the user confirms, use the `create_new_invoice` tool. The `Action Input` MUST be a single, valid JSON object with the following exact "nested" structure. Do not add any text or formatting outside the JSON block.
+      ```json
+      {{"invoice": {{"number": "THE_INVOICE_NUMBER", "date": "{today_date}"}}, "buyer": {{"name": "THE_BUYER_NAME", "address": "THE_BUYER_ADDRESS"}}, "items": [{{"description": "ITEM_DESCRIPTION", "quantity": QUANTITY, "price_per_unit": PRICE}}]}}
+      ```
 ---
 
 **User ID:** {user_id}
@@ -207,27 +228,47 @@ def get_vyapari_agent_executor(user_id: str):
 
     llm = ChatGoogleGenerativeAI(
         model="gemini-1.5-flash",
-        google_api_key=os.getenv("GEMINI_API_KEY_3"),
+        google_api_key=os.getenv("GEMINI_API_KEY_2"),
         temperature=0.0,
         convert_system_message_to_human=True
     )
 
     def _robust_json_loads(json_string: str) -> dict:
-        if isinstance(json_string, dict): return json_string
-        # This handles the LLM sometimes wrapping JSON in markdown backticks
-        cleaned_string = json_string.strip().removeprefix("```json").removesuffix("```")
-        return json.loads(cleaned_string)
+        """
+        Safely parses a JSON string, even if it's embedded in markdown
+        or has other surrounding text and formatting errors.
+        """
+        if isinstance(json_string, dict):
+            return json_string
+
+        # Clean the string by removing markdown and leading/trailing whitespace
+        cleaned_string = json_string.strip().removeprefix("```json").removesuffix("```").strip()
+        
+        # Use regex to find the first complete JSON object. This helps with duplicated outputs.
+        match = re.search(r'\{.*\}', cleaned_string, re.DOTALL)
+        if match:
+            json_part = match.group(0)
+            try:
+                return json.loads(json_part)
+            except json.JSONDecodeError as e:
+                print(f"Error decoding extracted JSON part: {json_part}")
+                # If parsing fails, it might be a malformed object. Raise the error.
+                raise e
+        else:
+            print(f"Could not find a JSON object in the cleaned string: {cleaned_string}")
+            raise json.JSONDecodeError("No JSON object found in string", cleaned_string, 0)
+
 
     tools = [
         Tool(
             name="query_past_invoices",
             func=lambda q: get_context_for_query(user_input=q, user_id=user_id),
-            description="Use to answer questions about past invoices, like 'what was my last sale?'"
+            description="Use to answer questions about past invoices, like 'what was my last sale?' or 'find the bill for John Doe'."
         ),
         Tool(
             name="load_invoice_for_editing",
             func=lambda num: load_invoice_for_edit(invoice_number=num, user_id=user_id),
-            description="Use to load a specific, existing invoice for editing."
+            description="Use to load a specific, existing invoice for editing when the user provides an invoice number to edit."
         ),
         Tool(
             name="create_new_invoice",
@@ -237,20 +278,20 @@ def get_vyapari_agent_executor(user_id: str):
         Tool(
             name="update_existing_invoice",
             func=lambda data_str: update_invoice(invoice_data=_robust_json_loads(data_str), user_id=user_id),
-            description="Use to save changes to an existing invoice."
+            description="Use to save changes to an existing invoice that has already been loaded."
         ),
         Tool(
             name="get_next_invoice_number",
             func=lambda _: get_next_invoice_number(user_id=user_id),
-            description="Use as the first step when creating a new invoice."
+            description="Use this as the very first step ONLY when the user wants to create a brand new invoice."
         )
     ]
 
     memory = ConversationBufferWindowMemory(
-        k=6, 
-        memory_key="chat_history", 
-        input_key="input", 
-        output_key="output", 
+        k=6,
+        memory_key="chat_history",
+        input_key="input",
+        output_key="output",
         return_messages=True
     )
 
@@ -269,7 +310,7 @@ def get_vyapari_agent_executor(user_id: str):
         memory=memory,
         verbose=True,
         handle_parsing_errors="I made a formatting error. I will use one of the two response options defined in the prompt.",
-        max_iterations=10
+        max_iterations=6
     )
     
     AGENT_SESSIONS[user_id] = agent_executor

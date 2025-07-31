@@ -270,23 +270,90 @@ def transform_for_creation(input_data: dict) -> dict:
     return output_data
 
 
+# def embed_and_store_invoice(invoice_id: int, invoice_data: dict):
+#     """
+#     Embeds semantically distinct chunks of invoice data and stores them in Supabase.
+#     """
+#     # ... (this existing function is correct for its purpose) ...
+#     chunks_to_embed = []
+#     invoice_no = invoice_data.get('invoice', {}).get('number', '')
+
+#     # Chunk 1: Header (Contains all top-level invoice details)
+#     invoice_text = (
+#         f"Invoice No: {invoice_no}\n"
+#         f"Date: {invoice_data.get('invoice', {}).get('date', '')}\n"
+#         f"Amount in words: {invoice_data.get('amount_in_words', '')}"
+#     )
+#     chunks_to_embed.append(("invoice", invoice_text))
+
+#     # Chunk 2: Buyer details (Focused only on the buyer)
+#     buyer_text = (
+#         f"Information for the buyer on invoice {invoice_no}:\n"
+#         f"Buyer name: {invoice_data.get('buyer', {}).get('name', '')}\n"
+#         f"Address: {invoice_data.get('buyer', {}).get('address', '')}\n"
+#         f"GSTIN: {invoice_data.get('buyer', {}).get('gstin', '')}"
+#     )
+#     chunks_to_embed.append(("buyer", buyer_text))
+
+#     # Chunk 3: Items (Focused only on the line items)
+#     items_list = [
+#         f"- {i.get('name', '')} ({i.get('quantity', '')} {i.get('unit', '')} @ {i.get('rate', '')})"
+#         for i in invoice_data.get("items", [])
+#     ]
+#     if items_list:
+#         # Correctly construct the string *after* the list is joined
+#         items_text = (
+#             f"Line items for invoice {invoice_no}:\n"
+#             + "\n".join(items_list)
+#         )
+#         chunks_to_embed.append(("items", items_text))
+
+#     print(f"Generating embeddings for {len(chunks_to_embed)} chunks...")
+    
+#     # Prepare data for a single, efficient batch insertion
+#     records_to_insert = []
+#     for chunk_type, content in chunks_to_embed:
+#         response = genai.embed_content(
+#             model="models/text-embedding-004", # Use the recommended newer model
+#             content=content,
+#             task_type="retrieval_document" # Use 'retrieval_document' for storing
+#         )
+#         embedding = response["embedding"]
+
+#         # This dictionary structure maps directly to your SQL table schema
+#         records_to_insert.append({
+#             "invoice_id": invoice_id,
+#             "chunk_type": chunk_type,
+#             "content": content,
+#             "embedding": embedding,
+#             "field_tags": [chunk_type],
+#             "metadata": {"invoice_no": invoice_no} # Supabase client handles dict->jsonb
+#         })
+
+#     # Store all chunks in a single database call for better performance
+#     supabase.table("invoice_embeddings").insert(records_to_insert).execute()
+    
+#     print(f"✅ Successfully stored {len(records_to_insert)} chunks for invoice ID {invoice_id}.")
+
+
+
 def embed_and_store_invoice(invoice_id: int, invoice_data: dict):
     """
-    Embeds semantically distinct chunks of invoice data and stores them in Supabase.
+    Embeds semantically distinct chunks of invoice data, including a full summary,
+    and stores them in Supabase for robust retrieval.
     """
-    # ... (this existing function is correct for its purpose) ...
     chunks_to_embed = []
     invoice_no = invoice_data.get('invoice', {}).get('number', '')
 
-    # Chunk 1: Header (Contains all top-level invoice details)
+    # --- Chunk 1: Header (Unchanged) ---
     invoice_text = (
         f"Invoice No: {invoice_no}\n"
         f"Date: {invoice_data.get('invoice', {}).get('date', '')}\n"
         f"Amount in words: {invoice_data.get('amount_in_words', '')}"
     )
-    chunks_to_embed.append(("invoice", invoice_text))
+    chunks_to_embed.append(("header", invoice_text))
 
-    # Chunk 2: Buyer details (Focused only on the buyer)
+    # --- Chunk 2: Buyer details (Unchanged) ---
     buyer_text = (
         f"Information for the buyer on invoice {invoice_no}:\n"
         f"Buyer name: {invoice_data.get('buyer', {}).get('name', '')}\n"
@@ -295,42 +362,53 @@ def embed_and_store_invoice(invoice_id: int, invoice_data: dict):
     )
     chunks_to_embed.append(("buyer", buyer_text))
 
-    # Chunk 3: Items (Focused only on the line items)
+    # --- Chunk 3: Items (Unchanged) ---
     items_list = [
-        f"- {i.get('name', '')} ({i.get('quantity', '')} {i.get('unit', '')} @ {i.get('rate', '')})"
+        f"- {i.get('name', '')} ({i.get('quantity', '')} {i.get('unit', 'pcs')} @ {i.get('rate', '')})"
         for i in invoice_data.get("items", [])
     ]
     if items_list:
-        # Correctly construct the string *after* the list is joined
         items_text = (
             f"Line items for invoice {invoice_no}:\n"
             + "\n".join(items_list)
         )
         chunks_to_embed.append(("items", items_text))
 
+    # --- NEW: Chunk 4: Full Summary ---
+    # This chunk contains all critical information in one place.
+    # It acts as a fallback to ensure the agent always gets complete context.
+    full_summary_text = (
+        f"Full summary for Invoice No: {invoice_no}.\n"
+        f"Date: {invoice_data.get('invoice', {}).get('date', '')}.\n"
+        f"Buyer: {invoice_data.get('buyer', {}).get('name', '')}, located at {invoice_data.get('buyer', {}).get('address', '')}.\n"
+        f"Items on this invoice are:\n"
+        + "\n".join(items_list)
+    )
+    chunks_to_embed.append(("full_summary", full_summary_text))
+
+
     print(f"Generating embeddings for {len(chunks_to_embed)} chunks...")
     
-    # Prepare data for a single, efficient batch insertion
     records_to_insert = []
     for chunk_type, content in chunks_to_embed:
         response = genai.embed_content(
-            model="models/text-embedding-004", # Use the recommended newer model
+            model="models/text-embedding-004",
             content=content,
-            task_type="retrieval_document" # Use 'retrieval_document' for storing
+            task_type="retrieval_document"
         )
         embedding = response["embedding"]
 
-        # This dictionary structure maps directly to your SQL table schema
         records_to_insert.append({
             "invoice_id": invoice_id,
             "chunk_type": chunk_type,
             "content": content,
             "embedding": embedding,
             "field_tags": [chunk_type],
-            "metadata": {"invoice_no": invoice_no} # Supabase client handles dict->jsonb
+            "metadata": {"invoice_no": invoice_no}
         })
 
-    # Store all chunks in a single database call for better performance
+    # Store all chunks in a single database call
     supabase.table("invoice_embeddings").insert(records_to_insert).execute()
     
     print(f"✅ Successfully stored {len(records_to_insert)} chunks for invoice ID {invoice_id}.")
+
