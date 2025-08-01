@@ -135,7 +135,6 @@
 #     return "No relevant invoice information was found for this query."
 
 
-
 import re
 import logging
 from app.core.supabase import supabase
@@ -143,20 +142,29 @@ from app.services.embedding import get_query_embedding
 
 logging.basicConfig(level=logging.INFO)
 
-def _get_invoice_by_semantic_search(user_input: str, user_id: str, top_k: int = 3) -> list:
-    """Performs a semantic search for general content queries."""
-    logging.info(f"🧠 Performing semantic search for: '{user_input}'")
-    embedding = get_query_embedding(user_input)
-    if not embedding: return []
-
-    query_resp = supabase.rpc("match_invoice_embeddings_user", {
-        "query_embedding": embedding,
-        "user_id": str(user_id),
-        "match_count": top_k
-    }).execute()
+def _get_invoice_by_number(invoice_no_str: str, user_id: str) -> list:
+    """Performs a direct database lookup for a specific invoice number."""
+    logging.info(f"🔢 Performing direct lookup for invoice number containing: '{invoice_no_str}'")
     
-    all_matches = query_resp.data or []
-    return [m for m in all_matches if m.get('similarity', 0) > 0.35]
+    # First, find the specific invoice ID using a LIKE query
+    record_resp = supabase.from_("invoices_record") \
+        .select("id") \
+        .eq("user_id", user_id) \
+        .like("invoice_no", f"%{invoice_no_str}%") \
+        .limit(1) \
+        .execute()
+        
+    if not record_resp.data:
+        return []
+
+    # Now fetch all content chunks for that specific invoice ID
+    invoice_id = record_resp.data[0]["id"]
+    chunks_resp = supabase.from_("invoice_embeddings") \
+        .select("chunk_type, content") \
+        .eq("invoice_id", invoice_id) \
+        .execute()
+        
+    return chunks_resp.data or []
 
 def _get_invoice_by_attribute(user_id: str, sort_by: str = "id", ascending: bool = False) -> list:
     """Fetches a single invoice based on sorting (e.g., the latest)."""
@@ -170,25 +178,44 @@ def _get_invoice_by_attribute(user_id: str, sort_by: str = "id", ascending: bool
     chunks_resp = supabase.from_("invoice_embeddings").select("chunk_type, content").eq("invoice_id", invoice_id).execute()
     return chunks_resp.data or []
 
+def _get_invoice_by_semantic_search(user_input: str, user_id: str, top_k: int = 3) -> list:
+    """Performs a semantic search for general content queries."""
+    logging.info(f"🧠 Performing semantic search for: '{user_input}'")
+    embedding = get_query_embedding(user_input)
+    if not embedding: return []
+
+    query_resp = supabase.rpc("match_invoice_embeddings_user", {
+        "query_embedding": embedding, "user_id": str(user_id), "match_count": top_k
+    }).execute()
+    
+    all_matches = query_resp.data or []
+    return [m for m in all_matches if m.get('similarity', 0) > 0.35]
+
 def get_context_for_query(user_input: str, user_id: str) -> str:
     """
     Analyzes the query and routes it to the correct retrieval strategy.
-    FIX: This now correctly ensures only one search path is executed.
     """
     matches = []
-    normalized_input = user_input.lower()
+    normalized_input = user_input.strip().lower()
 
-    # Strategy 1: Temporal Search (PRIORITY)
-    if any(keyword in normalized_input for keyword in ["last", "latest", "most recent"]):
-        matches = _get_invoice_by_attribute(user_id, ascending=False)
-    elif any(keyword in normalized_input for keyword in ["first", "oldest"]):
-        matches = _get_invoice_by_attribute(user_id, ascending=True)
+    # --- NEW, SMARTER ROUTING LOGIC ---
+    # Strategy 1: Temporal Search (e.g., "last sale")
+    if any(keyword in normalized_input for keyword in ["last", "latest", "most recent", "first", "oldest"]):
+        is_oldest = any(keyword in normalized_input for keyword in ["first", "oldest"])
+        matches = _get_invoice_by_attribute(user_id, ascending=is_oldest)
     
-    # Strategy 2: Semantic Search (FALLBACK)
-    # This block will ONLY run if the temporal search did not find any matches.
+    # Strategy 2: Direct Number Lookup (e.g., "057", "invoice 57")
+    # This regex looks for a sequence of 2 or more digits.
+    if not matches:
+        number_match = re.search(r'\b\d{2,}\b', normalized_input)
+        if number_match:
+            matches = _get_invoice_by_number(number_match.group(0), user_id)
+    
+    # Strategy 3: Semantic Search (Fallback for everything else)
     if not matches:
         matches = _get_invoice_by_semantic_search(user_input, user_id)
 
+    # --- Format the results ---
     if matches:
         logging.info(f"✅ Found {len(matches)} relevant context chunks.")
         context_chunks = [f"Context from invoice chunk (type: {m['chunk_type']}):\n---\n{m['content'].strip()}" for m in matches]
