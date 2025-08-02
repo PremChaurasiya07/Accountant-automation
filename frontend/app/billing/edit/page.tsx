@@ -329,7 +329,7 @@ const InvoiceCard = memo(
 
         <CardHeader className="pb-2">
           <CardTitle className="text-lg tracking-tight">
-            Invoice #{invoice.invoiceNumber}
+             #{invoice.invoiceNumber}
           </CardTitle>
           <CardDescription className="flex items-center pt-1">
              <User className="h-3 w-3 mr-2" /> {invoice.buyerName || 'N/A'}
