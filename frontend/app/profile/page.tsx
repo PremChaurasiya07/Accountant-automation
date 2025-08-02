@@ -235,6 +235,7 @@ import {
 // --- Project Imports ---
 import { supabase } from "@/lib/supabase"
 import { useUserId } from "@/hooks/context/UserContext"
+import { DashboardLayout } from "@/components/dashboard-layout"
 
 // --- Interfaces ---
 interface SellerData {
@@ -402,6 +403,7 @@ export default function SellerProfile() {
   }
 
   return (
+    <DashboardLayout>
     <div className="max-w-4xl mx-auto p-4 md:p-6 lg:p-8 space-y-6">
       {/* --- Profile Header --- */}
       <Card className="overflow-hidden shadow-sm">
@@ -482,6 +484,7 @@ export default function SellerProfile() {
         loading={deleting}
       />
     </div>
+    </DashboardLayout>
   )
 }
 
