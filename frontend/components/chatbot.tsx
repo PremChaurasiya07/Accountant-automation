@@ -747,14 +747,7 @@ const ChatBot: FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const transcriptBuffer = useRef("");
 
-  // --- Initial Data Fetching ---
-  useEffect(() => {
-    if (!userId) {
-      setIsLoading(false);
-      return;
-    }
-
-    const fetchInitialData = async () => {
+   const fetchInitialData = async () => {
       setIsLoading(true);
       try {
         const { data: sellerData, error: sellerError } = await supabase
@@ -790,6 +783,15 @@ const ChatBot: FC = () => {
         setIsLoading(false);
       }
     };
+
+  // --- Initial Data Fetching ---
+  useEffect(() => {
+    if (!userId) {
+      setIsLoading(false);
+      return;
+    }
+
+   
 
     fetchInitialData();
   }, [userId]);
@@ -841,6 +843,7 @@ const ChatBot: FC = () => {
       setMessages((prev) => [...prev, { id: Date.now(), text: "You need to be logged in to chat.", isBot: true }]);
       return;
     }
+    await fetchInitialData()
     if (!sellerdata) {
       setMessages((prev) => [...prev, { id: Date.now(), text: "Please set up your seller profile first.", isBot: true }]);
       return;
