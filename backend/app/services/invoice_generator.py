@@ -1889,3 +1889,218 @@ def generate_invoice_pdf3(invoice_data, filename="tax_invoice.pdf"):
         return None 
     
     return filename
+
+import os
+import datetime
+from num2words import num2words
+from reportlab.pdfgen import canvas
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+# MODIFIED: Import StyleSheet1 to create a fresh stylesheet
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle, StyleSheet1
+from reportlab.lib.enums import TA_RIGHT, TA_LEFT, TA_CENTER
+from reportlab.lib.colors import HexColor, black, gray
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm
+
+def generate_invoice_pdf4(data: dict, file_path: str = None) -> str:
+    """
+    Generates a modern, professional PDF invoice from a dictionary of data.
+
+    This function enhances the visual design with improved typography, spacing,
+    and a clean layout, while remaining compatible with the original data structure.
+    It includes a fix for the 'Style already defined' error in server environments.
+
+    Args:
+        data (dict): A dictionary containing all the necessary invoice information.
+        file_path (str, optional): The full path to save the PDF. 
+                                   If None, a default name is generated.
+
+    Returns:
+        str: The file path to the generated PDF invoice.
+    """
+    # --- 1. Data Extraction (Safe extraction with defaults) ---
+    # This block is compatible with your original data structure.
+    company_name = (data.get("company", {}).get("name") or "Your Company Name").strip()
+    company_address = str(data.get("company", {}).get("address") or "123 Business Rd\nCity, State 560001").strip()
+    company_gstin = (data.get("company", {}).get("gstin") or "YOUR_GSTIN").strip()
+    company_email = (data.get("company", {}).get("email") or "contact@yourcompany.com").strip()
+    company_pan = (data.get("company", {}).get("pan") or "").strip() 
+
+    company_bank_name = (data.get("bank", {}).get("name") or "Your Bank Name").strip()
+    company_account_no = (data.get("bank", {}).get("account") or "1234567890").strip()
+    company_ifsc_code = (data.get("bank", {}).get("branch_ifsc") or "YOURBANK001").strip()
+
+    buyer_name = (data.get("buyer", {}).get("name") or "Customer Name").strip()
+    buyer_address = str(data.get("buyer", {}).get("address") or "456 Client Ave\nClient City, State 110001").strip()
+    buyer_gstin = (data.get("buyer", {}).get("gstin") or "CUSTOMER_GSTIN").strip()
+
+    invoice_no = (data.get('invoice', {}).get('number') or "INV-001").strip()
+    invoice_date_str = (data.get("invoice", {}).get('date') or datetime.date.today().strftime('%d %b, %Y')).strip()
+    
+    # Use .get() with a default of [] for items
+    items = data.get("items", [])
+    if not isinstance(items, list):
+        items = []
+
+    # Calculate totals from items list
+    subtotal = sum(item.get('amount', 0) for item in items)
+    cgst_amount = sum(item.get('gst_amount', 0) for item in items) / 2 # Assuming equal split
+    sgst_amount = sum(item.get('gst_amount', 0) for item in items) / 2
+    
+    amount_in_words = data.get("amount_in_words", "Zero Only")
+    
+    # --- 2. PDF Setup ---
+    if file_path is None:
+        folder = "invoices"
+        os.makedirs(folder, exist_ok=True)
+        safe_now = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        file_path = os.path.join(folder, f"invoice_{company_name.replace(' ', '_')}_{safe_now}.pdf")
+
+    width, height = A4
+    margin = 15 * mm
+    doc = SimpleDocTemplate(file_path, pagesize=A4,
+                            leftMargin=margin, rightMargin=margin,
+                            topMargin=margin, bottomMargin=margin)
+
+    # --- 3. Styles and Colors ---
+    primary_color = HexColor("#003366")
+    secondary_color = HexColor("#F0F0F0")
+    text_color = HexColor("#333333")
+    
+    # CORRECTED: Create a new, independent stylesheet for each run.
+    styles = StyleSheet1()
+    styles.add(ParagraphStyle(name='Normal', fontName='Helvetica', fontSize=9, textColor=text_color, leading=12))
+    styles.add(ParagraphStyle(name='BodyText', parent=styles['Normal']))
+    styles.add(ParagraphStyle(name='H1', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=18, textColor=primary_color, spaceAfter=6, leading=22))
+    styles.add(ParagraphStyle(name='H2', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=14, textColor=primary_color, spaceAfter=4, leading=18))
+    styles.add(ParagraphStyle(name='BodyBold', parent=styles['BodyText'], fontName='Helvetica-Bold'))
+    styles.add(ParagraphStyle(name='BodyRight', parent=styles['BodyText'], alignment=TA_RIGHT))
+    styles.add(ParagraphStyle(name='BodyBoldRight', parent=styles['BodyBold'], alignment=TA_RIGHT))
+    styles.add(ParagraphStyle(name='TableHead', parent=styles['BodyBold'], alignment=TA_CENTER, textColor=black))
+    styles.add(ParagraphStyle(name='SmallText', parent=styles['BodyText'], fontSize=8))
+    
+    story = []
+
+    # --- 4. Header Section ---
+    header_data = [
+        [
+            [
+                Paragraph(company_name.upper(), styles['H2']),
+                Spacer(1, 2*mm),
+                Paragraph(company_address.replace('\n', '<br/>'), styles['BodyText']),
+                Paragraph(f"<b>GSTIN:</b> {company_gstin}", styles['BodyText']),
+                Paragraph(f"<b>Email:</b> {company_email}", styles['BodyText']),
+            ],
+            [
+                Paragraph("INVOICE", styles['H1']),
+                Spacer(1, 2*mm),
+                Table([
+                    [Paragraph("<b>Invoice #:</b>", styles['BodyRight']), Paragraph(invoice_no, styles['BodyText'])],
+                    [Paragraph("<b>Date:</b>", styles['BodyRight']), Paragraph(invoice_date_str, styles['BodyText'])],
+                ], colWidths=['*', '50%'], style=[('VALIGN', (0,0), (-1,-1), 'TOP')])
+            ]
+        ]
+    ]
+    header_table = Table(header_data, colWidths=[width * 0.55, width * 0.45 - (2*margin)])
+    header_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP'), ('LEFTPADDING', (0,0),(-1,-1),0), ('RIGHTPADDING', (0,0),(-1,-1),0)]))
+    story.append(header_table)
+    story.append(Spacer(1, 10 * mm))
+
+    # --- 5. Bill To Section ---
+    bill_to_data = [
+        [Paragraph("BILL TO:", styles['H2'])], [Spacer(1, 3*mm)],
+        [Paragraph(buyer_name, styles['BodyBold'])],
+        [Paragraph(buyer_address.replace('\n', '<br/>'), styles['BodyText'])],
+        [Paragraph(f"<b>GSTIN:</b> {buyer_gstin}", styles['BodyText'])],
+    ]
+    bill_to_table = Table(bill_to_data, colWidths=[width - 2 * margin])
+    bill_to_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP'), ('LEFTPADDING', (0,0),(-1,-1),0)]))
+    story.append(bill_to_table)
+    story.append(Spacer(1, 10 * mm))
+
+    # --- 6. Items Table ---
+    item_table_data = [
+        [Paragraph("Sr.", styles['TableHead']), Paragraph("Description", styles['TableHead']),
+         Paragraph("HSN/SAC", styles['TableHead']), Paragraph("Qty", styles['TableHead']),
+         Paragraph("Rate", styles['TableHead']), Paragraph("Amount", styles['TableHead'])]
+    ]
+    for i, item in enumerate(items, 1):
+        item_table_data.append([
+            Paragraph(str(i), styles['BodyText']),
+            Paragraph(str(item.get("name", "")), styles['BodyText']),
+            Paragraph(str(item.get("hsn", "")), styles['BodyText']),
+            Paragraph(f"{item.get('quantity', 0)} {item.get('unit', '')}".strip(), styles['BodyRight']),
+            Paragraph(f"{item.get('rate', 0.0):,.2f}", styles['BodyRight']),
+            Paragraph(f"{item.get('amount', 0.0):,.2f}", styles['BodyRight'])
+        ])
+        
+    item_table_col_widths = [15*mm, 70*mm, 20*mm, 20*mm, 25*mm, 30*mm]
+    item_table = Table(item_table_data, colWidths=item_table_col_widths, repeatRows=1)
+    item_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), secondary_color), ('GRID', (0, 0), (-1, -1), 1, gray),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'), ('LEFTPADDING', (0, 0), (-1, -1), 5),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 5), ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]))
+    story.append(item_table)
+    
+    # --- 7. Totals Section ---
+    grand_total = subtotal + cgst_amount + sgst_amount
+    
+    totals_data = [
+        ['Subtotal', f'{subtotal:,.2f}'],
+        ['CGST', f'{cgst_amount:,.2f}'],
+        ['SGST', f'{sgst_amount:,.2f}'],
+        [Paragraph('<b>Grand Total</b>', styles['BodyBoldRight']), Paragraph(f'<b>₹ {grand_total:,.2f}</b>', styles['BodyBoldRight'])]
+    ]
+    
+    totals_table = Table(totals_data, colWidths=['*', 50*mm])
+    totals_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'), ('LEFTPADDING', (0,0),(-1,-1),0),
+        ('LINEABOVE', (0, -1), (-1, -1), 1, black), ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+    ]))
+    
+    wrapper_table = Table([[totals_table]], colWidths=[width - 2*margin])
+    wrapper_table.setStyle(TableStyle([('ALIGN', (0,0),(-1,-1),'RIGHT'), ('LEFTPADDING', (0,0),(-1,-1),0)]))
+    story.append(wrapper_table)
+    story.append(Spacer(1, 10 * mm))
+    
+    # --- 8. Amount in Words & Bank Details ---
+    final_section_data = [
+        [
+            [
+                Paragraph("Amount in Words:", styles['BodyBold']),
+                Paragraph(amount_in_words, styles['BodyText']),
+                Spacer(1, 8*mm),
+                Paragraph("Terms & Conditions:", styles['BodyBold']),
+                Paragraph("1. Goods once sold will not be taken back.", styles['SmallText']),
+            ],
+            [
+                Paragraph("Bank Details:", styles['BodyBold']),
+                Paragraph(f"Bank: {company_bank_name}", styles['BodyText']),
+                Paragraph(f"A/C No: {company_account_no}", styles['BodyText']),
+                Paragraph(f"IFSC: {company_ifsc_code}", styles['BodyText']),
+                Spacer(1, 15*mm),
+                Paragraph("For " + company_name, styles['BodyText']),
+                Spacer(1, 15*mm),
+                Paragraph("Authorised Signatory", styles['BodyText']),
+            ]
+        ]
+    ]
+    
+    final_table = Table(final_section_data, colWidths=[width * 0.55, width * 0.45 - (2*margin)])
+    final_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP'), ('LINEABOVE', (1, 4), (1, 4), 0.5, gray)]))
+    story.append(final_table)
+    
+    # --- 9. Footer ---
+    def footer(canvas, doc):
+        canvas.saveState()
+        canvas.setFont('Helvetica', 8)
+        canvas.setFillColor(gray)
+        footer_text = "This is a computer-generated invoice."
+        canvas.drawCentredString(width / 2.0, margin / 2, footer_text)
+        canvas.restoreState()
+
+    doc.build(story, onFirstPage=footer, onLaterPages=footer)
+    
+    return file_path

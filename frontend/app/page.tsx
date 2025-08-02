@@ -7,6 +7,7 @@ import { User } from "@supabase/supabase-js"
 import { DashboardContent } from "@/components/dashboard-content"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { ProtectedRoute } from "@/components/ui/protected-route"
+import { AuthLoadingScreen } from "@/components/ui/modern_loader" // <-- Import the new component
 
 export default function HomePage() {
   const [user, setUser] = useState<User | null>(null)
@@ -31,7 +32,8 @@ export default function HomePage() {
           router.push("/login")
           return
         }
-
+        
+        // Clean the URL after setting the session
         window.history.replaceState({}, document.title, "/")
       }
 
@@ -54,14 +56,16 @@ export default function HomePage() {
     handleOAuthRedirect()
   }, [router])
 
+  // MODIFIED: Use the new animated loading screen
   if (loading) {
-    return <div className="text-center mt-10">Signing you in...</div>
+    return <AuthLoadingScreen />
   }
+
   return (
     <ProtectedRoute>
-    <DashboardLayout>
-      <DashboardContent />
-    </DashboardLayout>
+      <DashboardLayout>
+        <DashboardContent />
+      </DashboardLayout>
     </ProtectedRoute>
   )
 }

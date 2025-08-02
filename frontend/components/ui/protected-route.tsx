@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import { AuthLoadingScreen } from "./modern_loader"
 
 export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter()
@@ -21,7 +22,7 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }, [router])
 
   if (loading) {
-    return <div className="text-center mt-20">Loading...</div>
+    return <AuthLoadingScreen/>
   }
 
   return <>{children}</>

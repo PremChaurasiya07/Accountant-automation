@@ -204,13 +204,10 @@
 //     </main>
 //   )
 // }
-
-
 "use client"
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
-// MODIFIED: Added Download icon for the install button
 import { ArrowRight, Star, Menu, X, FileText, Package, IndianRupee, Zap, Mic, BarChart3, Bot, CheckCircle, BookOpen, Calculator, Download } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -226,9 +223,9 @@ const staggerContainer = {
   show: { transition: { staggerChildren: 0.15, delayChildren: 0.1 } },
 };
 
-// --- Reusable Components (No changes needed here) ---
+// --- Reusable Components ---
 const TestimonialCard = ({ quote, name, company, image }) => (
-    <div className="bg-gradient-to-br from-white/5 to-white/0 p-6 rounded-2xl border border-white/10 h-full flex flex-col backdrop-blur-lg shadow-lg">
+    <div className="bg-gradient-to-br from-white/5 to-white/0 p-6 rounded-2xl border border-white/10 h-full flex flex-col backdrop-blur-lg shadow-lg hover:border-white/20 transition-colors">
       <div className="flex text-yellow-400">
         {[...Array(5)].map((_, i) => <Star key={i} fill="currentColor" className="w-5 h-5" />)}
       </div>
@@ -261,43 +258,48 @@ const ScrollyFeature = ({ features }) => {
             {/* Left Side: Sticky Phone Mockup */}
             <div className="sticky top-24 h-[600px]">
                 <div className="absolute inset-0 flex items-center justify-center">
-                    <motion.div 
-                        className="w-full h-full rounded-3xl bg-black/30 border-8 border-gray-700 shadow-2xl shadow-black/80 overflow-hidden"
-                        animate={{ borderColor: features[activeFeature].color }}
-                        transition={{ duration: 0.5 }}
-                    >
-                        <AnimatePresence>
-                            <motion.img
-                                key={activeFeature}
-                                src={features[activeFeature].image}
-                                alt={features[activeFeature].title}
-                                className="absolute inset-0 w-full h-full object-cover"
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.95 }}
-                                transition={{ duration: 0.5, ease: "easeInOut" }}
-                            />
-                        </AnimatePresence>
-                    </motion.div>
+                    {/* MODIFIED: Added a subtle background and enhanced the phone mockup */}
+                    <div className="relative w-full h-full max-w-[300px] aspect-[9/19]">
+                      <img src="https://i.imgur.com/7o2xR3l.png" alt="Phone Mockup Frame" className="absolute inset-0 w-full h-full z-10 pointer-events-none" />
+                      <div className="absolute inset-[1.5%] rounded-[2.5rem] overflow-hidden bg-gray-900">
+                          <AnimatePresence>
+                              <motion.img
+                                  key={activeFeature}
+                                  src={features[activeFeature].image}
+                                  alt={features[activeFeature].title}
+                                  className="absolute inset-0 w-full h-full object-cover"
+                                  initial={{ opacity: 0, scale: 0.95 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  exit={{ opacity: 0, scale: 0.95 }}
+                                  transition={{ duration: 0.5, ease: "easeInOut" }}
+                              />
+                          </AnimatePresence>
+                      </div>
+                    </div>
                 </div>
             </div>
             {/* Right Side: Feature Descriptions */}
-            <div className="space-y-96">
+            <div className="space-y-96 pt-16">
                 {features.map((feature, index) => (
                     <motion.div key={index} className="min-h-[300px]">
                         <motion.div
                             animate={{ opacity: activeFeature === index ? 1 : 0.3 }}
                             transition={{ duration: 0.3 }}
                         >
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="p-2 rounded-lg bg-white/10">{feature.icon}</div>
-                                <h3 className="text-3xl font-bold">{feature.title}</h3>
+                            <div className="flex items-center gap-4 mb-4">
+                                <motion.div 
+                                    className="p-3 rounded-lg bg-white/10"
+                                    animate={{ backgroundColor: `rgba(255, 255, 255, ${activeFeature === index ? 0.1 : 0.05})`}}
+                                >
+                                    {feature.icon}
+                                </motion.div>
+                                <h3 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">{feature.title}</h3>
                             </div>
                             <p className="text-gray-400 text-lg">{feature.description}</p>
-                            <ul className="mt-4 space-y-2">
+                            <ul className="mt-6 space-y-3">
                                 {feature.points.map((point, pIndex) => (
-                                    <li key={pIndex} className="flex items-center gap-3 text-gray-300">
-                                        <CheckCircle size={18} className="text-green-500 flex-shrink-0" />
+                                    <li key={pIndex} className="flex items-start gap-3 text-gray-300">
+                                        <CheckCircle size={20} className="text-green-500 flex-shrink-0 mt-1" />
                                         <span>{point}</span>
                                     </li>
                                 ))}
@@ -314,8 +316,10 @@ const AnimatedCommandBar = () => {
     const commands = [
         "Priya Patel ko 500 ka invoice bhejo",
         "Mera pichle hafte ka profit dikhao",
-        "Parle-G ka current stock kya hai?",
-        "Sabse zyada bikne wala item konsa hai?"
+        "What is the current stock of Shoes?",
+        "पिछले महीने का हिसाब देना",
+        "Sabse zyada bikne wala item konsa hai?",
+        "Total kitne bill bane hai?"
     ];
     const [index, setIndex] = useState(0);
 
@@ -327,16 +331,16 @@ const AnimatedCommandBar = () => {
     }, []);
 
     return (
-        <div className="mt-12 flex justify-center items-center gap-3 bg-white/5 border border-white/10 px-4 py-3 rounded-full backdrop-blur-md w-full max-w-lg mx-auto">
-            <Mic className="text-blue-400" />
+        <div className="mt-12 flex justify-center items-center gap-3 bg-white/5 border border-white/10 px-4 py-3 rounded-full backdrop-blur-md w-full max-w-xl mx-auto shadow-lg shadow-black/30">
+            <Mic className="text-blue-400 flex-shrink-0" />
             <div className="w-full text-left overflow-hidden h-6">
-                <AnimatePresence>
+                <AnimatePresence mode="wait">
                     <motion.span
                         key={index}
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: -20, opacity: 0 }}
-                        transition={{ duration: 0.5, ease: "easeInOut" }}
+                        transition={{ duration: 0.4, ease: "easeInOut" }}
                         className="text-gray-300 absolute"
                     >
                         {commands[index]}
@@ -354,37 +358,27 @@ export default function VyapariLandingPage() {
   const navLinks = ["Features", "Why Vyapari?", "Testimonials", "Pricing"];
   const router=useRouter()
 
-  // NEW: State to hold the PWA installation prompt event
   const [installPrompt, setInstallPrompt] = useState(null);
 
   useEffect(() => {
-    // This event is fired when the app is eligible to be installed.
     const handleBeforeInstallPrompt = (event) => {
-      // Prevent the default browser prompt from showing automatically.
       event.preventDefault();
-      // Store the event so we can trigger it later.
       setInstallPrompt(event);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // Cleanup the event listener when the component unmounts.
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
   }, []);
 
-  // NEW: Handler for the custom "Install App" button.
   const handleInstallClick = async () => {
     if (!installPrompt) {
-      // If there's no prompt event, do nothing.
       return;
     }
-    // Show the browser's installation prompt.
     const result = await installPrompt.prompt();
-    // Log the user's choice
     console.log(`Install prompt outcome: ${result.outcome}`);
-    // The prompt can only be used once, so we clear it.
     setInstallPrompt(null);
   };
     
@@ -392,40 +386,40 @@ export default function VyapariLandingPage() {
     {
         title: "Voice-Powered Invoicing",
         icon: <Mic size={24} className="text-blue-400" />,
-        color: "#3b82f6", // blue-500
-        description: "Say goodbye to tedious typing. Just speak commands in English or Hinglish to create professional, GST-compliant invoices in seconds.",
-        image: "https://images.unsplash.com/photo-1586448417833-3725d357d259?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        color: "#3b82f6",
+        description: "Say goodbye to tedious typing. Just speak commands in English, Hindi, or Hinglish to create professional, GST-compliant invoices in seconds.",
+        image: "https://images.unsplash.com/photo-1599422314077-2c723842476c?q=80&w=2574&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
         points: ["Example: 'Rahul ko 10 shirt ka bill banao'", "Auto-fills client and product details.", "Send directly via WhatsApp or Email."]
     },
     {
         title: "Automated GST Reporting",
         icon: <FileText size={24} className="text-purple-400" />,
-        color: "#a855f7", // purple-500
+        color: "#a855f7",
         description: "Generate accurate GSTR-3B reports with a single command. Vyapari handles all the complex calculations, saving you hours of work and ensuring compliance.",
-        image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?q=80&w=1911&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        image: "https://images.unsplash.com/photo-1554224155-1696413565d3?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
         points: ["Error-free, automated calculations.", "One-click report generation.", "Always compliant with the latest GST norms."]
     },
     {
         title: "Intelligent Inventory",
         icon: <Package size={24} className="text-green-400" />,
-        color: "#4ade80", // green-400
+        color: "#4ade80",
         description: "Never lose a sale to stockouts. Our smart system tracks your inventory in real-time and sends you low-stock alerts before it's too late.",
-        image: "https://images.unsplash.com/photo-1586448417833-3725d357d259?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        image: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?q=80&w=2568&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
         points: ["Real-time stock level tracking.", "Customizable low-stock notifications.", "Insights on best-selling products."]
     },
     {
         title: "Conversational Analytics",
         icon: <BarChart3 size={24} className="text-yellow-400" />,
-        color: "#facc15", // yellow-400
+        color: "#facc15",
         description: "Ask your business questions and get instant answers. Understand your sales, profits, and customer behavior without complex dashboards.",
-        image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        image: "https://images.unsplash.com/photo-1611974780784-3c5b535f2129?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
         points: ["Example: 'Pichle mahine ka profit dikhao'", "Get instant, easy-to-read charts.", "Track business trends effortlessly."]
     }
   ];
 
   return (
-    <div className="bg-[#0A0A0A] text-white font-sans overflow-x-hidden">
-      <header className="fixed top-0 left-0 w-full z-50 bg-[#0A0A0A]/70 backdrop-blur-xl border-b border-white/10">
+    <div className="bg-gray-950 text-white font-sans overflow-x-hidden">
+      <header className="fixed top-0 left-0 w-full z-50 bg-gray-950/70 backdrop-blur-xl border-b border-white/10">
         <motion.div 
           initial={{ y: -100 }}
           animate={{ y: 0 }}
@@ -438,10 +432,8 @@ export default function VyapariLandingPage() {
               <a key={link} href={`#${link.toLowerCase().replace(' ', '-')}`} className="text-gray-300 hover:text-white transition-colors duration-300">{link}</a>
             ))}
           </nav>
+          
           <div className="hidden md:flex items-center gap-4">
-            <a href="/login" className="text-gray-300 hover:text-white transition-colors duration-300">Log In</a>
-            
-            {/* MODIFIED: Conditionally show Install or Launch App button */}
             {installPrompt ? (
               <button onClick={handleInstallClick} className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-5 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-2">
                 <Download size={16} /> Install App
@@ -451,36 +443,33 @@ export default function VyapariLandingPage() {
                 <Zap size={16} /> Launch App
               </button>
             )}
-
           </div>
-          <div className="md:hidden">
+          
+          <div className="flex items-center gap-2 md:hidden">
+            {installPrompt ? (
+              <button onClick={handleInstallClick} className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-3 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-1 text-sm">
+                <Download size={14} /> <span>Install</span>
+              </button>
+            ) : (
+              <button onClick={() => router.push('/login')} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-3 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-1 text-sm">
+                <Zap size={14} /> <span>Launch</span>
+              </button>
+            )}
             <button onClick={() => setIsMenuOpen(!isMenuOpen)}>
               {isMenuOpen ? <X /> : <Menu />}
             </button>
           </div>
+
         </motion.div>
         {isMenuOpen && (
           <motion.div 
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="md:hidden px-6 pb-4 flex flex-col items-center gap-4 bg-[#0A0A0A]/90"
+            className="md:hidden px-6 pb-4 flex flex-col items-center gap-4 bg-gray-950/90"
           >
              {navLinks.map(link => (
                <a key={link} href={`#${link.toLowerCase().replace(' ', '-')}`} className="text-gray-300 hover:text-white transition-colors duration-300 py-2">{link}</a>
             ))}
-            <a href="/login" className="text-gray-300 hover:text-white transition-colors duration-300 py-2">Log In</a>
-            
-            {/* MODIFIED: Conditionally show Install or Launch App button on mobile */}
-            {installPrompt ? (
-              <button onClick={handleInstallClick} className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-5 rounded-full transition-transform duration-300 hover:scale-105 flex items-center justify-center gap-2">
-                 <Download size={18} /> Install App
-              </button>
-            ) : (
-              <button onClick={() => router.push('/login')} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-5 rounded-full transition-transform duration-300 hover:scale-105 flex items-center justify-center gap-2">
-                 <Zap size={18} /> Launch App
-              </button>
-            )}
-            
           </motion.div>
         )}
       </header>
@@ -488,10 +477,12 @@ export default function VyapariLandingPage() {
       <main>
         {/* --- Hero Section --- */}
         <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 text-center overflow-hidden">
-            <div className="absolute inset-0 -z-10 bg-grid-white/[0.05]"></div>
-            <div className="absolute inset-0 -z-20 [mask-image:radial-gradient(ellipse_80%_50%_at_50%_50%,#000_70%,transparent_100%)] bg-[#0A0A0A]"></div>
-            <div className="absolute top-0 left-0 w-96 h-96 bg-blue-900/40 rounded-full filter blur-3xl opacity-50 animate-blob"></div>
-            <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-900/40 rounded-full filter blur-3xl opacity-50 animate-blob animation-delay-2000"></div>
+          {/* MODIFIED: Added a subtle background image */}
+          <div 
+            className="absolute inset-0 -z-20 bg-cover bg-center"
+            style={{ backgroundImage: "url('https://images.unsplash.com/photo-1553356084-58ef4a67b2a7?q=80&w=2574&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')" }}
+          ></div>
+          <div className="absolute inset-0 -z-10 bg-gray-950/80"></div>
 
           <motion.div
             variants={staggerContainer}
@@ -505,10 +496,10 @@ export default function VyapariLandingPage() {
               That Listens.
             </motion.h1>
             <motion.p variants={fadeIn('up', 0.2)} className="max-w-2xl mx-auto text-lg md:text-xl text-gray-300 mb-8">
-              Create invoices, check stock, and get reports—all with your voice. Vyapari is the smartest way to run your business in India.
+              Create invoices, check stock, and get reports—all with your voice. Vyapari is the smartest way to run your business.
             </motion.p>
             <motion.div variants={fadeIn('up', 0.3)} className="flex justify-center items-center gap-4">
-              <button onClick={()=>router.push('/')} className="bg-white hover:bg-gray-200 text-black font-bold py-3 px-8 rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-white/10 flex items-center gap-2">
+              <button onClick={() => router.push('/login')} className="bg-white hover:bg-gray-200 text-black font-bold py-3 px-8 rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-white/10 flex items-center gap-2">
                 Get Started for Free <ArrowRight className="w-5 h-5" />
               </button>
             </motion.div>
@@ -518,8 +509,28 @@ export default function VyapariLandingPage() {
           </motion.div>
         </section>
 
-        {/* --- Other sections remain unchanged --- */}
-        <section id="features" className="py-20 md:py-40">
+        {/* --- Trusted By Section --- */}
+        <section className="py-12 bg-gray-950">
+            <div className="container mx-auto px-6 text-center">
+                <p className="text-gray-400 mb-8 tracking-widest text-sm">TRUSTED BY OVER 5,000+ MERCHANTS ACROSS INDIA</p>
+                <div className="relative w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,white_20%,white_80%,transparent)]">
+                    <motion.div 
+                        className="flex gap-16 items-center"
+                        animate={{ x: ['0%', '-50%'] }}
+                        transition={{ ease: 'linear', duration: 25, repeat: Infinity }}
+                    >
+                        {["Patanjali", "Haldiram's", "Amul", "Parle", "Bisleri", "Patanjali", "Haldiram's", "Amul", "Parle", "Bisleri"].map((brand, i) => (
+                            <div key={i} className="flex-shrink-0 text-gray-500 text-2xl font-bold italic grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all">
+                                {brand}
+                            </div>
+                        ))}
+                    </motion.div>
+                </div>
+            </div>
+        </section>
+
+        {/* --- Scrolly-telling Features Section --- */}
+        <section id="features" className="py-20 md:py-40 bg-gray-950">
             <div className="container mx-auto px-6">
                 <div className="text-center max-w-3xl mx-auto mb-24">
                     <motion.h2 variants={fadeIn('up')} initial="hidden" whileInView="show" viewport={{once: true}} className="text-4xl md:text-6xl font-bold tracking-tighter">Your Entire Business, in One App.</motion.h2>
@@ -529,7 +540,8 @@ export default function VyapariLandingPage() {
             </div>
         </section>
         
-        <section id="why-vyapari?" className="py-20 md:py-32 bg-white/5">
+        {/* --- Why Vyapari Section --- */}
+        <section id="why-vyapari?" className="py-20 md:py-32 bg-gray-900/50">
             <motion.div
                 variants={staggerContainer}
                 initial="hidden"
@@ -542,17 +554,21 @@ export default function VyapariLandingPage() {
                     <p className="text-lg text-gray-400 mt-4">Stop wasting time with outdated methods. See how Vyapari compares.</p>
                 </div>
                 <div className="grid md:grid-cols-3 gap-8">
-                    <div className="bg-gradient-to-br from-white/5 to-white/0 p-6 rounded-2xl border border-white/10 text-center">
+                    <div className="bg-gradient-to-br from-white/5 to-white/0 p-8 rounded-2xl border border-white/10 text-center">
                         <BookOpen size={40} className="mx-auto mb-4 text-red-400"/>
                         <h3 className="text-2xl font-bold mb-2">Pen & Paper</h3>
                         <p className="text-gray-400">Prone to errors, difficult to track, and impossible to get insights from. Your data is stuck in a book.</p>
                     </div>
-                    <div className="bg-gradient-to-br from-blue-500/10 to-blue-500/0 p-8 rounded-2xl border-2 border-blue-500 text-center shadow-2xl shadow-blue-500/10 scale-105">
+                    <motion.div 
+                        className="bg-gradient-to-br from-blue-500/10 to-blue-500/0 p-8 rounded-2xl border-2 border-blue-500 text-center shadow-2xl shadow-blue-500/20"
+                        whileHover={{ scale: 1.05, y: -5 }}
+                        transition={{ type: 'spring', stiffness: 300 }}
+                    >
                         <Bot size={40} className="mx-auto mb-4 text-blue-400"/>
                         <h3 className="text-2xl font-bold mb-2">Vyapari AI</h3>
                         <p className="text-gray-300">Instant, accurate, and intelligent. Your data works for you, providing insights and automating tasks with the power of voice.</p>
-                    </div>
-                    <div className="bg-gradient-to-br from-white/5 to-white/0 p-6 rounded-2xl border border-white/10 text-center">
+                    </motion.div>
+                    <div className="bg-gradient-to-br from-white/5 to-white/0 p-8 rounded-2xl border border-white/10 text-center">
                         <Calculator size={40} className="mx-auto mb-4 text-yellow-400"/>
                         <h3 className="text-2xl font-bold mb-2">Other Apps</h3>
                         <p className="text-gray-400">Clunky interfaces, limited features, and no real intelligence. They are just digital calculators.</p>
@@ -561,7 +577,8 @@ export default function VyapariLandingPage() {
             </motion.div>
         </section>
 
-        <section id="testimonials" className="py-20 md:py-32">
+        {/* --- Testimonials Section --- */}
+        <section id="testimonials" className="py-20 md:py-32 bg-gray-950">
           <motion.div
             variants={staggerContainer}
             initial="hidden"
@@ -595,6 +612,7 @@ export default function VyapariLandingPage() {
           </motion.div>
         </section>
 
+        {/* --- CTA Section --- */}
         <section id="pricing" className="py-20 md:py-32">
           <div className="container mx-auto px-6 text-center">
             <motion.div 
@@ -610,14 +628,15 @@ export default function VyapariLandingPage() {
               <p className="relative max-w-xl mx-auto text-lg text-blue-100 mt-4 mb-8">
                 Experience the future of business management. Your first 10 invoices are on us.
               </p>
-              <button className="relative bg-white text-blue-600 font-bold py-4 px-10 rounded-full transition-transform duration-300 hover:scale-105 text-lg shadow-2xl">
-                Claim Your Free Invoices
+              <button onClick={()=>router.push('/login')} className="relative bg-white text-blue-600 font-bold py-4 px-10 rounded-full transition-transform duration-300 hover:scale-105 text-lg shadow-2xl">
+                Elevate Your Business For Free
               </button>
             </motion.div>
           </div>
         </section>
       </main>
 
+      {/* --- Footer --- */}
       <footer id="contact" className="border-t border-white/10 py-12">
         <div className="container mx-auto px-6 grid md:grid-cols-4 gap-8 text-gray-400">
             <div className="col-span-1">
