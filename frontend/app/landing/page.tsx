@@ -388,7 +388,7 @@ export default function VyapariLandingPage() {
               className="container mx-auto px-6"
             >
                 <div className="text-center max-w-2xl mx-auto mb-16">
-                  <h2 className="text-3xl md:text-5xl font-bold tracking-tighter">Built for India, Trusted by India</h2>
+                  <h2 className="text-3xl md:text-5xl font-bold tracking-tighter">Built for Businesses. Trusted by Businessmen.</h2>
                 </div>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                     <TestimonialCard
