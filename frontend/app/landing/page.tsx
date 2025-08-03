@@ -39,18 +39,17 @@ const TestimonialCard = ({ quote, name, company, image }) => (
     </div>
 );
 
-// ✅ NEW: Component for the sticky phone mockup
+// ✅ UPDATED: Component for the sticky phone mockup
 const PhoneMockup = ({ activeImage }) => {
     return (
-        <div className="relative w-full max-w-[300px] aspect-[9/19] bg-black border-4 border-gray-700 rounded-[2.8rem] shadow-2xl shadow-black/60 p-2">
+        <div className="relative w-full max-w-[200px] md:max-w-[280px] aspect-[9/19] bg-black border-4 border-gray-700 rounded-[2.8rem] shadow-2xl shadow-black/60 p-2 pointer-events-auto">
             <div className="relative w-full h-full rounded-[2rem] overflow-hidden bg-gray-900">
                 <AnimatePresence>
                     <motion.img
-                        // Use image src as key to trigger animation on change
                         key={activeImage.src}
                         src={activeImage.src}
                         alt="Feature"
-                        className="absolute inset-0 w-full h-full object-fill object-top"
+                        className="absolute inset-0 w-full h-full object-cover object-top"
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.95 }}
@@ -62,22 +61,22 @@ const PhoneMockup = ({ activeImage }) => {
     );
 };
 
-// ✅ NEW: Component for a single feature's text content
+// ✅ UPDATED: Component for a single feature's text content
 const FeatureText = ({ feature, onInView }) => {
     return (
         <motion.div
-            className="min-h-[300px]"
+            className="min-h-[300px] w-full max-w-lg text-center"
             onViewportEnter={onInView}
-            viewport={{ amount: 0.5 }} // Trigger when 50% of the element is in view
+            viewport={{ amount: 0.5 }}
         >
-            <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center justify-center gap-4 mb-4">
                 <div className="p-3 rounded-lg bg-white/10">
                     {feature.icon}
                 </div>
-                <h3 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">{feature.title}</h3>
+                <h3 className="text-2xl md:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">{feature.title}</h3>
             </div>
             <p className="text-gray-400 text-lg">{feature.description}</p>
-            <ul className="mt-6 space-y-3">
+            <ul className="mt-6 space-y-3 inline-block text-left">
                 {feature.points.map((point, pIndex) => (
                     <li key={pIndex} className="flex items-start gap-3 text-gray-300">
                         <CheckCircle size={20} className="text-green-500 flex-shrink-0 mt-1" />
@@ -135,8 +134,6 @@ export default function VyapariLandingPage() {
   const router = useRouter();
 
   const [installPrompt, setInstallPrompt] = useState(null);
-  
-  // ✅ NEW: State to track which feature is currently in view
   const [activeFeatureIndex, setActiveFeatureIndex] = useState(0);
 
   useEffect(() => {
@@ -171,7 +168,7 @@ export default function VyapariLandingPage() {
       title: "From Voice to Pro Invoice in 8 Seconds",
       icon: <Mic size={24} className="text-blue-400" />,
       description: "Impress your clients with polished, professional invoices created in record time. Our advanced AI listens to your command and generates a perfect, GST-compliant invoice in under 8 seconds. No typing, no hassle.",
-      image: sampleinvoice, // Using sampleinvoice for this as a placeholder
+      image: sampleinvoice,
       points: [
         "Generate flawless, branded invoices that build client trust.",
         "Eliminates manual errors and ensures 100% GST compliance.",
@@ -182,15 +179,8 @@ export default function VyapariLandingPage() {
         title: "Automated GST Reporting",
         icon: <FileText size={24} className="text-purple-400" />,
         description: "Generate accurate GSTR-3B reports with a single command. Vyapari handles all the complex calculations, saving you hours of work and ensuring compliance.",
-        image: gstb, // Using gstb for this as a placeholder
+        image: gstb,
         points: ["Error-free, automated calculations.", "One-click report generation.", "Always compliant with the latest GST norms."]
-    },
-    {
-        title: "Intelligent Inventory",
-        icon: <Package size={24} className="text-green-400" />,
-        description: "Never lose a sale to stockouts. Our smart system tracks your inventory in real-time and sends you low-stock alerts before it's too late.",
-        image: sampleinvoice, // Using chatbot for this as a placeholder
-        points: ["Real-time stock level tracking.", "Customizable low-stock notifications.", "Insights on best-selling products."]
     },
     {
         title: "Conversational Analytics",
@@ -202,72 +192,69 @@ export default function VyapariLandingPage() {
   ];
 
   return (
-    // ✅ FIXED: Removed overflow-x-hidden to allow sticky positioning to work
-<div className="bg-gray-950 text-white font-sans">
-        <header className="fixed top-0 left-0 w-full z-50 bg-gray-950/70 backdrop-blur-xl border-b border-white/10">
-            {/* Header code remains the same... */}
-            <motion.div 
-              initial={{ y: -100 }}
-              animate={{ y: 0 }}
-              transition={{ type: 'spring', stiffness: 100 }}
-              className="container mx-auto px-6 py-4 flex justify-between items-center"
-            >
-              <div className="text-2xl font-bold tracking-tighter bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">Vyapari</div>
-              <nav className="hidden md:flex items-center gap-8">
-                {navLinks.map(link => (
-                  <a key={link} href={`#${link.toLowerCase().replace(/\?| /g, '-')}`} className="text-gray-300 hover:text-white transition-colors duration-300">{link}</a>
-                ))}
-              </nav>
-              
-              <div className="hidden md:flex items-center gap-4">
-                {installPrompt ? (
-                  <button onClick={handleInstallClick} className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-5 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-2">
-                    <Download size={16} /> Install App
-                  </button>
-                ) : (
-                  <button onClick={() => router.push('/login')} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-2">
-                    <Zap size={16} /> Launch App
-                  </button>
-                )}
-              </div>
-              
-              <div className="flex items-center gap-2 md:hidden">
-                {installPrompt ? (
-                  <button onClick={handleInstallClick} className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-3 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-1 text-sm">
-                    <Download size={14} /> <span>Install</span>
-                  </button>
-                ) : (
-                  <button onClick={() => router.push('/login')} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-3 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-1 text-sm">
-                    <Zap size={14} /> <span>Launch</span>
-                  </button>
-                )}
-                <button onClick={() => setIsMenuOpen(!isMenuOpen)}>
-                  {isMenuOpen ? <X /> : <Menu />}
-                </button>
-              </div>
-            </motion.div>
-            <AnimatePresence>
-            {isMenuOpen && (
-              <motion.div 
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="md:hidden overflow-hidden"
-              >
-                <div className="px-6 pb-4 flex flex-col items-center gap-4 bg-gray-950/90">
-                 {navLinks.map(link => (
-                   <a key={link} href={`#${link.toLowerCase().replace(/\?| /g, '-')}`} onClick={() => setIsMenuOpen(false)} className="text-gray-300 hover:text-white transition-colors duration-300 py-2">{link}</a>
-                ))}
-                </div>
-              </motion.div>
+    <div className="bg-gray-950 text-white font-sans">
+      <header className="fixed top-0 left-0 w-full z-50 bg-gray-950/70 backdrop-blur-xl border-b border-white/10">
+        <motion.div 
+          initial={{ y: -100 }}
+          animate={{ y: 0 }}
+          transition={{ type: 'spring', stiffness: 100 }}
+          className="container mx-auto px-6 py-4 flex justify-between items-center"
+        >
+          <div className="text-2xl font-bold tracking-tighter bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">Vyapari</div>
+          <nav className="hidden md:flex items-center gap-8">
+            {navLinks.map(link => (
+              <a key={link} href={`#${link.toLowerCase().replace(/\?| /g, '-')}`} className="text-gray-300 hover:text-white transition-colors duration-300">{link}</a>
+            ))}
+          </nav>
+          
+          <div className="hidden md:flex items-center gap-4">
+            {installPrompt ? (
+              <button onClick={handleInstallClick} className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-5 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-2">
+                <Download size={16} /> Install App
+              </button>
+            ) : (
+              <button onClick={() => router.push('/login')} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-2">
+                <Zap size={16} /> Launch App
+              </button>
             )}
-            </AnimatePresence>
-        </header>
+          </div>
+          
+          <div className="flex items-center gap-2 md:hidden">
+            {installPrompt ? (
+              <button onClick={handleInstallClick} className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-3 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-1 text-sm">
+                <Download size={14} /> <span>Install</span>
+              </button>
+            ) : (
+              <button onClick={() => router.push('/login')} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-3 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-1 text-sm">
+                <Zap size={14} /> <span>Launch</span>
+              </button>
+            )}
+            <button onClick={() => setIsMenuOpen(!isMenuOpen)}>
+              {isMenuOpen ? <X /> : <Menu />}
+            </button>
+          </div>
+        </motion.div>
+        <AnimatePresence>
+        {isMenuOpen && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="md:hidden overflow-hidden"
+          >
+            <div className="px-6 pb-4 flex flex-col items-center gap-4 bg-gray-950/90">
+             {navLinks.map(link => (
+               <a key={link} href={`#${link.toLowerCase().replace(/\?| /g, '-')}`} onClick={() => setIsMenuOpen(false)} className="text-gray-300 hover:text-white transition-colors duration-300 py-2">{link}</a>
+            ))}
+            </div>
+          </motion.div>
+        )}
+        </AnimatePresence>
+      </header>
 
       <main>
         {/* --- Hero Section --- */}
         <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 text-center overflow-hidden">
-          {/* Hero Section code remains the same... */}
           <div 
             className="absolute inset-0 -z-20 bg-cover bg-center"
             style={{ backgroundImage: "url('https://images.unsplash.com/photo-1519791883288-dc8bd696e667?q=80&w=2574&auto=format&fit=crop&ixlib=rb-4.0.3')" }}
@@ -301,7 +288,6 @@ export default function VyapariLandingPage() {
 
         {/* --- Trusted By Section --- */}
         <section className="py-12 bg-gray-950">
-           {/* Trusted By Section code remains the same... */}
             <div className="container mx-auto px-6 text-center">
                 <p className="text-gray-400 mb-8 tracking-widest text-sm uppercase">Trusted by over 5,000+ merchants across India</p>
                 <div className="relative w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,white_20%,white_80%,transparent)]">
@@ -321,36 +307,34 @@ export default function VyapariLandingPage() {
         </section>
 
         {/* --- Features Section --- */}
-        {/* ✅ REBUILT: This entire section is new to handle the sticky phone and scrolling text */}
-        <section id="features" className="py-20 md:py-40 bg-gray-950">
+        <section id="features" className="py-20 md:py-40 bg-gray-950 relative">
             <div className="container mx-auto px-6">
-                <div className="text-center max-w-3xl mx-auto mb-24">
+                {/* Section Title */}
+                <div className="text-center max-w-3xl mx-auto mb-16 md:mb-24">
                     <motion.h2 variants={fadeIn('up')} initial="hidden" whileInView="show" viewport={{once: true}} className="text-4xl md:text-6xl font-bold tracking-tighter">Your Entire Business, in One App.</motion.h2>
                     <motion.p variants={fadeIn('up', 0.1)} initial="hidden" whileInView="show" viewport={{once: true}} className="text-lg text-gray-400 mt-4">From the first sale to the final tax report, Vyapari streamlines every aspect of your business with intelligent automation.</motion.p>
                 </div>
-                
-                <div className="grid md:grid-cols-2 gap-16 items-start">
-                    {/* Left side: Sticky Phone */}
-                    <div className="sticky top-9 h-screen flex items-center justify-center -mt-16">
-                         <PhoneMockup activeImage={featuresData[activeFeatureIndex].image} />
-                    </div>
 
-                    {/* Right side: Scrolling Text */}
-                    <div className="flex flex-col gap-96 py-16">
-                        {featuresData.map((feature, index) => (
-                            <FeatureText
-                                key={index}
-                                feature={feature}
-                                onInView={() => setActiveFeatureIndex(index)}
-                            />
-                        ))}
-                    </div>
+                {/* Sticky Phone Container (Layered on top) */}
+                <div className="sticky top-0 h-screen flex items-center justify-center w-full z-20 pointer-events-none">
+                    <PhoneMockup activeImage={featuresData[activeFeatureIndex].image} />
+                </div>
+
+                {/* Scrolling Text Content (Layered behind) */}
+                <div className="relative z-10 flex flex-col items-center gap-96 pt-24 pb-24">
+                    {featuresData.map((feature, index) => (
+                        <FeatureText
+                            key={index}
+                            feature={feature}
+                            onInView={() => setActiveFeatureIndex(index)}
+                        />
+                    ))}
                 </div>
             </div>
         </section>
         
-        {/* All subsequent sections remain the same */}
-       <section id="why-vyapari-" className="py-20 md:py-32 bg-gray-900/50">
+        {/* --- Why Vyapari Section --- */}
+        <section id="why-vyapari-" className="py-20 md:py-32 bg-gray-900/50">
             <motion.div
                 variants={staggerContainer}
                 initial="hidden"
