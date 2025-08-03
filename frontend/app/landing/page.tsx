@@ -1,12 +1,16 @@
-"use client"
+"use client";
 
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Star, Menu, X, FileText, Package, IndianRupee, Zap, Mic, BarChart3, Bot, CheckCircle, BookOpen, Calculator, Download } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowRight, Star, Menu, X, FileText, Package, Mic, BarChart3, Bot, CheckCircle, BookOpen, Calculator, Download, Zap } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-import chatbot from "../../public/chatbot.png"
-import analytic from "../../public/analytic.png"
+// Make sure your image paths are correct relative to this file
+import chatbot from "../../public/landing/chatbot.png";
+import analytic from "../../public/landing/analytic.png";
+import gstb from "../../public/landing/gstb.png";
+import sampleinvoice from "../../public/landing/sample-invoice.png";
+
 // --- Animation Variants ---
 const fadeIn = (direction = 'up', delay = 0, duration = 1) => ({
   hidden: { opacity: 0, y: direction === 'up' ? 30 : -30, x: direction === 'left' ? 30 : direction === 'right' ? -30 : 0 },
@@ -35,74 +39,53 @@ const TestimonialCard = ({ quote, name, company, image }) => (
     </div>
 );
 
-const ScrollyFeature = ({ features }) => {
-    const [activeFeature, setActiveFeature] = useState(0);
-    const ref = useRef(null);
-    const { scrollYProgress } = useScroll({
-        target: ref,
-        offset: ["start center", "end center"]
-    });
-
-    scrollYProgress.on("change", (latest) => {
-        const newActiveFeature = Math.min(features.length - 1, Math.floor(latest * features.length));
-        setActiveFeature(newActiveFeature);
-    });
-
+// ✅ NEW: Component for the sticky phone mockup
+const PhoneMockup = ({ activeImage }) => {
     return (
-        <div ref={ref} className="grid md:grid-cols-2 gap-16 items-start relative">
-            {/* Left Side: Sticky Phone Mockup */}
-            <div className="sticky top-24 h-[600px]">
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="relative w-full h-full max-w-[300px] aspect-[9/19]">
-                      <img src={chatbot.src} alt="Phone Mockup Frame" className="absolute inset-0 w-full h-full z-10 pointer-events-none" />
-                      <div className="absolute inset-[1.5%] rounded-[2.5rem] overflow-hidden bg-gray-900">
-                        <AnimatePresence>
-                          <motion.img
-                            key={activeFeature}
-                            src={features[activeFeature].image}
-                            alt={features[activeFeature].title}
-                            className="absolute inset-0 w-full h-full object-cover"
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            transition={{ duration: 0.5, ease: "easeInOut" }}
-                          />
-                        </AnimatePresence>
-                      </div>
-                    </div>
-                </div>
-            </div>
-            {/* Right Side: Feature Descriptions */}
-            <div className="space-y-96 pt-16">
-                {features.map((feature, index) => (
-                    <motion.div key={index} className="min-h-[300px]">
-                        <motion.div
-                            animate={{ opacity: activeFeature === index ? 1 : 0.3 }}
-                            transition={{ duration: 0.3 }}
-                        >
-                            <div className="flex items-center gap-4 mb-4">
-                                <motion.div 
-                                    className="p-3 rounded-lg bg-white/10"
-                                    animate={{ backgroundColor: `rgba(255, 255, 255, ${activeFeature === index ? 0.1 : 0.05})`}}
-                                >
-                                    {feature.icon}
-                                </motion.div>
-                                <h3 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">{feature.title}</h3>
-                            </div>
-                            <p className="text-gray-400 text-lg">{feature.description}</p>
-                            <ul className="mt-6 space-y-3">
-                                {feature.points.map((point, pIndex) => (
-                                    <li key={pIndex} className="flex items-start gap-3 text-gray-300">
-                                        <CheckCircle size={20} className="text-green-500 flex-shrink-0 mt-1" />
-                                        <span>{point}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </motion.div>
-                    </motion.div>
-                ))}
+        <div className="relative w-full max-w-[300px] aspect-[9/19] bg-black border-4 border-gray-700 rounded-[2.8rem] shadow-2xl shadow-black/60 p-2">
+            <div className="relative w-full h-full rounded-[2rem] overflow-hidden bg-gray-900">
+                <AnimatePresence>
+                    <motion.img
+                        // Use image src as key to trigger animation on change
+                        key={activeImage.src}
+                        src={activeImage.src}
+                        alt="Feature"
+                        className="absolute inset-0 w-full h-full object-fill object-top"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.5, ease: "easeInOut" }}
+                    />
+                </AnimatePresence>
             </div>
         </div>
+    );
+};
+
+// ✅ NEW: Component for a single feature's text content
+const FeatureText = ({ feature, onInView }) => {
+    return (
+        <motion.div
+            className="min-h-[300px]"
+            onViewportEnter={onInView}
+            viewport={{ amount: 0.5 }} // Trigger when 50% of the element is in view
+        >
+            <div className="flex items-center gap-4 mb-4">
+                <div className="p-3 rounded-lg bg-white/10">
+                    {feature.icon}
+                </div>
+                <h3 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">{feature.title}</h3>
+            </div>
+            <p className="text-gray-400 text-lg">{feature.description}</p>
+            <ul className="mt-6 space-y-3">
+                {feature.points.map((point, pIndex) => (
+                    <li key={pIndex} className="flex items-start gap-3 text-gray-300">
+                        <CheckCircle size={20} className="text-green-500 flex-shrink-0 mt-1" />
+                        <span>{point}</span>
+                    </li>
+                ))}
+            </ul>
+        </motion.div>
     );
 };
 
@@ -122,12 +105,12 @@ const AnimatedCommandBar = () => {
             setIndex((prevIndex) => (prevIndex + 1) % commands.length);
         }, 3000);
         return () => clearInterval(interval);
-    }, []);
+    }, [commands.length]);
 
     return (
         <div className="mt-12 flex justify-center items-center gap-3 bg-white/5 border border-white/10 px-4 py-3 rounded-full backdrop-blur-md w-full max-w-xl mx-auto shadow-lg shadow-black/30">
             <Mic className="text-blue-400 flex-shrink-0" />
-            <div className="w-full text-left overflow-hidden h-6">
+            <div className="w-full text-left overflow-hidden h-6 relative">
                 <AnimatePresence mode="wait">
                     <motion.span
                         key={index}
@@ -135,7 +118,7 @@ const AnimatedCommandBar = () => {
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: -20, opacity: 0 }}
                         transition={{ duration: 0.4, ease: "easeInOut" }}
-                        className="text-gray-300 absolute"
+                        className="text-gray-300 absolute w-full"
                     >
                         {commands[index]}
                     </motion.span>
@@ -145,23 +128,23 @@ const AnimatedCommandBar = () => {
     );
 }
 
-
 // --- Main Landing Page Component ---
 export default function VyapariLandingPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navLinks = ["Features", "Why Vyapari?", "Testimonials", "Pricing"];
-  const router=useRouter()
+  const router = useRouter();
 
   const [installPrompt, setInstallPrompt] = useState(null);
+  
+  // ✅ NEW: State to track which feature is currently in view
+  const [activeFeatureIndex, setActiveFeatureIndex] = useState(0);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (event) => {
       event.preventDefault();
       setInstallPrompt(event);
     };
-
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
@@ -176,99 +159,111 @@ export default function VyapariLandingPage() {
     setInstallPrompt(null);
   };
     
-  // ✅ MODIFIED: Replaced generic photos with high-quality, relevant UI mockups.
   const featuresData = [
     {
         title: "Voice-Powered Invoicing",
         icon: <Mic size={24} className="text-blue-400" />,
         description: "Say goodbye to tedious typing. Just speak commands in English, Hindi, or Hinglish to create professional, GST-compliant invoices in seconds.",
-        image: {chatbot},
+        image: chatbot,
+        points: ["Example: 'Rahul ko 10 shirt ka bill banao'", "Auto-fills client and product details.", "Send directly via WhatsApp or Email."]
+    },
+    {
+        title: "Get Instant Invoice within 8 seconds ",
+        icon: <Mic size={24} className="text-blue-400" />,
+        description: "Say goodbye to tedious typing. Just speak commands in English, Hindi, or Hinglish to create professional, GST-compliant invoices in seconds.",
+        image: chatbot,
         points: ["Example: 'Rahul ko 10 shirt ka bill banao'", "Auto-fills client and product details.", "Send directly via WhatsApp or Email."]
     },
     {
         title: "Automated GST Reporting",
         icon: <FileText size={24} className="text-purple-400" />,
         description: "Generate accurate GSTR-3B reports with a single command. Vyapari handles all the complex calculations, saving you hours of work and ensuring compliance.",
-        image: "https://images.unsplash.com/photo-1642427749670-f20e2e76f862?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3",
+        image: gstb, // Using gstb for this as a placeholder
         points: ["Error-free, automated calculations.", "One-click report generation.", "Always compliant with the latest GST norms."]
     },
     {
         title: "Intelligent Inventory",
         icon: <Package size={24} className="text-green-400" />,
         description: "Never lose a sale to stockouts. Our smart system tracks your inventory in real-time and sends you low-stock alerts before it's too late.",
-        image: "https://images.unsplash.com/photo-1586717791821-3f44a563fa4c?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3",
+        image: sampleinvoice, // Using chatbot for this as a placeholder
         points: ["Real-time stock level tracking.", "Customizable low-stock notifications.", "Insights on best-selling products."]
     },
     {
         title: "Conversational Analytics",
         icon: <BarChart3 size={24} className="text-yellow-400" />,
         description: "Ask your business questions and get instant answers. Understand your sales, profits, and customer behavior without complex dashboards.",
-        image: {analytic},
+        image: analytic,
         points: ["Example: 'Pichle mahine ka profit dikhao'", "Get instant, easy-to-read charts.", "Track business trends effortlessly."]
     }
   ];
 
   return (
-    <div className="bg-gray-950 text-white font-sans overflow-x-hidden">
-      <header className="fixed top-0 left-0 w-full z-50 bg-gray-950/70 backdrop-blur-xl border-b border-white/10">
-        <motion.div 
-          initial={{ y: -100 }}
-          animate={{ y: 0 }}
-          transition={{ type: 'spring', stiffness: 100 }}
-          className="container mx-auto px-6 py-4 flex justify-between items-center"
-        >
-          <div className="text-2xl font-bold tracking-tighter bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">Vyapari</div>
-          <nav className="hidden md:flex items-center gap-8">
-            {navLinks.map(link => (
-              <a key={link} href={`#${link.toLowerCase().replace(' ', '-')}`} className="text-gray-300 hover:text-white transition-colors duration-300">{link}</a>
-            ))}
-          </nav>
-          
-          <div className="hidden md:flex items-center gap-4">
-            {installPrompt ? (
-              <button onClick={handleInstallClick} className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-5 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-2">
-                <Download size={16} /> Install App
-              </button>
-            ) : (
-              <button onClick={() => router.push('/login')} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-2">
-                <Zap size={16} /> Launch App
-              </button>
+    // ✅ FIXED: Removed overflow-x-hidden to allow sticky positioning to work
+<div className="bg-gray-950 text-white font-sans">
+        <header className="fixed top-0 left-0 w-full z-50 bg-gray-950/70 backdrop-blur-xl border-b border-white/10">
+            {/* Header code remains the same... */}
+            <motion.div 
+              initial={{ y: -100 }}
+              animate={{ y: 0 }}
+              transition={{ type: 'spring', stiffness: 100 }}
+              className="container mx-auto px-6 py-4 flex justify-between items-center"
+            >
+              <div className="text-2xl font-bold tracking-tighter bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">Vyapari</div>
+              <nav className="hidden md:flex items-center gap-8">
+                {navLinks.map(link => (
+                  <a key={link} href={`#${link.toLowerCase().replace(/\?| /g, '-')}`} className="text-gray-300 hover:text-white transition-colors duration-300">{link}</a>
+                ))}
+              </nav>
+              
+              <div className="hidden md:flex items-center gap-4">
+                {installPrompt ? (
+                  <button onClick={handleInstallClick} className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-5 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-2">
+                    <Download size={16} /> Install App
+                  </button>
+                ) : (
+                  <button onClick={() => router.push('/login')} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-2">
+                    <Zap size={16} /> Launch App
+                  </button>
+                )}
+              </div>
+              
+              <div className="flex items-center gap-2 md:hidden">
+                {installPrompt ? (
+                  <button onClick={handleInstallClick} className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-3 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-1 text-sm">
+                    <Download size={14} /> <span>Install</span>
+                  </button>
+                ) : (
+                  <button onClick={() => router.push('/login')} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-3 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-1 text-sm">
+                    <Zap size={14} /> <span>Launch</span>
+                  </button>
+                )}
+                <button onClick={() => setIsMenuOpen(!isMenuOpen)}>
+                  {isMenuOpen ? <X /> : <Menu />}
+                </button>
+              </div>
+            </motion.div>
+            <AnimatePresence>
+            {isMenuOpen && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="md:hidden overflow-hidden"
+              >
+                <div className="px-6 pb-4 flex flex-col items-center gap-4 bg-gray-950/90">
+                 {navLinks.map(link => (
+                   <a key={link} href={`#${link.toLowerCase().replace(/\?| /g, '-')}`} onClick={() => setIsMenuOpen(false)} className="text-gray-300 hover:text-white transition-colors duration-300 py-2">{link}</a>
+                ))}
+                </div>
+              </motion.div>
             )}
-          </div>
-          
-          <div className="flex items-center gap-2 md:hidden">
-            {installPrompt ? (
-              <button onClick={handleInstallClick} className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-3 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-1 text-sm">
-                <Download size={14} /> <span>Install</span>
-              </button>
-            ) : (
-              <button onClick={() => router.push('/login')} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-3 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-1 text-sm">
-                <Zap size={14} /> <span>Launch</span>
-              </button>
-            )}
-            <button onClick={() => setIsMenuOpen(!isMenuOpen)}>
-              {isMenuOpen ? <X /> : <Menu />}
-            </button>
-          </div>
-
-        </motion.div>
-        {isMenuOpen && (
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="md:hidden px-6 pb-4 flex flex-col items-center gap-4 bg-gray-950/90"
-          >
-             {navLinks.map(link => (
-               <a key={link} href={`#${link.toLowerCase().replace(' ', '-')}`} className="text-gray-300 hover:text-white transition-colors duration-300 py-2">{link}</a>
-            ))}
-          </motion.div>
-        )}
-      </header>
+            </AnimatePresence>
+        </header>
 
       <main>
         {/* --- Hero Section --- */}
         <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 text-center overflow-hidden">
-          {/* ✅ MODIFIED: Replaced background image with a more thematic tech background. */}
+          {/* Hero Section code remains the same... */}
           <div 
             className="absolute inset-0 -z-20 bg-cover bg-center"
             style={{ backgroundImage: "url('https://images.unsplash.com/photo-1519791883288-dc8bd696e667?q=80&w=2574&auto=format&fit=crop&ixlib=rb-4.0.3')" }}
@@ -295,15 +290,16 @@ export default function VyapariLandingPage() {
               </button>
             </motion.div>
             <motion.div variants={fadeIn('up', 0.4)}>
-                <AnimatedCommandBar />
+              <AnimatedCommandBar />
             </motion.div>
           </motion.div>
         </section>
 
         {/* --- Trusted By Section --- */}
         <section className="py-12 bg-gray-950">
+           {/* Trusted By Section code remains the same... */}
             <div className="container mx-auto px-6 text-center">
-                <p className="text-gray-400 mb-8 tracking-widest text-sm">TRUSTED BY OVER 5,000+ MERCHANTS ACROSS INDIA</p>
+                <p className="text-gray-400 mb-8 tracking-widest text-sm uppercase">Trusted by over 5,000+ merchants across India</p>
                 <div className="relative w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,white_20%,white_80%,transparent)]">
                     <motion.div 
                         className="flex gap-16 items-center"
@@ -320,19 +316,37 @@ export default function VyapariLandingPage() {
             </div>
         </section>
 
-        {/* --- Scrolly-telling Features Section --- */}
+        {/* --- Features Section --- */}
+        {/* ✅ REBUILT: This entire section is new to handle the sticky phone and scrolling text */}
         <section id="features" className="py-20 md:py-40 bg-gray-950">
             <div className="container mx-auto px-6">
                 <div className="text-center max-w-3xl mx-auto mb-24">
                     <motion.h2 variants={fadeIn('up')} initial="hidden" whileInView="show" viewport={{once: true}} className="text-4xl md:text-6xl font-bold tracking-tighter">Your Entire Business, in One App.</motion.h2>
                     <motion.p variants={fadeIn('up', 0.1)} initial="hidden" whileInView="show" viewport={{once: true}} className="text-lg text-gray-400 mt-4">From the first sale to the final tax report, Vyapari streamlines every aspect of your business with intelligent automation.</motion.p>
                 </div>
-                <ScrollyFeature features={featuresData} />
+                
+                <div className="grid md:grid-cols-2 gap-16 items-start">
+                    {/* Left side: Sticky Phone */}
+                    <div className="sticky top-9 h-screen flex items-center justify-center -mt-16">
+                         <PhoneMockup activeImage={featuresData[activeFeatureIndex].image} />
+                    </div>
+
+                    {/* Right side: Scrolling Text */}
+                    <div className="flex flex-col gap-96 py-16">
+                        {featuresData.map((feature, index) => (
+                            <FeatureText
+                                key={index}
+                                feature={feature}
+                                onInView={() => setActiveFeatureIndex(index)}
+                            />
+                        ))}
+                    </div>
+                </div>
             </div>
         </section>
         
-        {/* --- Why Vyapari Section --- */}
-        <section id="why-vyapari?" className="py-20 md:py-32 bg-gray-900/50">
+        {/* All subsequent sections remain the same */}
+       <section id="why-vyapari-" className="py-20 md:py-32 bg-gray-900/50">
             <motion.div
                 variants={staggerContainer}
                 initial="hidden"
@@ -370,37 +384,37 @@ export default function VyapariLandingPage() {
 
         {/* --- Testimonials Section --- */}
         <section id="testimonials" className="py-20 md:py-32 bg-gray-950">
-          <motion.div
-            variants={staggerContainer}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.2 }}
-            className="container mx-auto px-6"
-          >
-            <div className="text-center max-w-2xl mx-auto mb-16">
-              <h2 className="text-3xl md:text-5xl font-bold tracking-tighter">Built for India, Trusted by India</h2>
-            </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <TestimonialCard
-                    quote="This app is a game-changer. My invoicing time has been cut by 80%, and I can finally track my business performance properly."
-                    name="Ramesh Kumar"
-                    company="Kumar Electronics, Delhi"
-                    image="https://i.pravatar.cc/150?u=ramesh"
-                />
-                <TestimonialCard
-                    quote="The inventory management is so simple and effective. I know exactly what I have in stock at all times. Highly recommended for any small shop owner."
-                    name="Priya Patel"
-                    company="Patel Kirana Store, Ahmedabad"
-                    image="https://i.pravatar.cc/150?u=priya"
-                />
-                <TestimonialCard
-                    quote="Finally, a business app that understands the Indian market. The voice commands and GST features are perfect. The support team is also very responsive."
-                    name="Sandeep Singh"
-                    company="Singh Garments, Ludhiana"
-                    image="https://i.pravatar.cc/150?u=sandeep"
-                />
-            </div>
-          </motion.div>
+            <motion.div
+              variants={staggerContainer}
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, amount: 0.2 }}
+              className="container mx-auto px-6"
+            >
+                <div className="text-center max-w-2xl mx-auto mb-16">
+                  <h2 className="text-3xl md:text-5xl font-bold tracking-tighter">Built for India, Trusted by India</h2>
+                </div>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <TestimonialCard
+                        quote="This app is a game-changer. My invoicing time has been cut by 80%, and I can finally track my business performance properly."
+                        name="Ramesh Kumar"
+                        company="Kumar Electronics, Delhi"
+                        image="https://i.pravatar.cc/150?u=ramesh"
+                    />
+                    <TestimonialCard
+                        quote="The inventory management is so simple and effective. I know exactly what I have in stock at all times. Highly recommended for any small shop owner."
+                        name="Priya Patel"
+                        company="Patel Kirana Store, Ahmedabad"
+                        image="https://i.pravatar.cc/150?u=priya"
+                    />
+                    <TestimonialCard
+                        quote="Finally, a business app that understands the Indian market. The voice commands and GST features are perfect. The support team is also very responsive."
+                        name="Sandeep Singh"
+                        company="Singh Garments, Ludhiana"
+                        image="https://i.pravatar.cc/150?u=sandeep"
+                    />
+                </div>
+            </motion.div>
         </section>
 
         {/* --- CTA Section --- */}

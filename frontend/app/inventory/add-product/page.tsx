@@ -1,8 +1,6 @@
-
-
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, Suspense, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { DashboardLayout } from '@/components/dashboard-layout'
 import {
@@ -29,9 +27,47 @@ import {
   Warehouse,
   AlertTriangle,
   Ruler,
+  Loader2, // <-- Import a cleaner loader icon
 } from 'lucide-react'
 
-// Product form component (inside Suspense)
+// ✅ FIX: Moved InputField outside the ProductForm to prevent focus loss
+const InputField = ({
+  name,
+  label,
+  placeholder,
+  value,
+  onChange,
+  icon: Icon,
+  type = 'text',
+  required = false,
+}: {
+  name: string
+  label: string
+  placeholder: string
+  value: string | number
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  icon: React.ElementType
+  type?: string
+  required?: boolean
+}) => (
+  <div className="space-y-2">
+    <Label htmlFor={name} className="flex items-center text-muted-foreground">
+      <Icon className="w-4 h-4 mr-2" />
+      {label}
+    </Label>
+    <Input
+      id={name}
+      name={name}
+      type={type}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      required={required}
+      // ✅ FIX: Removed hardcoded background color to support dark mode
+    />
+  </div>
+)
+
 function ProductForm() {
   const searchParams = useSearchParams()
   const productId = searchParams.get('id')
@@ -65,16 +101,19 @@ function ProductForm() {
 
       if (error) {
         toast({
-          title: '❌ Error fetching',
+          title: '❌ Error fetching product',
           description: error.message,
           variant: 'destructive',
         })
-      } else {
+      } else if (data) {
         setForm({
-          ...data,
+          name: data.name ?? '',
+          description: data.description ?? '',
+          hsn: data.hsn ?? '',
           gst: data.gst?.toString() ?? '',
           rate: data.rate?.toString() ?? '',
           stock: data.stock?.toString() ?? '',
+          unit: data.unit ?? '',
           alertStock: data.alert_stock?.toString() ?? '',
           image: null,
         })
@@ -85,97 +124,107 @@ function ProductForm() {
     fetchProduct()
   }, [productId, userId, toast])
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    setForm({ ...form, [e.target.name]: e.target.value })
-  }
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      setForm((prevForm) => ({ ...prevForm, [e.target.name]: e.target.value }))
+    },
+    []
+  )
 
-  const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImage = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      setForm({ ...form, image: file })
+      setForm((prevForm) => ({ ...prevForm, image: file }))
       setPreview(URL.createObjectURL(file))
     }
-  }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsSubmitting(true)
-
-    const formData = new FormData()
-    if (productId) formData.append('id', productId)
-    formData.append('name', form.name)
-    formData.append('description', form.description)
-    formData.append('hsn', form.hsn)
-    formData.append('gst', form.gst)
-    formData.append('rate', form.rate)
-    formData.append('stock', form.stock)
-    formData.append('unit', form.unit)
-    formData.append('alertStock', form.alertStock)
-    formData.append('user_id', userId || '')
-    if (form.image) formData.append('image', form.image)
-
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/add-product`,
-        {
-          method: 'POST',
-          body: formData,
-        }
-      )
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message || 'Failed to save product')
-
+    if (!userId) {
       toast({
-        title: productId ? '✅ Product Updated' : '✅ Product Added',
-        description: `${data.product.name} saved successfully`,
-      })
-
-      router.push('/inventory')
-    } catch (err: any) {
-      toast({
-        title: '❌ Error',
-        description: err.message,
+        title: 'Authentication Error',
+        description: 'User ID is not available. Please log in again.',
         variant: 'destructive',
       })
-    } finally {
-      setIsSubmitting(false)
+      return
     }
-  }
+    setIsSubmitting(true)
 
-  const InputField = ({
-    name,
-    label,
-    placeholder,
-    value,
-    icon: Icon,
-    type = 'text',
-  }: {
-    name: keyof typeof form
-    label: string
-    placeholder: string
-    value: string
-    icon: React.ElementType
-    type?: string
-  }) => (
-    <div className="space-y-2">
-      <Label htmlFor={name} className="flex items-center text-slate-600">
-        <Icon className="w-4 h-4 mr-2" />
-        {label}
-      </Label>
-      <Input
-        id={name}
-        name={name}
-        type={type}
-        value={value}
-        onChange={handleChange}
-        placeholder={placeholder}
-        required={name === 'name'}
-        className="bg-slate-50"
-      />
-    </div>
-  )
+    try {
+        const productData = {
+            user_id: userId,
+            name: form.name,
+            description: form.description,
+            hsn: form.hsn || null,
+            gst: form.gst ? parseFloat(form.gst) : null,
+            rate: form.rate ? parseFloat(form.rate) : null,
+            stock: form.stock ? parseInt(form.stock, 10) : null,
+            unit: form.unit || null,
+            alert_stock: form.alertStock ? parseInt(form.alertStock, 10) : null,
+        };
+
+        let upsertResponse;
+        if (productId) {
+            // Update existing product
+            upsertResponse = await supabase
+                .from('products')
+                .update(productData)
+                .eq('id', productId)
+                .select()
+                .single();
+        } else {
+            // Insert new product
+            upsertResponse = await supabase
+                .from('products')
+                .insert(productData)
+                .select()
+                .single();
+        }
+
+        const { data: updatedProduct, error: upsertError } = upsertResponse;
+
+        if (upsertError) throw upsertError;
+        
+        // Handle image upload if a new image is provided
+        if (form.image) {
+            const filePath = `${userId}/${updatedProduct.id}/${form.image.name}`;
+            const { error: uploadError } = await supabase.storage
+                .from('product_images')
+                .upload(filePath, form.image, {
+                    cacheControl: '3600',
+                    upsert: true, // Overwrite if file exists
+                });
+
+            if (uploadError) throw uploadError;
+
+            // Get public URL and update the product record
+            const { data: urlData } = supabase.storage
+                .from('product_images')
+                .getPublicUrl(filePath);
+            
+            await supabase
+                .from('products')
+                .update({ image_url: urlData.publicUrl })
+                .eq('id', updatedProduct.id);
+        }
+
+        toast({
+            title: productId ? '✅ Product Updated' : '✅ Product Added',
+            description: `${updatedProduct.name} has been saved successfully.`,
+        });
+
+        router.push('/inventory');
+    } catch (err: any) {
+        toast({
+            title: '❌ Operation Failed',
+            description: err.message || 'An unexpected error occurred.',
+            variant: 'destructive',
+        });
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
 
   return (
     <>
@@ -183,6 +232,7 @@ function ProductForm() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
+        className="mb-6"
       >
         <h1 className="text-3xl font-bold tracking-tight">
           {productId ? 'Edit Product' : 'Add New Product'}
@@ -192,11 +242,7 @@ function ProductForm() {
         </p>
       </motion.div>
 
-      <form
-        onSubmit={handleSubmit}
-        encType="multipart/form-data"
-        className="space-y-8"
-      >
+      <form onSubmit={handleSubmit} className="space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
             <Card>
@@ -212,12 +258,14 @@ function ProductForm() {
                   label="Product Name *"
                   placeholder="e.g., Premium Cotton T-Shirt"
                   value={form.name}
+                  onChange={handleChange}
                   icon={Package}
+                  required
                 />
                 <div className="space-y-2">
                   <Label
                     htmlFor="description"
-                    className="flex items-center text-slate-600"
+                    className="flex items-center text-muted-foreground"
                   >
                     <Info className="w-4 h-4 mr-2" />
                     Product Description
@@ -228,7 +276,6 @@ function ProductForm() {
                     value={form.description}
                     onChange={handleChange}
                     placeholder="Describe the product, its features, materials, etc."
-                    className="bg-slate-50"
                   />
                 </div>
               </CardContent>
@@ -239,29 +286,9 @@ function ProductForm() {
                 <CardTitle>Pricing & Taxation</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <InputField
-                  name="hsn"
-                  label="HSN Code"
-                  placeholder="e.g., 610910"
-                  value={form.hsn}
-                  icon={Info}
-                />
-                <InputField
-                  name="gst"
-                  label="GST Rate (%)"
-                  placeholder="e.g., 12"
-                  value={form.gst}
-                  icon={DollarSign}
-                  type="number"
-                />
-                <InputField
-                  name="rate"
-                  label="Rate/Price (₹)"
-                  placeholder="e.g., 499"
-                  value={form.rate}
-                  icon={DollarSign}
-                  type="number"
-                />
+                <InputField name="hsn" label="HSN Code" placeholder="e.g., 610910" value={form.hsn} onChange={handleChange} icon={Info} />
+                <InputField name="gst" label="GST Rate (%)" placeholder="e.g., 12" value={form.gst} onChange={handleChange} icon={DollarSign} type="number" />
+                <InputField name="rate" label="Rate/Price (₹)" placeholder="e.g., 499" value={form.rate} onChange={handleChange} icon={DollarSign} type="number" />
               </CardContent>
             </Card>
 
@@ -270,29 +297,9 @@ function ProductForm() {
                 <CardTitle>Inventory</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <InputField
-                  name="stock"
-                  label="Available Stock"
-                  placeholder="e.g., 50"
-                  value={form.stock}
-                  icon={Warehouse}
-                  type="number"
-                />
-                <InputField
-                  name="unit"
-                  label="Unit"
-                  placeholder="e.g., pcs, kg, box"
-                  value={form.unit}
-                  icon={Ruler}
-                />
-                <InputField
-                  name="alertStock"
-                  label="Low Stock Alert"
-                  placeholder="e.g., 10"
-                  value={form.alertStock}
-                  icon={AlertTriangle}
-                  type="number"
-                />
+                <InputField name="stock" label="Available Stock" placeholder="e.g., 50" value={form.stock} onChange={handleChange} icon={Warehouse} type="number"/>
+                <InputField name="unit" label="Unit" placeholder="e.g., pcs, kg, box" value={form.unit} onChange={handleChange} icon={Ruler} />
+                <InputField name="alertStock" label="Low Stock Alert" placeholder="e.g., 10" value={form.alertStock} onChange={handleChange} icon={AlertTriangle} type="number" />
               </CardContent>
             </Card>
           </div>
@@ -303,33 +310,33 @@ function ProductForm() {
                 <CardTitle>Product Image</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  <div className="relative flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer hover:border-indigo-500 transition-colors bg-slate-50">
-                    <div className="text-center">
-                      <UploadCloud className="w-10 h-10 text-slate-400 mx-auto mb-2" />
-                      <p className="text-sm text-slate-500">
-                        <span className="font-semibold">Click to upload</span>
-                      </p>
-                      <p className="text-xs text-slate-400">or drag and drop</p>
-                    </div>
-                    <Input
-                      id="image"
-                      name="image"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImage}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                <div className="relative flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition-colors bg-background">
+                  <Input
+                    id="image"
+                    name="image"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImage}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  
+                  {/* ✅ IMPROVEMENT: Conditionally render preview or upload prompt */}
+                  {preview ? (
+                    <Image
+                      src={preview}
+                      alt="Product preview"
+                      fill
+                      className="object-contain p-2 rounded-lg"
                     />
-                    {preview && (
-                      <Image
-                        src={preview}
-                        alt="Product preview"
-                        layout="fill"
-                        objectFit="contain"
-                        className="absolute inset-0 w-full h-full p-2 rounded-lg bg-white"
-                      />
-                    )}
-                  </div>
+                  ) : (
+                    <div className="text-center text-muted-foreground">
+                      <UploadCloud className="w-10 h-10 mx-auto mb-2" />
+                      <p className="font-semibold text-foreground">
+                        Click to upload
+                      </p>
+                      <p className="text-xs">or drag and drop</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -339,12 +346,13 @@ function ProductForm() {
         <div className="flex justify-end pt-6 border-t">
           <Button
             type="submit"
-            className="w-full md:w-auto flex items-center gap-2"
-            disabled={isSubmitting}
+            className="w-full md:w-auto min-w-[140px]"
+            disabled={isSubmitting || !form.name}
           >
             {isSubmitting ? (
+                // ✅ IMPROVEMENT: Cleaner loading state
               <>
-                <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Saving...
               </>
             ) : productId ? (
@@ -359,15 +367,14 @@ function ProductForm() {
   )
 }
 
-// Final wrapper component
 export default function AddOrEditProductPage() {
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="p-4 md:p-6 space-y-6">
         <Suspense
           fallback={
-            <div className="flex justify-center items-center p-8">
-              <div className="h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="flex justify-center items-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           }
         >
