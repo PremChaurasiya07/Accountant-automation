@@ -10,7 +10,7 @@ import chatbot from "../../public/landing/chatbot.png";
 import analytic from "../../public/landing/analytic.png";
 import gstb from "../../public/landing/gstb.png";
 import sampleinvoice from "../../public/landing/sample-invoice.png";
-
+import inventory from "../../public/landing/inventory.png";
 // --- Animation Variants ---
 const fadeIn = (direction = 'up', delay = 0, duration = 1) => ({
   hidden: { opacity: 0, y: direction === 'up' ? 30 : -30, x: direction === 'left' ? 30 : direction === 'right' ? -30 : 0 },
@@ -49,7 +49,7 @@ const PhoneMockup = ({ activeImage }) => {
                         key={activeImage.src}
                         src={activeImage.src}
                         alt="Feature"
-                        className="absolute inset-0 w-full h-full object-cover object-top"
+                        className="absolute inset-0 w-full h-full object-fill object-top"
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.95 }}
@@ -157,7 +157,7 @@ export default function VyapariLandingPage() {
   };
     
   const featuresData = [
-    {
+        {
         title: "Voice-Powered Invoicing",
         icon: <Mic size={24} className="text-blue-400" />,
         description: "Say goodbye to tedious typing. Just speak commands in English, Hindi, or Hinglish to create professional, GST-compliant invoices in seconds.",
@@ -168,7 +168,7 @@ export default function VyapariLandingPage() {
       title: "From Voice to Pro Invoice in 8 Seconds",
       icon: <Mic size={24} className="text-blue-400" />,
       description: "Impress your clients with polished, professional invoices created in record time. Our advanced AI listens to your command and generates a perfect, GST-compliant invoice in under 8 seconds. No typing, no hassle.",
-      image: sampleinvoice,
+      image: sampleinvoice, // Using sampleinvoice for this as a placeholder
       points: [
         "Generate flawless, branded invoices that build client trust.",
         "Eliminates manual errors and ensures 100% GST compliance.",
@@ -179,8 +179,15 @@ export default function VyapariLandingPage() {
         title: "Automated GST Reporting",
         icon: <FileText size={24} className="text-purple-400" />,
         description: "Generate accurate GSTR-3B reports with a single command. Vyapari handles all the complex calculations, saving you hours of work and ensuring compliance.",
-        image: gstb,
+        image: gstb, // Using gstb for this as a placeholder
         points: ["Error-free, automated calculations.", "One-click report generation.", "Always compliant with the latest GST norms."]
+    },
+    {
+        title: "Intelligent Inventory",
+        icon: <Package size={24} className="text-green-400" />,
+        description: "Never lose a sale to stockouts. Our smart system tracks your inventory in real-time and sends you low-stock alerts before it's too late.",
+        image: inventory, // Using inventory for this as a placeholder
+        points: ["Real-time stock level tracking.", "Customizable low-stock notifications.", "Insights on best-selling products."]
     },
     {
         title: "Conversational Analytics",
@@ -189,6 +196,7 @@ export default function VyapariLandingPage() {
         image: analytic,
         points: ["Example: 'Pichle mahine ka profit dikhao'", "Get instant, easy-to-read charts.", "Track business trends effortlessly."]
     }
+  
   ];
 
   return (

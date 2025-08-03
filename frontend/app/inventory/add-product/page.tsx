@@ -189,6 +189,7 @@ function ProductForm() {
         // Handle image upload if a new image is provided
         if (form.image) {
             const filePath = `${userId}/${updatedProduct.id}`;
+            console.log('Uploading image to:', filePath);
             const { error: uploadError } = await supabase.storage
                 .from('product-images')
                 .upload(filePath, form.image, {
@@ -202,6 +203,7 @@ function ProductForm() {
             const { data: urlData } = supabase.storage
                 .from('product-images')
                 .getPublicUrl(filePath);
+                console.log('Image uploaded successfully:', urlData);
             
             await supabase
                 .from('products')
@@ -213,8 +215,19 @@ function ProductForm() {
             title: productId ? '✅ Product Updated' : '✅ Product Added',
             description: `${updatedProduct.name} has been saved successfully.`,
         });
-
-        router.push('/inventory');
+          setForm({
+             name: '',
+            description: '',
+            hsn: '',
+            gst: '',
+            rate: '',
+            stock: '',
+            unit: '',
+            alertStock: '',
+            image: null ,
+          })
+          router.push('/inventory/add-product');
+        
     } catch (err: any) {
         toast({
             title: '❌ Operation Failed',
