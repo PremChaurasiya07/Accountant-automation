@@ -190,7 +190,7 @@ function ProductForm() {
         if (form.image) {
             const filePath = `${userId}/${updatedProduct.id}/${form.image.name}`;
             const { error: uploadError } = await supabase.storage
-                .from('product_images')
+                .from('product-images')
                 .upload(filePath, form.image, {
                     cacheControl: '3600',
                     upsert: true, // Overwrite if file exists
