@@ -188,7 +188,7 @@ function ProductForm() {
         
         // Handle image upload if a new image is provided
         if (form.image) {
-            const filePath = `${userId}/${updatedProduct.id}/${form.image.name}`;
+            const filePath = `${userId}/${updatedProduct.id}`;
             const { error: uploadError } = await supabase.storage
                 .from('product-images')
                 .upload(filePath, form.image, {
