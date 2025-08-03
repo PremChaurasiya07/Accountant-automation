@@ -167,13 +167,17 @@ export default function VyapariLandingPage() {
         image: chatbot,
         points: ["Example: 'Rahul ko 10 shirt ka bill banao'", "Auto-fills client and product details.", "Send directly via WhatsApp or Email."]
     },
-    {
-        title: "Get Instant Invoice within 8 seconds ",
-        icon: <Mic size={24} className="text-blue-400" />,
-        description: "Say goodbye to tedious typing. Just speak commands in English, Hindi, or Hinglish to create professional, GST-compliant invoices in seconds.",
-        image: chatbot,
-        points: ["Example: 'Rahul ko 10 shirt ka bill banao'", "Auto-fills client and product details.", "Send directly via WhatsApp or Email."]
-    },
+   {
+      title: "From Voice to Pro Invoice in 8 Seconds",
+      icon: <Mic size={24} className="text-blue-400" />,
+      description: "Impress your clients with polished, professional invoices created in record time. Our advanced AI listens to your command and generates a perfect, GST-compliant invoice in under 8 seconds. No typing, no hassle.",
+      image: sampleinvoice, // Using sampleinvoice for this as a placeholder
+      points: [
+        "Generate flawless, branded invoices that build client trust.",
+        "Eliminates manual errors and ensures 100% GST compliance.",
+        "Send instantly via WhatsApp or Email to get paid faster."
+      ]
+  },
     {
         title: "Automated GST Reporting",
         icon: <FileText size={24} className="text-purple-400" />,

@@ -200,7 +200,7 @@ function ProductForm() {
 
             // Get public URL and update the product record
             const { data: urlData } = supabase.storage
-                .from('product_images')
+                .from('product-images')
                 .getPublicUrl(filePath);
             
             await supabase
