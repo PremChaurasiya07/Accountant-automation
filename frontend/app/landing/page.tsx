@@ -42,7 +42,7 @@ const TestimonialCard = ({ quote, name, company, image }) => (
 // ✅ UPDATED: Component for the sticky phone mockup
 const PhoneMockup = ({ activeImage }) => {
     return (
-        <div className="relative w-full max-w-[200px] md:max-w-[280px] aspect-[9/19] bg-black border-4 border-gray-700 rounded-[2.8rem] shadow-2xl shadow-black/60 p-2 pointer-events-auto">
+        <div className="relative w-full max-w-[170px] md:max-w-[280px] aspect-[9/19] bg-black border-4 border-gray-700 rounded-[2.8rem] shadow-2xl shadow-black/60 p-2 pointer-events-auto">
             <div className="relative w-full h-full rounded-[2rem] overflow-hidden bg-gray-900">
                 <AnimatePresence>
                     <motion.img
