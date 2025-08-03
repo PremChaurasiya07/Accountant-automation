@@ -1,209 +1,3 @@
-// 'use client'
-
-// import { useRouter } from 'next/navigation'
-// import { Button } from '@/components/ui/button'
-// import {
-//   FileText,
-//   Mic,
-//   PieChart,
-//   Warehouse,
-//   BarChart,
-//   MessageSquareText,
-// } from 'lucide-react'
-// import Image from 'next/image'
-
-// export default function LandingPage() {
-//   const router = useRouter()
-
-//   return (
-//     <main className="min-h-screen bg-background text-foreground relative">
-//       {/* Floating Navigation */}
-//       <nav className="fixed top-6 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-md shadow-md rounded-full px-6 py-3 flex gap-6 items-center z-50 border">
-//         <span
-//           className="text-sm font-semibold text-blue-700 bg-blue-100 px-3 py-1 rounded-full"
-//         >
-//           Beta Testing
-//         </span>
-//         <button
-//           onClick={() => router.push('/landing')}
-//           className="text-sm font-medium text-gray-700 hover:text-blue-700 transition"
-//         >
-//           Home
-//         </button>
-//         <button
-//           onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
-//           className="text-sm font-medium text-gray-700 hover:text-blue-700 transition"
-//         >
-//           Features
-//         </button>
-//         <button
-//           onClick={() => document.getElementById('feedback')?.scrollIntoView({ behavior: 'smooth' })}
-//           className="text-sm font-medium text-gray-700 hover:text-blue-700 transition"
-//         >
-//           Feedback
-//         </button>
-//       </nav>
-
-//       {/* Hero */}
-//       <section className="py-32 text-center bg-gradient-to-br from-blue-600 to-indigo-700 text-white">
-//         <div className="max-w-4xl mx-auto px-4">
-//           <h1 className="text-5xl md:text-6xl font-bold leading-tight">
-//             Vyapari – Your AI Voice-Powered Accountant
-//           </h1>
-//           <p className="mt-6 text-xl">
-//             Create invoices, manage inventory, and file GST — all by voice.
-//           </p>
-//           <Button
-//             onClick={() => router.push('/login')}
-//             className="mt-8 text-lg px-6 py-4 bg-white text-blue-700 font-semibold hover:bg-gray-100"
-//           >
-//             🚀 Get Started Free
-//           </Button>
-//         </div>
-//       </section>
-
-//       {/* Feature Images */}
-//       <section id="features" className="py-20 bg-muted text-center">
-//         <div className="max-w-5xl mx-auto px-4">
-//           <h2 className="text-3xl font-bold mb-10">Visual Tour of Features</h2>
-//           <div className="grid md:grid-cols-3 gap-6">
-//             {[1, 2, 3].map((n) => (
-//               <Image
-//                 key={n}
-//                 src={`/feature${n}.png`}
-//                 alt={`Feature screenshot ${n}`}
-//                 width={400}
-//                 height={400}
-//                 style={{ maxHeight: '42vh' }}
-//                 className="rounded-xl border shadow-md"
-//               />
-//             ))}
-//           </div>
-//         </div>
-//       </section>
-
-//       {/* Features */}
-//       <section className="py-20 bg-white text-gray-900">
-//         <div className="max-w-6xl mx-auto px-4">
-//           <h2 className="text-3xl font-bold text-center mb-12">
-//             Powerful Features for Indian Business
-//           </h2>
-//           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-//             {[
-//               {
-//                 icon: <Mic className="w-8 h-8 text-blue-600" />,
-//                 title: 'Voice Invoicing',
-//                 desc: 'Create, edit, and track invoices hands-free.',
-//               },
-//               {
-//                 icon: <FileText className="w-8 h-8 text-green-600" />,
-//                 title: 'Invoice Ledger',
-//                 desc: 'Track payments and manage ledgers easily.',
-//               },
-//               {
-//                 icon: <Warehouse className="w-8 h-8 text-orange-600" />,
-//                 title: 'Inventory',
-//                 desc: 'Organize your products and stock.',
-//               },
-//               {
-//                 icon: <PieChart className="w-8 h-8 text-purple-600" />,
-//                 title: 'Analytics',
-//                 desc: 'Understand your business performance.',
-//               },
-//               {
-//                 icon: <MessageSquareText className="w-8 h-8 text-rose-600" />,
-//                 title: 'AI Chat Assistant',
-//                 desc: 'Automate accounting with AI conversation.',
-//               },
-//               {
-//                 icon: <BarChart className="w-8 h-8 text-yellow-500" />,
-//                 title: 'GST Filing',
-//                 desc: 'GSTR-1 report. E-Way Bill generation and further tax filling coming soon.',
-//               },
-//             ].map((f, i) => (
-//               <div
-//                 key={i}
-//                 className="p-6 rounded-xl border hover:shadow-lg transition"
-//               >
-//                 <div className="mb-4">{f.icon}</div>
-//                 <h3 className="text-lg font-semibold mb-2">{f.title}</h3>
-//                 <p className="text-sm text-muted-foreground">{f.desc}</p>
-//               </div>
-//             ))}
-//           </div>
-//         </div>
-//       </section>
-
-//       {/* Feedback Form */}
-//       <section
-//         id="feedback"
-//         className="py-20 bg-muted text-center text-gray-800 px-4"
-//       >
-//         <div className="max-w-xl mx-auto">
-//           <h3 className="text-2xl font-bold mb-4">💬 Feedback & Beta Suggestions</h3>
-//           <p className="mb-8 text-muted-foreground">
-//             We value your thoughts. Share feedback below — entries will be emailed to us.
-//           </p>
-//           <form
-//             action="https://formspree.io/f/xzzgybod" // Replace with your Formspree endpoint
-//             method="POST"
-//             className="grid gap-4 text-left"
-//           >
-//             <input
-//               type="text"
-//               name="name"
-//               required
-//               placeholder="Your Name"
-//               className="w-full px-4 py-3 border rounded-md focus:ring-2 focus:ring-blue-500"
-//             />
-//             <input
-//               type="email"
-//               name="email"
-//               required
-//               placeholder="Your Email"
-//               className="w-full px-4 py-3 border rounded-md focus:ring-2 focus:ring-blue-500"
-//             />
-//             <textarea
-//               name="message"
-//               rows={4}
-//               required
-//               placeholder="Your Feedback"
-//               className="w-full px-4 py-3 border rounded-md focus:ring-2 focus:ring-blue-500"
-//             />
-//             <Button
-//               type="submit"
-//               className="bg-blue-600 text-white px-6 py-3 font-semibold hover:bg-blue-700"
-//             >
-//               Submit Feedback
-//             </Button>
-//           </form>
-//         </div>
-//       </section>
-
-//       {/* CTA */}
-//       <section className="py-20 text-center bg-gradient-to-br from-blue-700 to-indigo-800 text-white">
-//         <div className="max-w-3xl mx-auto px-4">
-//           <h2 className="text-3xl md:text-4xl font-bold">
-//             Ready to Automate Your Finances?
-//           </h2>
-//           <p className="mt-4 text-lg">
-//             Start using Vyapari today — it’s free and powerful.
-//           </p>
-//           <Button
-//             onClick={() => router.push('/login')}
-//             className="mt-8 text-lg px-6 py-4 bg-white text-blue-700 font-semibold hover:bg-gray-100"
-//           >
-//             Try Now for Free
-//           </Button>
-//         </div>
-//       </section>
-
-//       <footer className="py-6 text-center text-sm text-muted-foreground bg-background border-t">
-//         © {new Date().getFullYear()} Vyapari. Built with ❤️
-//       </footer>
-//     </main>
-//   )
-// }
 "use client"
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -211,7 +5,8 @@ import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
 import { ArrowRight, Star, Menu, X, FileText, Package, IndianRupee, Zap, Mic, BarChart3, Bot, CheckCircle, BookOpen, Calculator, Download } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-
+import chatbot from "../../public/chatbot.png"
+import analytic from "../../public/analytic.png"
 // --- Animation Variants ---
 const fadeIn = (direction = 'up', delay = 0, duration = 1) => ({
   hidden: { opacity: 0, y: direction === 'up' ? 30 : -30, x: direction === 'left' ? 30 : direction === 'right' ? -30 : 0 },
@@ -258,22 +53,21 @@ const ScrollyFeature = ({ features }) => {
             {/* Left Side: Sticky Phone Mockup */}
             <div className="sticky top-24 h-[600px]">
                 <div className="absolute inset-0 flex items-center justify-center">
-                    {/* MODIFIED: Added a subtle background and enhanced the phone mockup */}
                     <div className="relative w-full h-full max-w-[300px] aspect-[9/19]">
-                      <img src="https://i.imgur.com/7o2xR3l.png" alt="Phone Mockup Frame" className="absolute inset-0 w-full h-full z-10 pointer-events-none" />
+                      <img src={chatbot.src} alt="Phone Mockup Frame" className="absolute inset-0 w-full h-full z-10 pointer-events-none" />
                       <div className="absolute inset-[1.5%] rounded-[2.5rem] overflow-hidden bg-gray-900">
-                          <AnimatePresence>
-                              <motion.img
-                                  key={activeFeature}
-                                  src={features[activeFeature].image}
-                                  alt={features[activeFeature].title}
-                                  className="absolute inset-0 w-full h-full object-cover"
-                                  initial={{ opacity: 0, scale: 0.95 }}
-                                  animate={{ opacity: 1, scale: 1 }}
-                                  exit={{ opacity: 0, scale: 0.95 }}
-                                  transition={{ duration: 0.5, ease: "easeInOut" }}
-                              />
-                          </AnimatePresence>
+                        <AnimatePresence>
+                          <motion.img
+                            key={activeFeature}
+                            src={features[activeFeature].image}
+                            alt={features[activeFeature].title}
+                            className="absolute inset-0 w-full h-full object-cover"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ duration: 0.5, ease: "easeInOut" }}
+                          />
+                        </AnimatePresence>
                       </div>
                     </div>
                 </div>
@@ -382,37 +176,34 @@ export default function VyapariLandingPage() {
     setInstallPrompt(null);
   };
     
+  // ✅ MODIFIED: Replaced generic photos with high-quality, relevant UI mockups.
   const featuresData = [
     {
         title: "Voice-Powered Invoicing",
         icon: <Mic size={24} className="text-blue-400" />,
-        color: "#3b82f6",
         description: "Say goodbye to tedious typing. Just speak commands in English, Hindi, or Hinglish to create professional, GST-compliant invoices in seconds.",
-        image: "https://images.unsplash.com/photo-1599422314077-2c723842476c?q=80&w=2574&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        image: {chatbot},
         points: ["Example: 'Rahul ko 10 shirt ka bill banao'", "Auto-fills client and product details.", "Send directly via WhatsApp or Email."]
     },
     {
         title: "Automated GST Reporting",
         icon: <FileText size={24} className="text-purple-400" />,
-        color: "#a855f7",
         description: "Generate accurate GSTR-3B reports with a single command. Vyapari handles all the complex calculations, saving you hours of work and ensuring compliance.",
-        image: "https://images.unsplash.com/photo-1554224155-1696413565d3?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        image: "https://images.unsplash.com/photo-1642427749670-f20e2e76f862?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3",
         points: ["Error-free, automated calculations.", "One-click report generation.", "Always compliant with the latest GST norms."]
     },
     {
         title: "Intelligent Inventory",
         icon: <Package size={24} className="text-green-400" />,
-        color: "#4ade80",
         description: "Never lose a sale to stockouts. Our smart system tracks your inventory in real-time and sends you low-stock alerts before it's too late.",
-        image: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?q=80&w=2568&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        image: "https://images.unsplash.com/photo-1586717791821-3f44a563fa4c?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3",
         points: ["Real-time stock level tracking.", "Customizable low-stock notifications.", "Insights on best-selling products."]
     },
     {
         title: "Conversational Analytics",
         icon: <BarChart3 size={24} className="text-yellow-400" />,
-        color: "#facc15",
         description: "Ask your business questions and get instant answers. Understand your sales, profits, and customer behavior without complex dashboards.",
-        image: "https://images.unsplash.com/photo-1611974780784-3c5b535f2129?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+        image: {analytic},
         points: ["Example: 'Pichle mahine ka profit dikhao'", "Get instant, easy-to-read charts.", "Track business trends effortlessly."]
     }
   ];
@@ -477,10 +268,10 @@ export default function VyapariLandingPage() {
       <main>
         {/* --- Hero Section --- */}
         <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 text-center overflow-hidden">
-          {/* MODIFIED: Added a subtle background image */}
+          {/* ✅ MODIFIED: Replaced background image with a more thematic tech background. */}
           <div 
             className="absolute inset-0 -z-20 bg-cover bg-center"
-            style={{ backgroundImage: "url('https://images.unsplash.com/photo-1553356084-58ef4a67b2a7?q=80&w=2574&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')" }}
+            style={{ backgroundImage: "url('https://images.unsplash.com/photo-1519791883288-dc8bd696e667?q=80&w=2574&auto=format&fit=crop&ixlib=rb-4.0.3')" }}
           ></div>
           <div className="absolute inset-0 -z-10 bg-gray-950/80"></div>
 
