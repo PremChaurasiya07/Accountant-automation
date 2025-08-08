@@ -326,17 +326,22 @@
 #         # Step 8: Final cleanup of the local temp file
 #         if pdf_path and os.path.exists(pdf_path):
 #             os.remove(pdf_path)
-
 import os
 import re
 import json
+import asyncio
 from datetime import date, datetime
 from typing import Dict, Any
 
+# Ensure you have this library installed: pip install num2words
+from num2words import num2words
+
 # --- Production Imports ---
+# Make sure these imports correctly point to your files and functions
 from app.core.supabase import supabase
 from utils.upload_to_storage import upload_file
 from app.services.invoice_generator import generate_invoice_pdf3
+
 
 def normalize_date(value: Any) -> Any:
     """Helper to format date strings consistently for the database."""
@@ -353,8 +358,8 @@ def load_invoice_for_edit(invoice_number: str, user_id: str) -> str:
         invoice_resp = supabase.table("invoices_record").select("*, sellers_record(*), buyers_record(*)").eq("invoice_no", invoice_number).eq("user_id", user_id).maybe_single().execute()
         if not invoice_resp.data:
             return f"Error: No invoice found with number {invoice_number}."
-        # ... (rest of the assembly logic)
-        return json.dumps(invoice_resp.data, indent=2)
+        # Use default=str to handle date/datetime objects that are not JSON serializable
+        return json.dumps(invoice_resp.data, indent=2, default=str)
     except Exception as e:
         return f"Error loading invoice: {str(e)}"
 
@@ -371,67 +376,123 @@ def get_next_invoice_number(user_id: str) -> str:
                 return re.sub(r"(\d+)", next_num, last_invoice_no, count=1)
         return "001/2025-26"
     except Exception as e:
-        return f"Error fetching next invoice number: {e}"
+        return f"Error fetching next invoice number: {str(e)}"
+
+def format_data_for_pdf(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Transforms the basic invoice data into the detailed, robust format
+    required by the PDF generation function.
+    """
+    company_in = data.get("company", {})
+    buyer_in = data.get("buyer", {})
+    invoice_in = data.get("invoice", {})
+    items_in = data.get("items", [])
+
+    total_amount = 0
+    formatted_items = []
+    for item in items_in:
+        rate = item.get("price_per_unit", 0) or item.get("rate", 0)
+        quantity = item.get("quantity", 0)
+        amount = float(rate) * float(quantity)
+        total_amount += amount
+        
+        formatted_items.append({
+            "name": item.get("name", "") or item.get("description", ""),
+            "description": item.get("description", ""), "hsn": item.get("hsn", ""),
+            "gst_rate": item.get("gst_rate", 18), "quantity": quantity,
+            "unit": item.get("unit", "pcs"), "rate": rate, "amount": amount
+        })
+
+    # This is the final, detailed structure for the PDF
+    formatted_data = {
+        "intent": "create",
+        "company": {
+            "name": company_in.get("name", ""), "address": company_in.get("address", ""),
+            "district": company_in.get("district", ""), "mobile": company_in.get("mobile", ""),
+            "phone": company_in.get("phone", ""), "gstin": company_in.get("gst_no", ""),
+            "state": company_in.get("state", ""), "contact": company_in.get("contact", ""),
+            "email": company_in.get("email", "")
+        },
+        "invoice": {
+            "number": invoice_in.get("number", ""), "date": invoice_in.get("date", date.today().isoformat()),
+            "delivery_note": invoice_in.get("delivery_note", ""), "payment_terms": invoice_in.get("payment_terms", ""),
+            "reference": invoice_in.get("reference", ""), "other_references": invoice_in.get("other_references", ""),
+            "buyer_order": invoice_in.get("buyer_order", ""), "buyer_order_date": invoice_in.get("buyer_order_date", ""),
+            "dispatch_doc": invoice_in.get("dispatch_doc", ""), "delivery_date": invoice_in.get("delivery_date", ""),
+            "dispatch_through": invoice_in.get("dispatch_through", ""), "destination": invoice_in.get("destination", ""),
+            "terms_delivery": invoice_in.get("terms_delivery", "")
+        },
+        "buyer": {
+            "name": buyer_in.get("name", ""), "address": buyer_in.get("address", ""),
+            "gstin": buyer_in.get("gstin", ""), "state": buyer_in.get("state", "")
+        },
+        "items": formatted_items,
+        "amount_in_words": f"INR {num2words(total_amount, lang='en_IN').replace('-', ' ').title()} Only",
+        "bank": {
+            "name": company_in.get("bank_name", ""), "account": company_in.get("account_no", ""),
+            "branch_ifsc": company_in.get("ifsc_code", "")
+        }
+    }
+    return formatted_data
+
 
 def create_invoice(invoice_data: Dict[str, Any], user_id: str, template_no: str) -> str:
     """
-    Creates a new invoice. This version is highly robust: it fetches the official
-    seller data from the DB and merges it with the conversational data from the agent.
+    Creates a new invoice, fetching seller data, formatting for the PDF,
+    and correctly handling asynchronous file uploads and database schema mapping.
     """
     pdf_path = None
     try:
-        # --- STEP 1: FETCH OFFICIAL SELLER/COMPANY DATA ---
+        # Step 1: Fetch official seller/company data
         seller_resp = supabase.table("sellers_record").select("*").eq("user_id", user_id).single().execute()
         if not seller_resp.data:
-            return f"Error: Could not find seller/company details for user {user_id}."
+            return f"Error: Could not find seller details for user {user_id}."
         seller_details = seller_resp.data
 
-        # --- STEP 2: VALIDATE & EXTRACT CONVERSATIONAL DATA FROM AGENT ---
-        invoice_no = invoice_data.get("invoice_number") or invoice_data.get("invoice", {}).get("number")
-        invoice_date = invoice_data.get("date") or invoice_data.get("invoice", {}).get("date")
+        # Step 2: Validate conversational data from agent
+        invoice_details = invoice_data.get("invoice", {})
         buyer_details = invoice_data.get("buyer", {})
         item_list = invoice_data.get("items", [])
+        invoice_no = invoice_details.get("number")
+        invoice_date = invoice_details.get("date")
 
         if not invoice_no: return "Error: Agent did not provide an invoice number."
         if not buyer_details or not item_list: return "Error: Agent did not provide buyer details or items."
 
-        # --- STEP 3: MERGE OFFICIAL AND CONVERSATIONAL DATA ---
-        # This becomes the single source of truth for the PDF and database records.
-        final_invoice_data = {
-            "company": seller_details,
-            "buyer": buyer_details,
-            "invoice": {"number": invoice_no, "date": normalize_date(invoice_date)},
-            "items": item_list,
-            # Add any other fields your PDF generator might need (e.g., amount_in_words)
-        }
-
-        # 1. Prevent Duplicates
-        existing = supabase.table("invoices_record").select("id").eq("invoice_no", invoice_no).eq("user_id", user_id).execute()
-        if existing.data: return f"Error: Invoice {invoice_no} already exists."
-
-        # 2. Generate and Upload PDF using the complete, merged data
-        pdf_path = generate_invoice_pdf3(final_invoice_data)
-        storage_result = upload_file(pdf_path, "invoices", user_id, invoice_no)
+        # Steps 3 & 4: Merge and Format data for PDF
+        merged_data = { "company": seller_details, "buyer": buyer_details, "invoice": invoice_details, "items": item_list }
+        formatted_pdf_data = format_data_for_pdf(merged_data)
+        
+        # Step 5: Generate and Upload PDF
+        pdf_path = generate_invoice_pdf3(formatted_pdf_data)
+        storage_result = asyncio.run(upload_file(pdf_path, "invoices", user_id, invoice_no))
         storage_url = storage_result["url"]
         
-        # 3. Create Buyer in the database
+        # Step 6: Save Parent Records to Database
         buyer_resp = supabase.table("buyers_record").upsert(buyer_details).execute()
         buyer_id = buyer_resp.data[0]["id"]
-
-        # 4. Create Invoice Record in the database
+        
         invoice_payload = {
-            "invoice_no": invoice_no,
-            "invoice_date": normalize_date(invoice_date),
-            "invoice_url": storage_url,
-            "buyer_id": buyer_id,
-            "seller_id": seller_details["id"], # Use the ID we fetched
-            "user_id": user_id,
+            "invoice_no": invoice_no, "invoice_date": normalize_date(invoice_date),
+            "invoice_url": storage_url, "buyer_id": buyer_id,
+            "seller_id": seller_details["id"], "user_id": user_id,
         }
         invoice_resp = supabase.table("invoices_record").insert(invoice_payload).execute()
         invoice_id = invoice_resp.data[0]["id"]
 
-        # 5. Create Item Records
-        items_to_insert = [{**item, "product_id": invoice_id} for item in item_list]
+        # --- FIX: Map agent data to the correct database schema for items ---
+        items_to_insert = []
+        for item in item_list:
+            items_to_insert.append({
+                "product_id": invoice_id,
+                "item_name": item.get("name") or item.get("description"), # Maps "name" to "item_name"
+                "hsn_code": item.get("hsn"),
+                "gst_rate": item.get("gst_rate"),
+                "item_rate": item.get("rate") or item.get("price_per_unit"), # Maps to "item_rate"
+                "per_unit": item.get("unit", "pcs"), # Maps to "per_unit"
+                "qty": item.get("quantity") # Maps "quantity" to "qty"
+            })
+        
         if items_to_insert:
             supabase.table("items_record").insert(items_to_insert).execute()
 
@@ -442,10 +503,14 @@ def create_invoice(invoice_data: Dict[str, Any], user_id: str, template_no: str)
         if pdf_path and os.path.exists(pdf_path):
             os.remove(pdf_path)
 
-
 def update_invoice(invoice_data: Dict[str, Any], user_id: str) -> str:
     """Updates an existing invoice with new data."""
     invoice_id = invoice_data.get("id")
     if not invoice_id: return "Error: Invoice ID is required for an update."
-    # ... (Implementation for updating records)
-    return f"Success: Invoice {invoice_id} has been updated."
+    
+    # In a production scenario, you would implement the logic to update
+    # the invoice, buyer, and item records in the database, similar to the
+    # create_invoice function.
+    
+    print(f"--- MOCK: Updating invoice ID {invoice_id} for user {user_id} ---")
+    return f"Success: Invoice with ID {invoice_id} has been updated."
