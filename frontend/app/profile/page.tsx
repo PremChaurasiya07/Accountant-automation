@@ -158,7 +158,7 @@ export default function SellerProfile() {
     setDeleting(true)
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/delete-user`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/invoice/delete-user`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${session?.access_token}` },
       })

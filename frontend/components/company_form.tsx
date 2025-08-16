@@ -232,7 +232,9 @@ export default function CompanyInfoForm() {
             if (error) throw error;
 
             toast({ title: "Success", description: `Company details ${isUpdate ? 'updated' : 'saved'} successfully.` });
-            router.push("/billing/create");
+            
+            window.location.reload(); // Refresh to reflect changes
+            router.push("/");
 
         } catch (err: any) {
             console.error("Error submitting form:", err);

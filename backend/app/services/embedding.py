@@ -163,10 +163,20 @@ from app.core.supabase import supabase
 import json
 
 # --- ADD THIS NEW FUNCTION ---
+import google.generativeai as genai
+
 def get_query_embedding(text: str) -> list[float]:
     """
     Generates an embedding for a given text query.
+    Returns an empty list if the input text is empty.
     """
+    # --- START OF FIX ---
+    # Check if the input text is empty or just whitespace
+    if not text or not text.strip():
+        print("⚠️ Warning: Input text is empty. Cannot generate embedding.")
+        return []
+    # --- END OF FIX ---
+
     try:
         response = genai.embed_content(
             model="models/text-embedding-004",
@@ -177,8 +187,7 @@ def get_query_embedding(text: str) -> list[float]:
     except Exception as e:
         print(f"❌ Error generating query embedding: {e}")
         return []
-# --- END OF NEW FUNCTION ---
-
+    
 
 def transform_for_creation(input_data: dict) -> dict:
     """

@@ -139,6 +139,8 @@ import re
 import logging
 from app.core.supabase import supabase
 from app.services.embedding import get_query_embedding
+from langchain_core.tools import tool
+from pydantic import BaseModel, Field
 
 logging.basicConfig(level=logging.INFO)
 
@@ -191,10 +193,15 @@ def _get_invoice_by_semantic_search(user_input: str, user_id: str, top_k: int = 
     all_matches = query_resp.data or []
     return [m for m in all_matches if m.get('similarity', 0) > 0.35]
 
+
+
+
+
 def get_context_for_query(user_input: str, user_id: str) -> str:
     """
     Analyzes the query and routes it to the correct retrieval strategy.
     """
+    print(f"🔍 Analyzing user query: '{user_input}'")
     matches = []
     normalized_input = user_input.strip().lower()
 

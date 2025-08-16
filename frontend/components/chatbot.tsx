@@ -77,7 +77,7 @@ const ChatBot: FC = () => {
             id: 1,
             text: "Hi! I'm your CA Assistant. How can I help you today?",
             isBot: true,
-            suggestions: ["Create an invoice", "What was my last sale?", "Summarize my monthly earnings"],
+            suggestions: ["Create an invoice","Update the invoice", "What was my last invoice?", "Summarize my monthly earnings",'Get analytics for current month'],
           },
         ]);
 
@@ -95,9 +95,6 @@ const ChatBot: FC = () => {
       setIsLoading(false);
       return;
     }
-
-   
-
     fetchInitialData();
   }, [userId]);
 

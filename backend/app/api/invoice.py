@@ -111,19 +111,34 @@ async def update_seller_details(
 
 @router.delete("/delete-user")
 async def delete_user_and_data(request: Request):
-    user = await get_current_user(request)
-    user_id = user.id
+    try:
+        user = await get_current_user(request)
+        if not user or not user.id:
+            raise HTTPException(status_code=401, detail="User not authenticated.")
+            
+        user_id = user.id
 
-    # 1. Delete from sellers_record
-    supabase.table("sellers_record").delete().eq("user_id", user_id).execute()
+        # 1. Delete associated data first
+        supabase.table("invoices_record").delete().eq("user_id", user_id).execute()
+        supabase.table("sellers_record").delete().eq("user_id", user_id).execute()
+        # Add any other table cleanups here
 
-    # TODO: Delete from other tables if needed
-    supabase.table("invoices_record").delete().eq("user_id", user_id).execute()
+        # 2. Delete the user from Supabase Auth
+        # The try/except block will automatically catch any errors from this call.
+        supabase.auth.admin.delete_user(user_id)
 
-    # 2. Delete user from Supabase Auth
-    supabase.delete_user(user_id)
+        # The check for 'delete_response.error' has been removed.
 
-    return {"status": "deleted", "message": "User and associated data deleted"}
+        return {"status": "deleted", "message": "User and all associated data have been deleted successfully."}
+
+    except HTTPException as e:
+        # Re-raise HTTP exceptions to let FastAPI handle them
+        raise e
+    except Exception as e:
+        # Catch any other unexpected errors from the database or auth calls
+        error_message = f"An unexpected error occurred: {str(e)}"
+        logging.error(error_message) # Good practice to log the actual error
+        raise HTTPException(status_code=500, detail=error_message)
 
 # Pydantic schema
 class ProductItem(BaseModel):

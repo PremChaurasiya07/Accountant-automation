@@ -326,6 +326,8 @@
 #         # Step 8: Final cleanup of the local temp file
 #         if pdf_path and os.path.exists(pdf_path):
 #             os.remove(pdf_path)
+
+import logging
 import os
 import re
 import json
@@ -339,6 +341,7 @@ from num2words import num2words
 # --- Production Imports ---
 # Make sure these imports correctly point to your files and functions
 from app.core.supabase import supabase
+from app.services.embedding import embed_and_store_invoice
 from utils.upload_to_storage import upload_file
 from app.services.invoice_generator import generate_invoice_pdf3
 
@@ -352,14 +355,35 @@ def normalize_date(value: Any) -> Any:
     except (ValueError, TypeError):
         return date.today().isoformat()
 
+import json
+
 def load_invoice_for_edit(invoice_number: str, user_id: str) -> str:
-    """Fetches a complete invoice and structures it into a standard JSON string."""
+    """
+    Fetches a complete invoice using a flexible search and structures it into
+    a standard JSON string.
+    """
     try:
-        invoice_resp = supabase.table("invoices_record").select("*, sellers_record(*), buyers_record(*)").eq("invoice_no", invoice_number).eq("user_id", user_id).maybe_single().execute()
+        # FIX 1: Use .ilike() for a case-insensitive "contains" search.
+        # This will find "066/2025-26" even if the input is just "66".
+        invoice_resp = supabase.table("invoices_record") \
+                        .select("*, sellers_record(*), buyers_record(*), items_record(*)") \
+                        .ilike("invoice_no", f"%{invoice_number}%") \
+                        .eq("user_id", user_id) \
+                        .maybe_single() \
+                        .execute()
+
+
+
+        # FIX 2: Add a check for a completely failed API call.
+        if not invoice_resp:
+            return f"Error: The database query failed to execute. No response was received."
+
         if not invoice_resp.data:
-            return f"Error: No invoice found with number {invoice_number}."
+            return f"Error: No invoice found containing the number '{invoice_number}'."
+
         # Use default=str to handle date/datetime objects that are not JSON serializable
         return json.dumps(invoice_resp.data, indent=2, default=str)
+        
     except Exception as e:
         return f"Error loading invoice: {str(e)}"
 
@@ -496,6 +520,8 @@ def create_invoice(invoice_data: Dict[str, Any], user_id: str, template_no: str)
         if items_to_insert:
             supabase.table("items_record").insert(items_to_insert).execute()
 
+        embed_and_store_invoice(invoice_id, invoice_data)
+
         return f"Success: Invoice {invoice_no} was created successfully. URL: {storage_url}"
     except Exception as e:
         return f"Error creating invoice: An unexpected error occurred. Details: {str(e)}"
@@ -504,13 +530,106 @@ def create_invoice(invoice_data: Dict[str, Any], user_id: str, template_no: str)
             os.remove(pdf_path)
 
 def update_invoice(invoice_data: Dict[str, Any], user_id: str) -> str:
-    """Updates an existing invoice with new data."""
-    invoice_id = invoice_data.get("id")
-    if not invoice_id: return "Error: Invoice ID is required for an update."
-    
-    # In a production scenario, you would implement the logic to update
-    # the invoice, buyer, and item records in the database, similar to the
-    # create_invoice function.
-    
-    print(f"--- MOCK: Updating invoice ID {invoice_id} for user {user_id} ---")
-    return f"Success: Invoice with ID {invoice_id} has been updated."
+    """
+    Updates an existing invoice. This is a destructive operation that replaces the old
+    invoice PDF, items, and embeddings with the new data provided.
+    """
+    pdf_path = None
+    try:
+        # --- Step 1: Input Validation and Fetching Existing Invoice ---
+        invoice_details_in = invoice_data.get("invoice", {})
+        invoice_no = invoice_details_in.get("number")
+        if not invoice_no:
+            return "Error: Invoice number ('invoice.number') is required in the input data for an update."
+
+        # Find the existing invoice record to get its ID and old URL
+        invoice_resp = supabase.table("invoices_record").select("id, invoice_url, seller_id").eq("invoice_no", invoice_no).eq("user_id", user_id).single().execute()
+        if not invoice_resp.data:
+            return f"Error: No invoice found with number {invoice_no} for the current user."
+
+        invoice_id = invoice_resp.data["id"]
+        old_url = invoice_resp.data.get("invoice_url")
+        seller_id = invoice_resp.data.get("seller_id")
+
+        # Fetch seller details needed for the PDF
+        seller_resp = supabase.table("sellers_record").select("*").eq("id", seller_id).single().execute()
+        if not seller_resp.data:
+            return f"Error: Could not find seller details for the invoice."
+        seller_details = seller_resp.data
+
+        # --- Step 2: Clean Up Old Invoice Assets ---
+        logging.info(f"Starting update for invoice ID {invoice_id}. Cleaning up old assets.")
+
+        # Delete old PDF from storage
+        if old_url:
+            try:
+                # Extract the file path part of the URL
+                file_path = old_url.split(f"/invoices/")[-1].split("?")[0]
+                supabase.storage.from_("invoices").remove([file_path])
+                logging.info(f"Successfully deleted old PDF: {file_path}")
+            except Exception as e:
+                logging.warning(f"Could not delete old PDF from storage, it might not exist. Details: {e}")
+
+        # Delete old embeddings and items from the database
+        supabase.table("invoice_embeddings").delete().eq("invoice_id", invoice_id).execute()
+        supabase.table("items_record").delete().eq("product_id", invoice_id).execute()
+        logging.info(f"Successfully deleted old items and embeddings for invoice ID {invoice_id}.")
+
+        # --- Step 3: Prepare and Generate New Assets ---
+        # Merge incoming data with fetched seller data for PDF generation
+        merged_data = {
+            "company": seller_details,
+            "buyer": invoice_data.get("buyer", {}),
+            "invoice": invoice_details_in,
+            "items": invoice_data.get("items", [])
+        }
+        formatted_pdf_data = format_data_for_pdf(merged_data)
+        
+        # Generate new PDF and upload it to storage
+        pdf_path = generate_invoice_pdf3(formatted_pdf_data)
+        storage_result = asyncio.run(upload_file(pdf_path, "invoices", user_id, invoice_no))
+        new_url = storage_result["url"]
+        logging.info(f"Successfully generated and uploaded new PDF to {new_url}.")
+
+        # --- Step 4: Update Database with New Information ---
+        # Update the main invoice record
+        invoice_payload = {
+            "invoice_date": normalize_date(invoice_details_in.get("date")),
+            "invoice_url": new_url,
+        }
+        # Update buyer if details are provided
+        buyer_details = invoice_data.get("buyer", {})
+        if buyer_details.get("id"):
+             supabase.table("buyers_record").update(buyer_details).eq("id", buyer_details["id"]).execute()
+
+        supabase.table("invoices_record").update(invoice_payload).eq("id", invoice_id).execute()
+
+        # Insert the new list of items
+        item_list = invoice_data.get("items", [])
+        items_to_insert = []
+        for item in item_list:
+            items_to_insert.append({
+                "product_id": invoice_id, # Foreign key to the invoice
+                "item_name": item.get("name") or item.get("description"),
+                "hsn_code": item.get("hsn"), "gst_rate": item.get("gst_rate"),
+                "item_rate": item.get("rate") or item.get("price_per_unit"),
+                "per_unit": item.get("unit", "pcs"), "qty": item.get("quantity")
+            })
+        
+        if items_to_insert:
+            supabase.table("items_record").insert(items_to_insert).execute()
+        logging.info(f"Successfully updated database records for invoice ID {invoice_id}.")
+
+        # --- Step 5: Re-embed the Updated Invoice Data ---
+        embed_and_store_invoice(invoice_id, merged_data)
+        logging.info(f"Successfully re-embedded data for invoice ID {invoice_id}.")
+
+        return f"Success: Invoice {invoice_no} was updated successfully. New URL: {new_url}"
+
+    except Exception as e:
+        logging.error(f"An unexpected error occurred during invoice update: {e}")
+        return f"Error updating invoice: An unexpected error occurred. Details: {str(e)}"
+    finally:
+        # Ensure the temporary local PDF file is always deleted
+        if pdf_path and os.path.exists(pdf_path):
+            os.remove(pdf_path)
