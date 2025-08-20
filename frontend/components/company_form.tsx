@@ -1,186 +1,508 @@
 
 
 
+// "use client";
+// import { DashboardLayout } from "@/components/dashboard-layout";
+// import { Button } from "@/components/ui/button";
+// import { Input } from "@/components/ui/input";
+// import { Label } from "@/components/ui/label";
+// import { Textarea } from "@/components/ui/textarea";
+// import { useState, useMemo, useEffect, useRef } from "react";
+// import { supabase } from "@/lib/supabase";
+// import { useUserId } from "@/hooks/context/UserContext";
+// import { ChevronLeft, ChevronRight, CheckCircle, Search, PlusCircle, Trash2, Building, Landmark, Image as ImageIcon, UploadCloud } from "lucide-react";
+// import { useToast } from "@/hooks/use-toast";
+// import Image from 'next/image';
+// import {
+//     Dialog,
+//     DialogContent,
+//     DialogDescription,
+//     DialogHeader,
+//     DialogTitle,
+//     DialogFooter,
+// } from "@/components/ui/dialog";
+// import {
+//     Select,
+//     SelectTrigger,
+//     SelectContent,
+//     SelectItem,
+//     SelectValue
+// } from "@/components/ui/select";
+// import SvgLoader from "./ui/loader";
+// import { indianStates } from "@/lib/indianStates";
+// import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+// import { useRouter } from "next/navigation";
+
+
+// // --- TYPE DEFINITIONS ---
+// interface Product {
+//     srNo: number;
+//     description: string;
+//     hsn: string;
+//     quantity: number | '';
+//     rate: number | '';
+//     amount: number;
+// }
+
+// interface Seller {
+//     id: string;
+//     name?: string;
+//     address?: string;
+//     gst_no?: string;
+//     contact?: string;
+//     email?: string;
+//     logo?: string;
+//     sign?: string;
+//     stamp?: string;
+//     pan_no?: string;
+//     bank_name?: string;
+//     account_no?: string;
+//     ifsc_code?: string;
+// }
+
+// interface Client {
+//     client_name: string;
+//     client_address: string;
+//     client_gstin: string;
+//     client_phone: string;
+// }
+
+// interface FullInvoiceData {
+//     invoice_date: string;
+//     invoice_no: string;
+//     client_name: string;
+//     client_address: string;
+//     client_gstin: string;
+//     client_phone: string;
+//     client_state_name?: string;
+//     client_state_code?: string;
+//     client_email?: string;
+//     products: Product[];
+//     gst_percentage: number;
+//     sub_total: number;
+//     cgst_amount: number;
+//     sgst_amount: number;
+//     total_gst_amount: number;
+//     total_amount: number;
+//     amount_in_words: string;
+//     challan_date: string;
+//     challan_no: string;
+//     purchase_date: string;
+//     purchase_no: string;
+//     vehicle_no: string;
+//     seller_id: string | null;
+//     template_id: string | null;
+// }
+
+// // Enhanced Company Info Form Component
+// export default function CompanyInfoForm() {
+//     const { userId } = useUserId();
+//     const router = useRouter();
+//     const { toast } = useToast();
+
+//     const [loading, setLoading] = useState(false);
+//     const [isUpdate, setIsUpdate] = useState(false);
+//     const [activeSection, setActiveSection] = useState('company');
+
+//     const [formData, setFormData] = useState({
+//         companyName: "",
+//         address: "",
+//         gstin: "",
+//         contact: "",
+//         email: "",
+//         logo: null as File | null,
+//         signature: null as File | null,
+//         stamp: null as File | null,
+//         bankName: "",
+//         accountNo: "",
+//         ifscCode: "",
+//     });
+
+//     const [previews, setPreviews] = useState({
+//         logo: "",
+//         signature: "",
+//         stamp: "",
+//     });
+
+//     useEffect(() => {
+//         if (!userId) return;
+
+//         const fetchSellerData = async () => {
+//             try {
+//                 const { data, error } = await supabase
+//                     .from("sellers_record")
+//                     .select("*")
+//                     .eq("user_id", userId)
+//                     .single();
+
+//                 if (error || !data) {
+//                     console.log("No existing seller data found. Ready for new entry.");
+//                     return;
+//                 }
+
+//                 setIsUpdate(true);
+//                 setFormData(prev => ({
+//                     ...prev,
+//                     companyName: data.name || "",
+//                     address: data.address || "",
+//                     gstin: data.gst_no || "",
+//                     contact: data.contact || "",
+//                     email: data.email || "",
+//                     bankName: data.bank_name || "",
+//                     accountNo: data.account_no || "",
+//                     ifscCode: data.ifsc_code || "",
+//                 }));
+                
+//                 // Safely set previews from stored URLs
+//                 if (data.logo) setPreviews(prev => ({ ...prev, logo: data.logo }));
+//                 if (data.sign) setPreviews(prev => ({ ...prev, signature: data.sign }));
+//                 if (data.stamp) setPreviews(prev => ({ ...prev, stamp: data.stamp }));
+
+//             } catch (err) {
+//                 console.error("Failed to fetch seller info:", err);
+//             }
+//         };
+
+//         fetchSellerData();
+//     }, [userId]);
+
+//     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+//         const { name, value } = e.target;
+//         setFormData(prev => ({ ...prev, [name]: value }));
+//     };
+
+//     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+//         const { name, files } = e.target;
+//         if (files && files[0]) {
+//             const file = files[0];
+//             setFormData(prev => ({ ...prev, [name]: file }));
+//             const reader = new FileReader();
+//             reader.onloadend = () => {
+//                 setPreviews(prev => ({ ...prev, [name]: reader.result as string }));
+//             };
+//             reader.readAsDataURL(file);
+//         }
+//     };
+
+//     const handleSubmit = async (e: React.FormEvent) => {
+//         e.preventDefault();
+//         if (!userId) {
+//             toast({ title: "Error", description: "User not logged in.", variant: "destructive" });
+//             return;
+//         }
+//         setLoading(true);
+
+//         // This function handles the complex logic of uploading files and getting URLs
+//         const uploadFileAndGetData = async (file: File | null, existingUrl: string, storagePath: string) => {
+//             if (!file) return existingUrl; // Return existing URL if no new file
+            
+//             const filePath = `${userId}/${storagePath}/${Date.now()}_${file.name}`;
+//             const { error: uploadError } = await supabase.storage.from('company-assets').upload(filePath, file);
+
+//             if (uploadError) {
+//                 throw new Error(`Failed to upload ${storagePath}: ${uploadError.message}`);
+//             }
+
+//             const { data } = supabase.storage.from('company-assets').getPublicUrl(filePath);
+//             return data.publicUrl;
+//         };
+
+//         try {
+//             const logoUrl = await uploadFileAndGetData(formData.logo, previews.logo, 'logos');
+//             const signatureUrl = await uploadFileAndGetData(formData.signature, previews.signature, 'signatures');
+//             const stampUrl = await uploadFileAndGetData(formData.stamp, previews.stamp, 'stamps');
+
+//             const sellerRecord = {
+//                 user_id: userId,
+//                 name: formData.companyName,
+//                 address: formData.address,
+//                 gst_no: formData.gstin,
+//                 contact: formData.contact,
+//                 email: formData.email,
+//                 bank_name: formData.bankName,
+//                 account_no: formData.accountNo,
+//                 ifsc_code: formData.ifscCode,
+//                 logo: logoUrl,
+//                 sign: signatureUrl,
+//                 stamp: stampUrl,
+//             };
+            
+//             const { error } = await supabase.from('sellers_record').upsert(sellerRecord, { onConflict: 'user_id' });
+
+//             if (error) throw error;
+
+//             toast({ title: "Success", description: `Company details ${isUpdate ? 'updated' : 'saved'} successfully.` });
+            
+//             window.location.reload(); // Refresh to reflect changes
+//             router.push("/");
+
+//         } catch (err: any) {
+//             console.error("Error submitting form:", err);
+//             toast({ title: "Submission Error", description: err.message || "Something went wrong.", variant: "destructive" });
+//         } finally {
+//             setLoading(false);
+//         }
+//     };
+
+//     const sections = [
+//         { id: 'company', label: 'Company Details', icon: Building },
+//         { id: 'bank', label: 'Bank Information', icon: Landmark },
+//         { id: 'branding', label: 'Branding Assets', icon: ImageIcon },
+//     ];
+    
+//     const FileInputCard = ({ id, label, previewSrc }: { id: keyof typeof formData, label: string, previewSrc: string }) => (
+//         <div className="space-y-2">
+//             <Label htmlFor={id as string}>{label}</Label>
+//             <div className="relative flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer hover:border-indigo-500 transition-colors">
+//                 <UploadCloud className="w-8 h-8 text-slate-400 mb-2" />
+//                 <p className="text-sm text-slate-500">
+//                     <span className="font-semibold">Click to upload</span> or drag and drop
+//                 </p>
+//                 <p className="text-xs text-slate-400">PNG, JPG, or WEBP</p>
+//                 <Input id={id as string} name={id as string} type="file" accept="image/*" onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+//                 {previewSrc && (
+//                     <Image src={previewSrc} alt={`${label} preview`} layout="fill" objectFit="contain" className="absolute inset-0 w-full h-full p-2 rounded-lg bg-white" />
+//                 )}
+//             </div>
+//         </div>
+//     );
+
+//     return (
+//         <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+//              <header className="mb-8">
+//                 <h1 className="text-3xl font-bold tracking-tight text-slate-900">Company Profile</h1>
+//                 <p className="text-muted-foreground mt-1">Manage your company's information for invoicing.</p>
+//             </header>
+
+//             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+//                 {/* Sidebar Navigation */}
+//                 <aside className="lg:col-span-1">
+//                     <nav className="space-y-1">
+//                         {sections.map(section => (
+//                             <Button
+//                                 key={section.id}
+//                                 variant={activeSection === section.id ? 'default' : 'ghost'}
+//                                 className="w-full justify-start"
+//                                 onClick={() => setActiveSection(section.id)}
+//                             >
+//                                 <section.icon className="mr-3 h-5 w-5" />
+//                                 {section.label}
+//                             </Button>
+//                         ))}
+//                     </nav>
+//                 </aside>
+
+//                 {/* Form Content */}
+//                 <div className="lg:col-span-3">
+//                     <form onSubmit={handleSubmit}>
+//                         <Card className="shadow-lg rounded-xl">
+//                             <CardContent className="p-6 sm:p-8 space-y-8">
+//                                 {activeSection === 'company' && (
+//                                     <section className="space-y-6 animate-fade-in">
+//                                         <CardTitle>Company Details</CardTitle>
+//                                         <div className="space-y-2">
+//                                             <Label htmlFor="companyName">Company Name *</Label>
+//                                             <Input id="companyName" name="companyName" required value={formData.companyName} onChange={handleChange} placeholder="e.g., HINDUJA PHARMA" />
+//                                         </div>
+//                                         <div className="space-y-2">
+//                                             <Label htmlFor="address">Address</Label>
+//                                             <Textarea id="address" name="address" value={formData.address} onChange={handleChange} placeholder="Company address..." />
+//                                         </div>
+//                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+//                                             <div className="space-y-2">
+//                                                 <Label htmlFor="gstin">GSTIN</Label>
+//                                                 <Input id="gstin" name="gstin" value={formData.gstin} onChange={handleChange} placeholder="e.g., 28AHNPC6120F1ZJ" />
+//                                             </div>
+//                                             <div className="space-y-2">
+//                                                 <Label htmlFor="contact">Contact Number</Label>
+//                                                 <Input id="contact" name="contact" value={formData.contact} onChange={handleChange} placeholder="e.g., 9876543210" />
+//                                             </div>
+//                                         </div>
+//                                         <div className="space-y-2">
+//                                             <Label htmlFor="email">Email Address</Label>
+//                                             <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} placeholder="e.g., contact@company.com" />
+//                                         </div>
+//                                     </section>
+//                                 )}
+
+//                                 {activeSection === 'bank' && (
+//                                     <section className="space-y-6 animate-fade-in">
+//                                         <CardTitle>Bank Information</CardTitle>
+//                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+//                                             <div className="space-y-2">
+//                                                 <Label htmlFor="bankName">Bank Name</Label>
+//                                                 <Input id="bankName" name="bankName" value={formData.bankName} onChange={handleChange} placeholder="e.g., HDFC Bank" />
+//                                             </div>
+//                                             <div className="space-y-2">
+//                                                 <Label htmlFor="accountNo">Account Number</Label>
+//                                                 <Input id="accountNo" name="accountNo" value={formData.accountNo} onChange={handleChange} placeholder="e.g., 1234567890" />
+//                                             </div>
+//                                         </div>
+//                                         <div className="space-y-2">
+//                                             <Label htmlFor="ifscCode">IFSC Code</Label>
+//                                             <Input id="ifscCode" name="ifscCode" value={formData.ifscCode} onChange={handleChange} placeholder="e.g., HDFC0001234" />
+//                                         </div>
+//                                     </section>
+//                                 )}
+
+//                                 {activeSection === 'branding' && (
+//                                     <section className="space-y-6 animate-fade-in">
+//                                         <CardTitle>Branding Assets</CardTitle>
+//                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+//                                             <FileInputCard id="logo" label="Company Logo" previewSrc={previews.logo} />
+//                                             <FileInputCard id="signature" label="Signature" previewSrc={previews.signature} />
+//                                             <FileInputCard id="stamp" label="Company Stamp" previewSrc={previews.stamp} />
+//                                         </div>
+//                                     </section>
+//                                 )}
+//                             </CardContent>
+//                             <div className="p-6 sm:p-8 border-t flex justify-end">
+//                                 <Button type="submit" className="w-full sm:w-auto" disabled={loading}>
+//                                     {loading ? <SvgLoader /> : (isUpdate ? "Update Information" : "Save Information")}
+//                                 </Button>
+//                             </div>
+//                         </Card>
+//                     </form>
+//                 </div>
+//             </div>
+//         </div>
+//     );
+// }
+
+
 "use client";
-import { DashboardLayout } from "@/components/dashboard-layout";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Image from 'next/image';
+import Link from 'next/link';
+
+// --- UI Components ---
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useState, useMemo, useEffect, useRef } from "react";
-import { supabase } from "@/lib/supabase";
-import { useUserId } from "@/hooks/context/UserContext";
-import { ChevronLeft, ChevronRight, CheckCircle, Search, PlusCircle, Trash2, Building, Landmark, Image as ImageIcon, UploadCloud } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import Image from 'next/image';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-} from "@/components/ui/dialog";
-import {
-    Select,
-    SelectTrigger,
-    SelectContent,
-    SelectItem,
-    SelectValue
-} from "@/components/ui/select";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import SvgLoader from "./ui/loader";
-import { indianStates } from "@/lib/indianStates";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useRouter } from "next/navigation";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
+// --- Icons ---
+import { Building, Landmark, Image as ImageIcon, UploadCloud, Mail, Info, ExternalLink } from "lucide-react";
 
-// --- TYPE DEFINITIONS ---
-interface Product {
-    srNo: number;
-    description: string;
-    hsn: string;
-    quantity: number | '';
-    rate: number | '';
-    amount: number;
+// --- Libs & Hooks ---
+import { supabase } from "@/lib/supabase";
+import { useUserId } from "@/hooks/context/UserContext"; // Ensure this path is correct
+import { useToast } from "@/hooks/use-toast";
+
+// --- Type Definitions ---
+interface SellerFormData {
+    companyName: string;
+    address: string;
+    gstin: string;
+    contact: string;
+    email: string;
+    logo: File | null;
+    signature: File | null;
+    stamp: File | null;
+    bankName: string;
+    accountNo: string;
+    ifscCode: string;
+    senderEmail: string;
+    senderPassword: string; // Only used to send to backend, not stored in state
 }
 
-interface Seller {
-    id: string;
-    name?: string;
-    address?: string;
-    gst_no?: string;
-    contact?: string;
-    email?: string;
-    logo?: string;
-    sign?: string;
-    stamp?: string;
-    pan_no?: string;
-    bank_name?: string;
-    account_no?: string;
-    ifsc_code?: string;
+interface Previews {
+    logo: string;
+    signature: string;
+    stamp: string;
 }
 
-interface Client {
-    client_name: string;
-    client_address: string;
-    client_gstin: string;
-    client_phone: string;
-}
+/**
+ * Helper function to upload an asset to Supabase Storage and clean up the old file.
+ */
+const uploadAsset = async (
+    file: File | null,
+    existingUrl: string | null,
+    storagePath: string,
+    userId: string
+): Promise<string | null> => {
+    if (!file) return existingUrl;
 
-interface FullInvoiceData {
-    invoice_date: string;
-    invoice_no: string;
-    client_name: string;
-    client_address: string;
-    client_gstin: string;
-    client_phone: string;
-    client_state_name?: string;
-    client_state_code?: string;
-    client_email?: string;
-    products: Product[];
-    gst_percentage: number;
-    sub_total: number;
-    cgst_amount: number;
-    sgst_amount: number;
-    total_gst_amount: number;
-    total_amount: number;
-    amount_in_words: string;
-    challan_date: string;
-    challan_no: string;
-    purchase_date: string;
-    purchase_no: string;
-    vehicle_no: string;
-    seller_id: string | null;
-    template_id: string | null;
-}
+    if (existingUrl) {
+        try {
+            const oldFilePath = existingUrl.split('/company-assets/')[1]?.split('?')[0];
+            if (oldFilePath) {
+                await supabase.storage.from('company-assets').remove([oldFilePath]);
+            }
+        } catch (cleanupError) {
+            console.warn(`Failed to delete old asset:`, cleanupError);
+        }
+    }
 
-// Enhanced Company Info Form Component
+    const newFilePath = `${userId}/${storagePath}/${Date.now()}_${file.name}`;
+    const { error: uploadError } = await supabase.storage.from('company-assets').upload(newFilePath, file);
+
+    if (uploadError) {
+        throw new Error(`Failed to upload ${storagePath}: ${uploadError.message}`);
+    }
+
+    const { data } = supabase.storage.from('company-assets').getPublicUrl(newFilePath);
+    return data.publicUrl;
+};
+
+
 export default function CompanyInfoForm() {
-    const { userId } = useUserId();
+    const { userId, sellerDetails, setSellerDetails } = useUserId();
     const router = useRouter();
     const { toast } = useToast();
 
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [isUpdate, setIsUpdate] = useState(false);
     const [activeSection, setActiveSection] = useState('company');
-
-    const [formData, setFormData] = useState({
-        companyName: "",
-        address: "",
-        gstin: "",
-        contact: "",
-        email: "",
-        logo: null as File | null,
-        signature: null as File | null,
-        stamp: null as File | null,
-        bankName: "",
-        accountNo: "",
-        ifscCode: "",
+    
+    const [formData, setFormData] = useState<SellerFormData>({
+        companyName: "", address: "", gstin: "", contact: "", email: "",
+        logo: null, signature: null, stamp: null, bankName: "",
+        accountNo: "", ifscCode: "", senderEmail: "", senderPassword: ""
     });
 
-    const [previews, setPreviews] = useState({
-        logo: "",
-        signature: "",
-        stamp: "",
-    });
+    const [previews, setPreviews] = useState<Previews>({ logo: "", signature: "", stamp: "" });
 
     useEffect(() => {
-        if (!userId) return;
-
-        const fetchSellerData = async () => {
-            try {
-                const { data, error } = await supabase
-                    .from("sellers_record")
-                    .select("*")
-                    .eq("user_id", userId)
-                    .single();
-
-                if (error || !data) {
-                    console.log("No existing seller data found. Ready for new entry.");
-                    return;
-                }
-
-                setIsUpdate(true);
-                setFormData(prev => ({
-                    ...prev,
-                    companyName: data.name || "",
-                    address: data.address || "",
-                    gstin: data.gst_no || "",
-                    contact: data.contact || "",
-                    email: data.email || "",
-                    bankName: data.bank_name || "",
-                    accountNo: data.account_no || "",
-                    ifscCode: data.ifsc_code || "",
-                }));
-                
-                // Safely set previews from stored URLs
-                if (data.logo) setPreviews(prev => ({ ...prev, logo: data.logo }));
-                if (data.sign) setPreviews(prev => ({ ...prev, signature: data.sign }));
-                if (data.stamp) setPreviews(prev => ({ ...prev, stamp: data.stamp }));
-
-            } catch (err) {
-                console.error("Failed to fetch seller info:", err);
-            }
-        };
-
-        fetchSellerData();
-    }, [userId]);
+        if (sellerDetails) {
+            setIsUpdate(true);
+            setFormData(prev => ({
+                ...prev,
+                companyName: sellerDetails.name || "",
+                address: sellerDetails.address || "",
+                gstin: sellerDetails.gst_no || "",
+                contact: sellerDetails.contact || "",
+                email: sellerDetails.email || "",
+                bankName: sellerDetails.bank_name || "",
+                accountNo: sellerDetails.account_no || "",
+                ifscCode: sellerDetails.ifsc_code || "",
+                senderEmail: sellerDetails.sender_email || ""
+            }));
+            setPreviews({
+                logo: sellerDetails.logo || "",
+                signature: sellerDetails.sign || "",
+                stamp: sellerDetails.stamp || "",
+            });
+        } else {
+             setIsUpdate(false);
+        }
+        setLoading(false);
+    }, [sellerDetails]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, files } = e.target;
+        const { name, files } = e.target as { name: keyof SellerFormData, files: FileList | null };
         if (files && files[0]) {
-            const file = files[0];
-            setFormData(prev => ({ ...prev, [name]: file }));
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setPreviews(prev => ({ ...prev, [name]: reader.result as string }));
-            };
-            reader.readAsDataURL(file);
+            setFormData(prev => ({ ...prev, [name]: files[0] }));
+            setPreviews(prev => ({ ...prev, [name as keyof Previews]: URL.createObjectURL(files[0]) }));
         }
     };
 
@@ -192,180 +514,182 @@ export default function CompanyInfoForm() {
         }
         setLoading(true);
 
-        // This function handles the complex logic of uploading files and getting URLs
-        const uploadFileAndGetData = async (file: File | null, existingUrl: string, storagePath: string) => {
-            if (!file) return existingUrl; // Return existing URL if no new file
-            
-            const filePath = `${userId}/${storagePath}/${Date.now()}_${file.name}`;
-            const { error: uploadError } = await supabase.storage.from('company-assets').upload(filePath, file);
-
-            if (uploadError) {
-                throw new Error(`Failed to upload ${storagePath}: ${uploadError.message}`);
-            }
-
-            const { data } = supabase.storage.from('company-assets').getPublicUrl(filePath);
-            return data.publicUrl;
-        };
-
         try {
-            const logoUrl = await uploadFileAndGetData(formData.logo, previews.logo, 'logos');
-            const signatureUrl = await uploadFileAndGetData(formData.signature, previews.signature, 'signatures');
-            const stampUrl = await uploadFileAndGetData(formData.stamp, previews.stamp, 'stamps');
+            const [logoUrl, signatureUrl, stampUrl] = await Promise.all([
+                uploadAsset(formData.logo, previews.logo, 'logos', userId),
+                uploadAsset(formData.signature, previews.signature, 'signatures', userId),
+                uploadAsset(formData.stamp, previews.stamp, 'stamps', userId)
+            ]);
 
-            const sellerRecord = {
-                user_id: userId,
-                name: formData.companyName,
-                address: formData.address,
-                gst_no: formData.gstin,
-                contact: formData.contact,
-                email: formData.email,
-                bank_name: formData.bankName,
-                account_no: formData.accountNo,
-                ifsc_code: formData.ifscCode,
-                logo: logoUrl,
-                sign: signatureUrl,
-                stamp: stampUrl,
+            const profilePayload = {
+                name: formData.companyName, address: formData.address, gst_no: formData.gstin,
+                contact: formData.contact, email: formData.email, bank_name: formData.bankName,
+                account_no: formData.accountNo, ifsc_code: formData.ifscCode,
+                logo: logoUrl, sign: signatureUrl, stamp: stampUrl,
+                sender_email: formData.senderEmail,
+                sender_password: formData.senderPassword || undefined,
             };
-            
-            const { error } = await supabase.from('sellers_record').upsert(sellerRecord, { onConflict: 'user_id' });
 
-            if (error) throw error;
+            const session = (await supabase.auth.getSession()).data.session;
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/profile/update-seller-profile`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session?.access_token}`
+                },
+                body: JSON.stringify(profilePayload)
+            });
 
-            toast({ title: "Success", description: `Company details ${isUpdate ? 'updated' : 'saved'} successfully.` });
+            const savedData = await response.json();
+            if (!response.ok) throw new Error(savedData.detail || "Failed to save profile.");
             
-            window.location.reload(); // Refresh to reflect changes
-            router.push("/");
+            if (savedData && setSellerDetails) setSellerDetails(savedData);
+
+            toast({ title: "Success", description: `Company profile saved successfully.` });
+            router.push("/billing/create");
 
         } catch (err: any) {
-            console.error("Error submitting form:", err);
-            toast({ title: "Submission Error", description: err.message || "Something went wrong.", variant: "destructive" });
+            toast({ title: "Submission Error", description: err.message, variant: "destructive" });
         } finally {
             setLoading(false);
         }
     };
-
+    
     const sections = [
         { id: 'company', label: 'Company Details', icon: Building },
         { id: 'bank', label: 'Bank Information', icon: Landmark },
+        { id: 'email', label: 'Email Settings', icon: Mail },
         { id: 'branding', label: 'Branding Assets', icon: ImageIcon },
     ];
     
-    const FileInputCard = ({ id, label, previewSrc }: { id: keyof typeof formData, label: string, previewSrc: string }) => (
+    const FileInputCard = ({ id, label, previewSrc }: { id: keyof SellerFormData, label: string, previewSrc: string }) => (
         <div className="space-y-2">
             <Label htmlFor={id as string}>{label}</Label>
-            <div className="relative flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer hover:border-indigo-500 transition-colors">
-                <UploadCloud className="w-8 h-8 text-slate-400 mb-2" />
-                <p className="text-sm text-slate-500">
-                    <span className="font-semibold">Click to upload</span> or drag and drop
+            <div className="relative flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer hover:border-indigo-500 transition-colors bg-slate-50">
+                {!previewSrc && <UploadCloud className="w-8 h-8 text-slate-400 mb-2" />}
+                <p className={`text-sm text-slate-500 ${previewSrc ? 'hidden' : ''}`}>
+                    <span className="font-semibold">Click to upload</span>
                 </p>
-                <p className="text-xs text-slate-400">PNG, JPG, or WEBP</p>
                 <Input id={id as string} name={id as string} type="file" accept="image/*" onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                 {previewSrc && (
-                    <Image src={previewSrc} alt={`${label} preview`} layout="fill" objectFit="contain" className="absolute inset-0 w-full h-full p-2 rounded-lg bg-white" />
+                    <Image src={previewSrc} alt={`${label} preview`} layout="fill" objectFit="contain" className="absolute inset-0 w-full h-full p-2 rounded-lg" />
                 )}
             </div>
         </div>
     );
 
+    if (loading && !isUpdate) {
+        return <div className="flex justify-center items-center h-screen"><SvgLoader /></div>;
+    }
+
     return (
         <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
              <header className="mb-8">
-                <h1 className="text-3xl font-bold tracking-tight text-slate-900">Company Profile</h1>
-                <p className="text-muted-foreground mt-1">Manage your company's information for invoicing.</p>
-            </header>
+                 <h1 className="text-3xl font-bold tracking-tight text-slate-900">Company Profile</h1>
+                 <p className="text-muted-foreground mt-1">Manage your company's information for invoicing and billing.</p>
+             </header>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                {/* Sidebar Navigation */}
-                <aside className="lg:col-span-1">
-                    <nav className="space-y-1">
-                        {sections.map(section => (
-                            <Button
-                                key={section.id}
-                                variant={activeSection === section.id ? 'default' : 'ghost'}
-                                className="w-full justify-start"
-                                onClick={() => setActiveSection(section.id)}
-                            >
-                                <section.icon className="mr-3 h-5 w-5" />
-                                {section.label}
-                            </Button>
-                        ))}
-                    </nav>
-                </aside>
+             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                 <aside className="lg:col-span-1">
+                     <nav className="space-y-1 sticky top-24">
+                         {sections.map(section => (
+                             <Button
+                                 key={section.id}
+                                 variant={activeSection === section.id ? 'secondary' : 'ghost'}
+                                 className="w-full justify-start text-md py-6"
+                                 onClick={() => setActiveSection(section.id)}
+                             >
+                                 <section.icon className="mr-3 h-5 w-5" />
+                                 {section.label}
+                             </Button>
+                         ))}
+                     </nav>
+                 </aside>
 
-                {/* Form Content */}
-                <div className="lg:col-span-3">
-                    <form onSubmit={handleSubmit}>
-                        <Card className="shadow-lg rounded-xl">
-                            <CardContent className="p-6 sm:p-8 space-y-8">
-                                {activeSection === 'company' && (
-                                    <section className="space-y-6 animate-fade-in">
-                                        <CardTitle>Company Details</CardTitle>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="companyName">Company Name *</Label>
-                                            <Input id="companyName" name="companyName" required value={formData.companyName} onChange={handleChange} placeholder="e.g., HINDUJA PHARMA" />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="address">Address</Label>
-                                            <Textarea id="address" name="address" value={formData.address} onChange={handleChange} placeholder="Company address..." />
-                                        </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div className="lg:col-span-3">
+                     <form onSubmit={handleSubmit}>
+                         <Card className="shadow-lg rounded-xl">
+                             <CardContent className="p-6 sm:p-8 space-y-8">
+                                 {activeSection === 'company' && (
+                                     <section className="space-y-6 animate-fade-in">
+                                         <CardTitle>Company Details</CardTitle>
+                                         <div className="space-y-2"><Label htmlFor="companyName">Company Name *</Label><Input id="companyName" name="companyName" required value={formData.companyName} onChange={handleChange} placeholder="Your registered company name" /></div>
+                                         <div className="space-y-2"><Label htmlFor="address">Address</Label><Textarea id="address" name="address" value={formData.address} onChange={handleChange} placeholder="Your company's full address" /></div>
+                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                             <div className="space-y-2"><Label htmlFor="gstin">GSTIN</Label><Input id="gstin" name="gstin" value={formData.gstin} onChange={handleChange} placeholder="e.g., 29ABCDE1234F1Z5" /></div>
+                                             <div className="space-y-2"><Label htmlFor="contact">Contact Number</Label><Input id="contact" name="contact" value={formData.contact} onChange={handleChange} placeholder="e.g., 9876543210" /></div>
+                                         </div>
+                                         <div className="space-y-2"><Label htmlFor="email">Email Address</Label><Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} placeholder="e.g., contact@yourcompany.com" /></div>
+                                     </section>
+                                 )}
+                                 {activeSection === 'bank' && (
+                                     <section className="space-y-6 animate-fade-in">
+                                         <CardTitle>Bank Information</CardTitle>
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                              <div className="space-y-2"><Label htmlFor="bankName">Bank Name</Label><Input id="bankName" name="bankName" value={formData.bankName} onChange={handleChange} placeholder="e.g., State Bank of India" /></div>
+                                              <div className="space-y-2"><Label htmlFor="accountNo">Account Number</Label><Input id="accountNo" name="accountNo" value={formData.accountNo} onChange={handleChange} placeholder="Your bank account number" /></div>
+                                          </div>
+                                          <div className="space-y-2"><Label htmlFor="ifscCode">IFSC Code</Label><Input id="ifscCode" name="ifscCode" value={formData.ifscCode} onChange={handleChange} placeholder="e.g., SBIN0001234" /></div>
+                                     </section>
+                                 )}
+                                  {activeSection === 'email' && (
+                                     <section className="space-y-6 animate-fade-in">
+                                         <CardTitle>Email Sending Settings</CardTitle>
+                                         <Alert variant="default" className="bg-blue-50 border-blue-200">
+                                             <Info className="h-4 w-4 text-blue-600" />
+                                             <AlertTitle className="text-blue-800">Why is this needed?</AlertTitle>
+                                             <AlertDescription className="text-blue-700">
+                                                 To send invoices from your own Gmail account, Google requires a special, 16-character "App Password". Your regular password will not work and is never stored by us.
+                                             </AlertDescription>
+                                         </Alert>
+                                         <div className="p-6 border rounded-lg space-y-4 bg-slate-50">
+                                             <h3 className="font-semibold text-slate-800">How to Generate Your App Password:</h3>
+                                             <ol className="list-decimal list-inside space-y-2 text-sm text-slate-600">
+                                                 <li>Click the button below to go to the Google App Passwords page.</li>
+                                                 <li>In "Select app", choose <strong>Other (Custom name)</strong>.</li>
+                                                 <li>Name it "Vyapari AI" and click <strong>GENERATE</strong>.</li>
+                                                 <li>Copy the 16-character password from the yellow box and paste it below.</li>
+                                             </ol>
+                                             <Link href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer">
+                                                 <Button type="button" variant="outline" className="w-full">
+                                                     <ExternalLink className="mr-2 h-4 w-4" />
+                                                     Go to Google App Passwords Page
+                                                 </Button>
+                                             </Link>
+                                         </div>
+                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="space-y-2">
-                                                <Label htmlFor="gstin">GSTIN</Label>
-                                                <Input id="gstin" name="gstin" value={formData.gstin} onChange={handleChange} placeholder="e.g., 28AHNPC6120F1ZJ" />
+                                                <Label htmlFor="senderEmail">Your Sender Email (Gmail)</Label>
+                                                <Input id="senderEmail" name="senderEmail" type="email" value={formData.senderEmail} onChange={handleChange} placeholder="e.g., your.company@gmail.com" />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="contact">Contact Number</Label>
-                                                <Input id="contact" name="contact" value={formData.contact} onChange={handleChange} placeholder="e.g., 9876543210" />
+                                                <Label htmlFor="senderPassword">Your Google App Password</Label>
+                                                <Input id="senderPassword" name="senderPassword" type="password" value={formData.senderPassword} onChange={handleChange} placeholder="Paste the 16-character password" />
                                             </div>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="email">Email Address</Label>
-                                            <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} placeholder="e.g., contact@company.com" />
-                                        </div>
-                                    </section>
-                                )}
-
-                                {activeSection === 'bank' && (
-                                    <section className="space-y-6 animate-fade-in">
-                                        <CardTitle>Bank Information</CardTitle>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="bankName">Bank Name</Label>
-                                                <Input id="bankName" name="bankName" value={formData.bankName} onChange={handleChange} placeholder="e.g., HDFC Bank" />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="accountNo">Account Number</Label>
-                                                <Input id="accountNo" name="accountNo" value={formData.accountNo} onChange={handleChange} placeholder="e.g., 1234567890" />
-                                            </div>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="ifscCode">IFSC Code</Label>
-                                            <Input id="ifscCode" name="ifscCode" value={formData.ifscCode} onChange={handleChange} placeholder="e.g., HDFC0001234" />
-                                        </div>
-                                    </section>
-                                )}
-
-                                {activeSection === 'branding' && (
-                                    <section className="space-y-6 animate-fade-in">
-                                        <CardTitle>Branding Assets</CardTitle>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                            <FileInputCard id="logo" label="Company Logo" previewSrc={previews.logo} />
-                                            <FileInputCard id="signature" label="Signature" previewSrc={previews.signature} />
-                                            <FileInputCard id="stamp" label="Company Stamp" previewSrc={previews.stamp} />
-                                        </div>
-                                    </section>
-                                )}
-                            </CardContent>
-                            <div className="p-6 sm:p-8 border-t flex justify-end">
-                                <Button type="submit" className="w-full sm:w-auto" disabled={loading}>
-                                    {loading ? <SvgLoader /> : (isUpdate ? "Update Information" : "Save Information")}
-                                </Button>
-                            </div>
-                        </Card>
-                    </form>
-                </div>
-            </div>
-        </div>
+                                         </div>
+                                     </section>
+                                 )}
+                                 {activeSection === 'branding' && (
+                                     <section className="space-y-6 animate-fade-in">
+                                         <CardTitle>Branding Assets</CardTitle>
+                                         <p className="text-sm text-muted-foreground">Upload your company's logo, signature, and stamp for invoices.</p>
+                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                             <FileInputCard id="logo" label="Company Logo" previewSrc={previews.logo} />
+                                             <FileInputCard id="signature" label="Signature" previewSrc={previews.signature} />
+                                             <FileInputCard id="stamp" label="Company Stamp" previewSrc={previews.stamp} />
+                                         </div>
+                                     </section>
+                                 )}
+                             </CardContent>
+                             <div className="p-6 sm:p-8 border-t flex justify-end">
+                                 <Button type="submit" className="w-full sm:w-auto" disabled={loading}>
+                                     {loading ? <SvgLoader /> : (isUpdate ? "Update Profile" : "Save Profile")}
+                                 </Button>
+                             </div>
+                         </Card>
+                     </form>
+                 </div>
+             </div>
+         </div>
     );
 }
-

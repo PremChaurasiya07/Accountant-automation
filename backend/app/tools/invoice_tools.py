@@ -79,14 +79,6 @@ async def load_existing_invoice(state: ConversationState, invoice_number: int) -
     except Exception as e:
         return {"status": "error", "data": {"message": str(e)}}
 
-async def query_existing_invoices(state: ConversationState, user_question: str) -> dict:
-    """
-    Use this tool to answer general questions about past invoices.
-    """
-    # Placeholder for your actual RAG implementation call
-    # In a real scenario, you'd call semantic_search_and_answer here
-    answer = f"This is the answer to your question about: '{user_question}'"
-    return {"status": "success", "data": {"answer": answer}}
 
 def reset_conversation(state: ConversationState) -> dict:
     """

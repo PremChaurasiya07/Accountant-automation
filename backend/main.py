@@ -32,8 +32,9 @@ app.add_middleware(
 )
 
 
+
 # auth routing
-app.include_router(auth.router) 
+app.include_router(auth.router)
 
 # invoice routing
 app.include_router(invoice.router)

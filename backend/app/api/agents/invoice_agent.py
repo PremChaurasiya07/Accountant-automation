@@ -1,202 +1,11 @@
 
 
-
-# import json
-# import os
-# import re
-# import logging
-# from datetime import date
-# from typing import Dict, Any
-
-# from fastapi import HTTPException
-# from langchain.agents import AgentExecutor, create_react_agent, Tool
-# from langchain.prompts import PromptTemplate
-# from langchain_core.tools import render_text_description
-# from langchain_google_genai import ChatGoogleGenerativeAI
-# from langchain.memory import ConversationBufferWindowMemory
-# from google.api_core.exceptions import ResourceExhausted
-
-# # --- App-specific Imports ---
-# from app.services.invoice_actions import load_invoice_for_edit, create_invoice, update_invoice, get_next_invoice_number
-# from utils.semantic import get_context_for_query
-# from app.services.sql_query_tool import answer_database_question
-
-# # --- GeminiKeyManager Class ---
-# class GeminiKeyManager:
-#     """A manager to load and rotate Google Gemini API keys from environment variables."""
-#     def __init__(self):
-#         self.keys = self._load_keys()
-#         if not self.keys:
-#             raise ValueError("No Gemini API keys found. Please set GEMINI_API_KEY_1, etc., in your .env file.")
-#         self.current_key_index = 0
-#         logging.info(f"✅ Loaded {len(self.keys)} Gemini API keys.")
-
-#     def _load_keys(self) -> list[str]:
-#         keys = []
-#         i = 1
-#         while True:
-#             key = os.getenv(f"GEMINI_API_KEY_{i}")
-#             if key:
-#                 keys.append(key); i += 1
-#             else:
-#                 break
-#         return keys
-
-#     def get_next_key(self) -> str:
-#         self.current_key_index = (self.current_key_index + 1) % len(self.keys)
-#         logging.warning(f"🔑 Switching to Gemini API key index: {self.current_key_index}")
-#         return self.keys[self.current_key_index]
-    
-#     def get_initial_key(self) -> str:
-#         return self.keys[0]
-
-# gemini_key_manager = GeminiKeyManager()
-
-# # --- ResilientAgentExecutor Subclass ---
-# class ResilientAgentExecutor(AgentExecutor):
-#     """An AgentExecutor that catches rate limit errors and retries with a new API key."""
-#     key_manager: Any
-#     llm: Any
-
-#     async def ainvoke(self, *args, **kwargs):
-#         for i in range(len(self.key_manager.keys)):
-#             try:
-#                 return await super().ainvoke(*args, **kwargs)
-#             except ResourceExhausted:
-#                 logging.warning(f"API key index {self.key_manager.current_key_index} is rate-limited.")
-#                 if i == len(self.key_manager.keys) - 1:
-#                     logging.error("All Gemini API keys are rate-limited.")
-#                     raise HTTPException(status_code=429, detail="All API keys are rate-limited. Please try again later.")
-                
-#                 next_key = self.key_manager.get_next_key()
-#                 self.llm.google_api_key = next_key
-        
-#         raise HTTPException(status_code=503, detail="Agent could not run successfully after multiple key retries.")
-
-
-# AGENT_SESSIONS: Dict[str, Any] = {}
-
-# # --- Final, Robust Prompt Template ---
-# agent_prompt_template = PromptTemplate.from_template("""
-# You are an expert Vyapari (merchant) assistant AI. Your primary goal is to accurately understand the user's intent and then take the correct action.
-
-# **Your Response Options:**
-# You have two ways to respond. Choose one based on your goal.
-
-# **Option 1: Use a Tool**
-# When you need to get information or perform an action, use a tool. Your response MUST be in this exact format:
-# Thought: Your reasoning for using the tool.
-# Action: The name of the tool to use, which must be one of [{tool_names}].
-# Action Input: The input for the tool.
-
-
-# **Option 2: Respond to the User**
-# When you need to ask the user for more information, or when you have the final answer, respond directly to them. Your response MUST be in this exact format:
-# Thought: Your reasoning for responding to the user.
-# Final Answer: The message you want to send to the user.
-
-
-# ---
-# **PRIMARY DIRECTIVE: HOW TO THINK AND ACT**
-# Your first and most important job is to understand the user's intent and choose the right tool.
-
-# 1.  **For Calculation, Totals, or Counting:**
-#     * If the user asks a question that requires **calculation, aggregation, or counting** (e.g., "how much did I sell last month?", "what are my total sales?", "average sale price?"), you **MUST** use the `answer_database_question` tool.
-
-# 2.  **For Finding Specific Invoice Details:**
-#     * If the user asks for the **text content or details of a specific invoice** (e.g., "what was my last sale?", "show me the invoice for ABC Corp"), you **MUST** use the `query_past_invoices` tool.
-
-# 3.  **For Creating a NEW Invoice:**
-#     * If the user explicitly asks to create a new bill or invoice, start the **Invoice Creation Workflow**.
-
-# 4.  **For Editing an Invoice:**
-#     * If the user wants to edit an existing invoice, use the `load_invoice_for_editing` tool.
-# ---
-# **Invoice Creation Workflow:**
-# Follow these steps **ONLY** after you have determined the user wants to create a new invoice.
-#     * **Step 1: Get Number:** Use the `get_next_invoice_number` tool.
-#     * **Step 2: Ask for Details:** After getting the number, ask the user for the buyer and item details.
-#     * **Step 3: Confirm:** After the user provides details, summarize everything and ask for confirmation.
-#     * **Step 4: Create:** ONLY after the user confirms, use the `create_new_invoice` tool. The `Action Input` MUST be a single, valid JSON object with the following exact "nested" structure. Do not add any text or formatting outside the JSON block.
-#       ```json
-#       {{"invoice": {{"number": "THE_INVOICE_NUMBER", "date": "{today_date}"}}, "buyer": {{"name": "THE_BUYER_NAME", "address": "THE_BUYER_ADDRESS"}}, "items": [{{"name": "ITEM_DESCRIPTION", "quantity": QUANTITY, "price_per_unit": PRICE}}]}}
-#       ```
-# ---
-# **User ID:** {user_id}
-# **Today's Date:** {today_date}
-                                                     
-# Begin!
-
-# **Conversation History:**
-# {chat_history}
-# **User Input:**
-# {input}
-# **Your Thought Process:**
-# {agent_scratchpad}
-# """)
-
-# def get_vyapari_agent_executor(user_id: str):
-#     """Creates or retrieves a stateful agent executor for a given user."""
-#     if user_id in AGENT_SESSIONS:
-#         return AGENT_SESSIONS[user_id]
-
-#     print(f"✅ Creating new agent session for user: {user_id}")
-
-#      # This is the single, shared LLM instance
-#     llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=gemini_key_manager.get_initial_key(), temperature=0.0)
-
-#     def _robust_json_loads(json_string: str) -> dict:
-#         if isinstance(json_string, dict): return json_string
-#         cleaned_string = json_string.strip().removeprefix("```json").removesuffix("```")
-#         return json.loads(cleaned_string)
-
-#     tools = [
-#         Tool(
-#             name="answer_database_question",
-#             # Pass the shared LLM and key manager to the tool
-#             func=lambda q: answer_database_question(user_question=q, llm=llm, key_manager=gemini_key_manager),
-#             description="Use for questions requiring calculation, aggregation, or counting (e.g., 'total sales in July?', 'how many invoices last month?')."
-#         ),
-#         Tool(
-#             name="query_past_invoices",
-#             func=lambda q: get_context_for_query(user_input=q, user_id=user_id),
-#             description="Use to find the content or details of specific invoices (e.g., 'what was my last sale?', 'find the bill for John Doe')."
-#         ),
-#         Tool(name="load_invoice_for_editing", func=lambda num: load_invoice_for_edit(invoice_number=num, user_id=user_id), description="Use to load an invoice for editing."),
-#         Tool(name="create_new_invoice", func=lambda data_str: create_invoice(invoice_data=_robust_json_loads(data_str), user_id=user_id, template_no="temp1"), description="Use to save a new invoice after getting user confirmation."),
-#         Tool(name="update_existing_invoice", func=lambda data_str: update_invoice(invoice_data=_robust_json_loads(data_str), user_id=user_id), description="Use to save changes to an existing invoice."),
-#         Tool(name="get_next_invoice_number", func=lambda _: get_next_invoice_number(user_id=user_id), description="Use as the first step when creating a new invoice."),
-#     ]
-
-#     memory = ConversationBufferWindowMemory(k=6, memory_key="chat_history", input_key="input", output_key="output", return_messages=True)
-    
-#     prompt = agent_prompt_template.partial(
-#         tools=render_text_description(tools),
-#         tool_names=", ".join([t.name for t in tools]),
-#         user_id=user_id,
-#         today_date=date.today().isoformat()
-#     )
-
-#     agent = create_react_agent(llm, tools, prompt)
-    
-#     agent_executor = ResilientAgentExecutor(
-#         agent=agent, tools=tools, memory=memory, verbose=True,
-#         handle_parsing_errors="I made a formatting error. I will use one of the two response options defined in the prompt.",
-#         max_iterations=10,
-#         key_manager=gemini_key_manager,
-#         llm=llm
-#     )
-    
-#     AGENT_SESSIONS[user_id] = agent_executor
-#     return agent_executor
-
-
 import json
 import os
 import re
 import logging
 from datetime import date
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 
 from fastapi import HTTPException
 from langchain.agents import AgentExecutor, create_react_agent, Tool
@@ -205,18 +14,26 @@ from langchain_core.tools import render_text_description
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.memory import ConversationBufferWindowMemory
 from google.api_core.exceptions import ResourceExhausted
+from dateutil.relativedelta import relativedelta
+from dateutil.parser import parse
 
 # --- App-specific Imports ---
 from app.services.invoice_actions import load_invoice_for_edit, create_invoice, update_invoice, get_next_invoice_number
 from utils.semantic import get_context_for_query
 # --- MODIFIED: Import all tools from the new, unified tools file ---
-from app.services.sql_query_tool import (
+from app.tools.sql_query_tool import (
     answer_database_question,
+    generate_gstr3b_download_link,
+    generate_whatsapp_link,
     get_sales_summary,
     # generate_sales_trend_chart,
     get_low_stock_alerts,
     # get_buyer_purchase_history,
     get_top_performing_entities,
+    send_invoice_via_email,
+    search_existing_buyer,
+    get_gstr3b_report
+    #find_hsn_code
 )
 
 
@@ -317,12 +134,29 @@ Your first and most important job is to understand the user's intent and choose 
 5.  **For Editing an Invoice:**
     * If the user wants to edit an existing invoice, you **MUST** use the `load_invoice_for_editing` tool first. 
     * **CRITICAL:** The input for this tool **MUST** be only the invoice number as a simple string (e.g., "66" or "066/2025-26"). **DO NOT** provide a JSON object or any other data as input. This action triggers the **Invoice Editing Workflow**.
+                                                     
+6.  **For Sharing & Communication:**
+    * When the user asks to "send," "share," or "email" an invoice, use the `send_invoice_via_email` tool.
+    * When the user asks to "WhatsApp" an invoice, use the `generate_whatsapp_link` tool to create a shareable link.
+    * After creating or updating an invoice, you should proactively ask the user if they want to send it. For example: "The invoice has been created. Would you like me to email it or create a WhatsApp link?"
+                                                     
+7.  * **For GST Reporting**: This is a two-step process. 
+    1. First, use the `get_gstr3b_report` tool to get the analytics for the requested time period and present the summary to the user in your Final Answer.
+    2. After that, if the user wants to download the report, use the `generate_gstr3b_download_link` tool with the SAME time period to get the final URL and provide it to the user.
 ---
 **Invoice Creation Workflow:**
 Follow these steps **ONLY** after you have determined the user wants to create a new invoice.
-    * **Step 1: Get Number:** Use the `get_next_invoice_number` tool.
-    * **Step 2: Ask for Details:** After getting the number, ask the user for the buyer and item details.
-    * **Step 3: Confirm:** After the user provides details, summarize everything and ask for confirmation.
+
+* **Step 1: Get Number:** Use the `get_next_invoice_number` tool to get the next sequential invoice number.
+
+* **Step 2: Gather Buyer and Item Details Intelligently:**
+    * **Buyer Details:**
+        * First, ask the user for the **buyer's name only**.
+        * Immediately use the `search_existing_buyer` tool to check if they are a returning customer.
+        * **If the buyer is found**, confirm with the user if you should use their saved details (e.g., "Found returning customer 'Rohan Enterprises'. Should I use their saved address and GSTIN?").
+        * **If the buyer is not found**, then ask the user for their full address and other details.
+
+* **Step 3: Confirm:** After gathering all details, provide a full summary of the invoice (buyer, all items with HSN, rates, quantity, and price) and ask the user for a final "Yes" or "No" confirmation.
     * **Step 4: Create:** ONLY after the user confirms, use the `create_new_invoice` tool. The `Action Input` MUST be a single, valid JSON object with the following exact "nested" structure. Do not add any text or formatting outside the JSON block.
       ```json
       {{"invoice": {{"number": "THE_INVOICE_NUMBER", "date": "{today_date}"}}, "buyer": {{"name": "THE_BUYER_NAME", "address": "THE_BUYER_ADDRESS"}}, "items": [{{"name": "ITEM_DESCRIPTION", "quantity": QUANTITY, "price_per_unit": PRICE}}]}}
@@ -376,67 +210,141 @@ def get_vyapari_agent_executor(user_id: str):
     # This is the single, shared LLM instance
     llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=gemini_key_manager.get_initial_key(), temperature=0.0)
 
-    def _robust_json_loads(json_string: str) -> dict:
-        if isinstance(json_string, dict): return json_string
-        cleaned_string = json_string.strip().removeprefix("```json").removesuffix("```")
-        return json.loads(cleaned_string)
-    
-    # Helper to parse tool inputs that might be JSON strings for multiple arguments
-    def _parse_and_call(func, input_str: str, **kwargs):
+   # --- Simplified Helper ONLY for parsing JSON ---
+    def _robust_json_loads(input_data: str) -> Any:
+        # This helper now correctly handles simple numbers/strings that are valid JSON values
+        if isinstance(input_data, (dict, int, float)): return input_data
+        clean_input = input_data.strip().removeprefix("```json").removesuffix("```").strip()
         try:
-            # Assumes the agent passes a JSON string for multi-argument tools
-            args = json.loads(input_str)
-            return func(**args, **kwargs)
-        except (json.JSONDecodeError, TypeError):
-            # Fallback for simple string input or if func doesn't expect dict
-            return func(input_str, **kwargs)
+            return json.loads(clean_input)
+        except json.JSONDecodeError:
+            # If it fails to parse, it's just a plain string.
+            return clean_input
+        
+    def _parse_time_period(time_period: str) -> Tuple[date, date]:
+        today = date.today()
+        tp = time_period.lower().strip().replace('"', '')
+        if tp == "today": return today, today
+        if tp == "yesterday":
+            start = today - relativedelta(days=1)
+            return start, start
+        if tp == "this month": return today.replace(day=1), today
+        if tp == "last month":
+            end = today.replace(day=1) - relativedelta(days=1)
+            start = end.replace(day=1)
+            return start, end
+        if tp == "this year": return today.replace(month=1, day=1), today
+        try:
+            parsed_date = parse(tp).date()
+            return parsed_date, parsed_date
+        except ValueError:
+            return today.replace(day=1), today
+            
+    # --- NEW: Smart handler for GSTR-3B tool ---
+    def gstr3b_tool_handler(agent_input: str):
+        """Handles both JSON and simple time period strings for the GSTR-3B tool."""
+        parsed_input = _robust_json_loads(agent_input)
 
-    # --- MODIFIED: Expanded tool list with new analytics tools ---
+        if isinstance(parsed_input, dict) and 'start_date' in parsed_input:
+            # Agent correctly provided a JSON object with dates
+            return get_gstr3b_report(user_id=user_id, **parsed_input)
+        elif isinstance(parsed_input, str):
+            # Agent provided a simple string like "last month".
+            # We convert it to dates before calling the tool.
+            start_date, end_date = _parse_time_period(parsed_input)
+            return get_gstr3b_report(
+                user_id=user_id, 
+                start_date=start_date.isoformat(), 
+                end_date=end_date.isoformat()
+            )
+        else:
+            return "Error: Invalid input for GSTR-3B report. Please provide a time period like 'last month' or a specific date range."
+
+    # --- NEW: Smart handlers for sharing tools ---
+    def email_tool_handler(agent_input: str):
+        """Handles both JSON and simple string inputs, and sanitizes keys."""
+        parsed_input = _robust_json_loads(agent_input)
+        if isinstance(parsed_input, dict):
+            # --- THE FIX ---
+            # Remove extra data the agent might mistakenly include.
+            parsed_input.pop('user_id', None)
+            parsed_input.pop('seller_data', None) # <--- ADD THIS LINE
+            
+            # Check for common hallucinated key names and correct them.
+            if 'invoice_number' in parsed_input:
+                parsed_input['invoice_no'] = parsed_input.pop('invoice_number')
+            if 'recipient_email' in parsed_input:
+                parsed_input['email_address'] = parsed_input.pop('recipient_email')
+            
+            return send_invoice_via_email(user_id=user_id, **parsed_input)
+        else:
+            return send_invoice_via_email(user_id=user_id, invoice_no=str(parsed_input))
+            
+    def whatsapp_tool_handler(agent_input: str):
+        """Handles both JSON and simple string inputs, and sanitizes keys."""
+        parsed_input = _robust_json_loads(agent_input)
+        if isinstance(parsed_input, dict):
+            # --- THE FIX ---
+            # Check for the incorrect key name 'invoice_number' and fix it.
+            if 'invoice_number' in parsed_input:
+                parsed_input['invoice_no'] = parsed_input.pop('invoice_number')
+
+            return generate_whatsapp_link(user_id=user_id, **parsed_input)
+        else:
+            return generate_whatsapp_link(user_id=user_id, invoice_no=str(parsed_input))
+
+
+
+    # --- The Final, Simplified, and Corrected Tool List ---
     tools = [
-        Tool(
-            name="get_sales_summary",
-            func=lambda time_period: get_sales_summary(user_id=user_id, time_period=time_period),
-            description="Use to get total sales, revenue, invoice count, or average sale value for a period. Input is the time period as a string (e.g., 'this month')."
-        ),
-        Tool(
-            name="get_top_performing_entities",
-            func=lambda input_str: _parse_and_call(get_top_performing_entities, input_str, user_id=user_id),
-            description="Use to find best-selling products or top buyers by revenue. Input MUST be a JSON object like: {\"time_period\": \"this year\", \"entity_type\": \"product\"}."
-        ),
-        # Tool(
-        #     name="get_buyer_purchase_history",
-        #     func=lambda name: get_buyer_purchase_history(user_id=user_id, buyer_name=name),
-        #     description="Use to get a specific customer's purchase history summary. Input is the customer's name as a string."
-        # ),
-       
-        Tool(
-            name="get_low_stock_alerts",
-            func=lambda _: get_low_stock_alerts(user_id=user_id),
-            description="Use to find products that are low in stock. Takes no input."
-        ),
-        # Tool(
-        #     name="generate_sales_trend_chart",
-        #     func=lambda input_str: _parse_and_call(generate_sales_trend_chart, input_str, user_id=user_id),
-        #     description="Use to create charts or see sales trends. Input MUST be a JSON object like: {\"time_period\": \"this year\", \"group_by\": \"monthly\"}."
-        # ),
-        Tool(
-            name="answer_database_question",
-            func=lambda q: answer_database_question(user_question=q, llm=llm, key_manager=gemini_key_manager),
-            description="A fallback tool for complex questions about your data that are NOT covered by other tools. Use this for unusual calculations, aggregations, or counting."
-        ),
-        Tool(
-            name="query_past_invoices",
-            func=lambda user_input: get_context_for_query(user_input=user_input, user_id=user_id),
-            description="Use this tool to search for and retrieve information from past invoices. The input must be a clear, specific question from the user. For example, if the user asks 'what was on my last invoice?', the input to this tool should be 'what was on my last invoice?'."
-        ),
-        Tool(
-            name="load_invoice_for_editing",
-            func=lambda num: load_invoice_for_edit(invoice_number=num, user_id=user_id),
-            description="Use to load an existing invoice's data to begin an editing session. The input MUST be the invoice number as a simple string (e.g., '66'). DO NOT provide a JSON object as input."
-        ),
-        Tool(name="create_new_invoice", func=lambda data_str: create_invoice(invoice_data=_robust_json_loads(data_str), user_id=user_id, template_no="temp1"), description="Use to save a new invoice after getting user confirmation."),
-        Tool(name="update_existing_invoice", func=lambda data_str: update_invoice(invoice_data=_robust_json_loads(data_str), user_id=user_id), description="Use to save changes to an existing invoice."),
+        # --- Tools that expect a SIMPLE STRING input ---
+        Tool(name="get_sales_summary", func=lambda time_period: get_sales_summary(user_id=user_id, time_period=time_period), description="Use to get total sales, revenue, invoice count, or average sale value for a period. Input is the time period as a string (e.g., 'this month')."),
+        Tool(name="get_low_stock_alerts", func=lambda _: get_low_stock_alerts(user_id=user_id), description="Use to find products that are low in stock. Takes no input."),
+        # Tool(name="get_buyer_purchase_history", func=lambda name: get_buyer_purchase_history(user_id=user_id, buyer_name=name), description="Use to get a specific customer's purchase history summary. Input is the customer's name as a string."),
+        Tool(name="query_past_invoices", func=lambda query: get_context_for_query(user_input=query, user_id=user_id), description="Use to find the content or details of specific invoices (e.g., 'what was in the last invoice for Rohan?')."),
+        Tool(name="answer_database_question", func=lambda q: answer_database_question(user_question=q, llm=llm, key_manager=gemini_key_manager), description="A fallback tool for complex questions about your data that are NOT covered by other tools."),
+        Tool(name="load_invoice_for_editing", func=lambda inv_no: load_invoice_for_edit(invoice_number=inv_no, user_id=user_id), description="Use to load an existing invoice's data to begin an editing session. The input MUST be the invoice number as a simple string (e.g., '66')."),
         Tool(name="get_next_invoice_number", func=lambda _: get_next_invoice_number(user_id=user_id), description="Use as the first step when creating a new invoice."),
+
+        # --- Tools that expect a JSON OBJECT input ---
+        # Tool(name="get_sales_comparison", func=lambda input_str: get_sales_comparison(user_id=user_id, **_robust_json_loads(input_str)), description="Use to compare sales data between two periods. Input MUST be a JSON object like: {\"time_period_1\": \"this month\", \"time_period_2\": \"last month\"}."),
+        Tool(name="get_top_performing_entities", func=lambda input_str: get_top_performing_entities(user_id=user_id, **_robust_json_loads(input_str)), description="Use to find top products or buyers. Input MUST be a JSON object like: {\"time_period\": \"this year\", \"entity_type\": \"product\"}."),
+        # Tool(name="generate_sales_trend_chart", func=lambda input_str: generate_sales_trend_chart(user_id=user_id, **_robust_json_loads(input_str)), description="Use to create charts or see sales trends. Input MUST be a JSON object like: {\"time_period\": \"this year\", \"group_by\": \"monthly\"}."),
+        # Tool(name="get_gstr3b_report", func=lambda input_str: get_gstr3b_report(user_id=user_id, **_robust_json_loads(input_str)), description="Use to generate a GSTR-3B report. Input MUST be a JSON object with 'start_date' and 'end_date' in 'YYYY-MM-DD' format."),
+        Tool(
+            name="send_invoice_via_email",
+            func=email_tool_handler, # Use the updated smart handler
+            description="Use to send an invoice via email. The tool only needs the invoice number and an optional recipient email. The input MUST be a JSON object with the exact keys: 'invoice_no' (string) and an optional 'email_address' (string). Do not include any other data."
+        ),
+        Tool(
+            name="generate_whatsapp_link",
+            func=whatsapp_tool_handler, # Use the new smart handler
+            description="Use to generate a WhatsApp link. Input can be a simple invoice number (e.g., '66') or a JSON object with 'invoice_no' and an optional 'phone_number'."
+        ),
+        Tool(name="create_new_invoice", func=lambda input_str: create_invoice(invoice_data=_robust_json_loads(input_str), user_id=user_id), description="Use to save a new invoice after user confirmation. Input must be the full invoice JSON."),
+        Tool(name="update_invoice", func=lambda input_str: update_invoice(invoice_data=_robust_json_loads(input_str), user_id=user_id), description="Use to save changes to an existing invoice after user confirmation. Input must be the full, modified invoice JSON."),
+
+        Tool(
+            name="search_existing_buyer",
+            func=lambda name: search_existing_buyer(user_id=user_id, buyer_name=name),
+            description="Use this tool FIRST to find an existing buyer's details by their name before asking for their full address or GSTIN."
+        ),
+        Tool(
+            name="get_gstr3b_report",
+            func=gstr3b_tool_handler, # Use the new smart handler
+            description="Use to generate a GSTR-3B summary and analytics report for a given date range. The input can be a simple string (e.g., 'last month') or a JSON object with 'start_date' and 'end_date'."
+        ),
+        Tool(
+            name="generate_gstr3b_download_link",
+            func=lambda time_period: generate_gstr3b_download_link(time_period=time_period),
+            description="Use this to get the final, direct download URL for a GSTR-3B report. The input is a simple string for the time period (e.g., 'last month')."
+        ),
+    #      Tool(
+    #     name="find_hsn_code",
+    #     # --- THE FIX: Pass the key_manager into the function ---
+    #     func=lambda desc: find_hsn_code(product_description=desc, key_manager=gemini_key_manager),
+    #     description="Use this to find the correct HSN code for a product based on its description. For example, if the user mentions 'leather office chair', use that as the input."
+    # ),
     ]
 
     memory = ConversationBufferWindowMemory(k=6, memory_key="chat_history", input_key="input", output_key="output", return_messages=True)

@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Star, Menu, X, FileText, Package, Mic, BarChart3, Bot, CheckCircle, BookOpen, Calculator, Download, Zap } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image'; // Use the optimized Image component
+import Link from 'next/link';   // Use Link for internal navigation
 
 // Make sure your image paths are correct relative to this file
 import chatbot from "../../public/landing/chatbot.png";
@@ -11,6 +13,7 @@ import analytic from "../../public/landing/analytic.png";
 import gstb from "../../public/landing/gstb.png";
 import sampleinvoice from "../../public/landing/sample-invoice.png";
 import inventory from "../../public/landing/inventory.png";
+import { Button } from '@/components/ui/button';
 // --- Animation Variants ---
 const fadeIn = (direction = 'up', delay = 0, duration = 1) => ({
   hidden: { opacity: 0, y: direction === 'up' ? 30 : -30, x: direction === 'left' ? 30 : direction === 'right' ? -30 : 0 },
@@ -202,63 +205,70 @@ export default function VyapariLandingPage() {
   return (
     <div className="bg-gray-950 text-white font-sans">
       <header className="fixed top-0 left-0 w-full z-50 bg-gray-950/70 backdrop-blur-xl border-b border-white/10">
-        <motion.div 
-          initial={{ y: -100 }}
-          animate={{ y: 0 }}
-          transition={{ type: 'spring', stiffness: 100 }}
-          className="container mx-auto px-6 py-4 flex justify-between items-center"
-        >
-          <div className="text-2xl font-bold tracking-tighter bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">Vyapari</div>
-          <nav className="hidden md:flex items-center gap-8">
-            {navLinks.map(link => (
-              <a key={link} href={`#${link.toLowerCase().replace(/\?| /g, '-')}`} className="text-gray-300 hover:text-white transition-colors duration-300">{link}</a>
-            ))}
-          </nav>
-          
-          <div className="hidden md:flex items-center gap-4">
-            {installPrompt ? (
-              <button onClick={handleInstallClick} className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-5 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-2">
-                <Download size={16} /> Install App
-              </button>
-            ) : (
-              <button onClick={() => router.push('/login')} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-2">
-                <Zap size={16} /> Launch App
-              </button>
-            )}
-          </div>
-          
-          <div className="flex items-center gap-2 md:hidden">
-            {installPrompt ? (
-              <button onClick={handleInstallClick} className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-3 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-1 text-sm">
-                <Download size={14} /> <span>Install</span>
-              </button>
-            ) : (
-              <button onClick={() => router.push('/login')} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-3 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-1 text-sm">
-                <Zap size={14} /> <span>Launch</span>
-              </button>
-            )}
-            <button onClick={() => setIsMenuOpen(!isMenuOpen)}>
-              {isMenuOpen ? <X /> : <Menu />}
-            </button>
-          </div>
-        </motion.div>
-        <AnimatePresence>
-        {isMenuOpen && (
-          <motion.div 
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden overflow-hidden"
-          >
-            <div className="px-6 pb-4 flex flex-col items-center gap-4 bg-gray-950/90">
-             {navLinks.map(link => (
-               <a key={link} href={`#${link.toLowerCase().replace(/\?| /g, '-')}`} onClick={() => setIsMenuOpen(false)} className="text-gray-300 hover:text-white transition-colors duration-300 py-2">{link}</a>
-            ))}
-            </div>
-          </motion.div>
-        )}
-        </AnimatePresence>
-      </header>
+            <motion.div 
+                initial={{ y: -100 }}
+                animate={{ y: 0 }}
+                transition={{ type: 'spring', stiffness: 100 }}
+                className="container mx-auto px-6 py-4 flex justify-between items-center"
+            >
+                {/* --- THE FIX: Logo and Brand Name Wrapper --- */}
+                <Link href="/" className="flex items-center gap-2">
+                    <Image
+                        src="/icons/maskable_icon.png"
+                        alt="Vyapari AI Logo"
+                        width={36}  // The actual width of your image file
+                        height={36} // The actual height of your image file
+                        className="h-9 w-auto" // Control the display size
+                    />
+                    <span className="text-2xl font-bold tracking-tighter bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+                        Vyapari
+                    </span>
+                </Link>
+
+                <nav className="hidden md:flex items-center gap-8">
+                    {navLinks.map(link => (
+                        <Link key={link} href={`#${link.toLowerCase().replace(/\?| /g, '-')}`} className="text-gray-300 hover:text-white transition-colors duration-300">{link}</Link>
+                    ))}
+                </nav>
+                
+                <div className="hidden md:flex items-center gap-4">
+                    {installPrompt ? (
+                        <Button onClick={handleInstallClick} className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-5 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-2">
+                            <Download size={16} /> Install App
+                        </Button>
+                    ) : (
+                        <Button onClick={() => router.push('/login')} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-2">
+                            <Zap size={16} /> Launch App
+                        </Button>
+                    )}
+                </div>
+                
+                <div className="flex items-center gap-2 md:hidden">
+                    {/* Simplified mobile buttons */}
+                    <Button onClick={() => router.push('/login')} size="sm" className="rounded-full">Launch</Button>
+                    <Button onClick={() => setIsMenuOpen(!isMenuOpen)} variant="ghost" size="icon">
+                        {isMenuOpen ? <X /> : <Menu />}
+                    </Button>
+                </div>
+            </motion.div>
+            
+            <AnimatePresence>
+                {isMenuOpen && (
+                    <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="md:hidden overflow-hidden"
+                    >
+                        <div className="px-6 pb-4 flex flex-col items-center gap-4 bg-gray-950/90">
+                            {navLinks.map(link => (
+                               <Link key={link} href={`#${link.toLowerCase().replace(/\?| /g, '-')}`} onClick={() => setIsMenuOpen(false)} className="text-gray-300 hover:text-white transition-colors duration-300 py-2">{link}</Link>
+                            ))}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </header>
 
       <main>
         {/* --- Hero Section --- */}
@@ -295,7 +305,7 @@ export default function VyapariLandingPage() {
         </section>
 
         {/* --- Trusted By Section --- */}
-        <section className="py-12 bg-gray-950">
+        {/* <section className="py-12 bg-gray-950">
             <div className="container mx-auto px-6 text-center">
                 <p className="text-gray-400 mb-8 tracking-widest text-sm uppercase">Trusted by over 5,000+ merchants across India</p>
                 <div className="relative w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,white_20%,white_80%,transparent)]">
@@ -312,7 +322,7 @@ export default function VyapariLandingPage() {
                     </motion.div>
                 </div>
             </div>
-        </section>
+        </section> */}
 
         {/* --- Features Section --- */}
         <section id="features" className="py-20 md:py-40 bg-gray-950 relative">

@@ -62,7 +62,7 @@ export default function LoginPage() {
         {/* Hide form inputs if confirmation message is shown */}
         {!successMessage && (
           <>
-            <input
+            {/* <input
               type="email"
               className="w-full mb-4 px-4 py-3 border rounded-lg bg-gray-50 dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
               placeholder="Email"
@@ -87,7 +87,7 @@ export default function LoginPage() {
               {loading ? "Loading..." : "Continue with Email"}
             </button>
 
-            <div className="text-center my-4 text-gray-500 dark:text-gray-400">or</div>
+            <div className="text-center my-4 text-gray-500 dark:text-gray-400">or</div> */}
 
             <button
               onClick={handleGoogleLogin}
