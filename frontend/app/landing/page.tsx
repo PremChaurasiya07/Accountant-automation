@@ -98,7 +98,7 @@ const AnimatedCommandBar = () => {
         "What is the current stock of Shoes?",
         "पिछले महीने का हिसाब देना",
         "Sabse zyada bikne wala item konsa hai?",
-        "Total kitne bill bane hai?"
+        "Total kiti bill banlele aahe?"
     ];
     const [index, setIndex] = useState(0);
 
@@ -216,8 +216,8 @@ export default function VyapariLandingPage() {
                     <Image
                         src="/icons/maskable_icon.png"
                         alt="Vyapari AI Logo"
-                        width={36}  // The actual width of your image file
-                        height={36} // The actual height of your image file
+                        width={60}  // The actual width of your image file
+                        height={60} // The actual height of your image file
                         className="h-9 w-auto" // Control the display size
                     />
                     <span className="text-2xl font-bold tracking-tighter bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
