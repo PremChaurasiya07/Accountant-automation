@@ -322,7 +322,7 @@ def get_vyapari_agent_executor(user_id: str):
             description="Use to generate a WhatsApp link. Input can be a simple invoice number (e.g., '66') or a JSON object with 'invoice_no' and an optional 'phone_number'."
         ),
         Tool(name="create_new_invoice", func=lambda input_str: create_invoice(invoice_data=_robust_json_loads(input_str), user_id=user_id), description="Use to save a new invoice after user confirmation. Input must be the full invoice JSON."),
-        Tool(name="update_invoice", func=lambda input_str: update_invoice(invoice_data=_robust_json_loads(input_str), user_id=user_id), description="Use to save changes to an existing invoice after user confirmation. Input must be the full, modified invoice JSON."),
+        Tool(name="update_invoice", func=lambda input_str: update_invoice(invoice_data=_robust_json_loads(input_str), user_id=user_id, template_no="temp1"), description="Use to save changes to an existing invoice after user confirmation. Input must be the full, modified invoice JSON."),
 
         Tool(
             name="search_existing_buyer",
