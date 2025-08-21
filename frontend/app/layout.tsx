@@ -2,46 +2,47 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import RootClient from './root-client';
-// import { ProtectedRoute } from "@/components/ui/protected-route"; // This seems unused here, but kept it commented.
 
 const inter = Inter({ subsets: ["latin"] });
 
-// Let's define the metadata in one place
+// Metadata is now synchronized with your manifest.json
 export const metadata: Metadata = {
-  // It's good practice to set a default title template
+  // Title now matches the 'name' property from your manifest
   title: {
-    default: "Vyapari",
-    template: "%s | Vyapari",
+    default: "Vyapari AI", // Changed from "Vyapari"
+    template: "%s | Vyapari AI", // Updated template for consistency
   },
-  description: "The AI-powered business tool for merchants.",
-  // The manifest file tells the browser about your PWA
-  manifest: "/manifest.json", // We'll use the standard name
   
-  // Icons for all platforms
+  // Description now matches the 'description' from your manifest
+  description: "Business tool at your hand",
+  
+  // This correctly points to your manifest file
+  manifest: "/manifest.json",
+  
+  // Icons for the HTML <head> can remain as they are
   icons: {
-    icon: "/favicon.ico", // Fallback
-    shortcut: "/favicon.svg", // Modern browsers
-    apple: "/apple-touch-icon.png", // Apple devices
-    // You can also add other sizes here if needed
+    icon: "/favicon.ico",
+    shortcut: "/favicon.svg",
+    apple: "/apple-touch-icon.png",
   },
 
-  // Specific metadata for Apple devices
+  // Apple-specific settings. The title here correctly uses your 'short_name'
   appleWebApp: {
     title: "Vyapari",
-    capable: true, // This allows the app to run in full-screen mode
-    statusBarStyle: "black-translucent", // Style of the status bar
+    capable: true, 
+    statusBarStyle: "black-translucent",
   },
 };
 
-// NEW: Add a Viewport export to control theme-color and other properties
+// Viewport now matches the 'theme_color' from your manifest.json
 export const viewport: Viewport = {
-  themeColor: "#2563eb",
+  themeColor: "#3b82f6", // Changed from "#2563eb"
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      {/* The <head> is now automatically managed by Next.js using the metadata above */}
+      {/* The <head> is automatically managed by Next.js using the metadata above */}
       <body className={inter.className}>
         <RootClient>{children}</RootClient>
       </body>
