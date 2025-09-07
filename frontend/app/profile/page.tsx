@@ -43,7 +43,7 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 // --- Interfaces ---
 interface SellerData {
   name: string
-  gst_no: string
+  gstin: string
   contact: string
   email: string
   address: string
@@ -246,7 +246,7 @@ export default function SellerProfile() {
             <ProfileDetailRow icon={User} label="Contact Person" value={profile.name} />
             <ProfileDetailRow icon={Phone} label="Contact Phone" value={profile.contact} isCopyable/>
             <ProfileDetailRow icon={Landmark} label="Business Address" value={profile.address} />
-            <ProfileDetailRow icon={ShieldCheck} label="GST Number" value={profile.gst_no} isCopyable/>
+            <ProfileDetailRow icon={ShieldCheck} label="GST Number" value={profile.gstin} isCopyable/>
           </CardContent>
         </Card>
         <Card>
