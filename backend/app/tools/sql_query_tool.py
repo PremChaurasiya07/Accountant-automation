@@ -1313,23 +1313,24 @@ async def create_invoice(invoice_data: Dict[str, Any], user_id: str) -> str:
     """Creates a new, complete invoice. Automatically fetches seller details and missing URLs."""
     pdf_path = None
     try:
-        # --- Data Enrichment Block ---
+        # --- CORRECTED: Data Enrichment Block ---
         # Fetch company logo if not provided by the agent
-        if not invoice_data.get("company", {}).get("logo_url"):
-            seller_logo_resp = supabase.table("sellers_record").select("logo_url").eq("user_id", user_id).single().execute()
-            if seller_logo_resp.data and seller_logo_resp.data.get("logo_url"):
-                if "company" not in invoice_data: invoice_data["company"] = {}
-                invoice_data["company"]["logo_url"] = seller_logo_resp.data["logo_url"]
+        seller_logo_resp = supabase.table("sellers_record").select("logo_url").eq("user_id", user_id).maybe_single().execute()
+        if seller_logo_resp.data and seller_logo_resp.data.get("logo_url"):
+            if "company" not in invoice_data: invoice_data["company"] = {}
+            invoice_data["company"]["logo_url"] = seller_logo_resp.data["logo_url"]
 
         # Fetch buyer signature if not provided by the agent
-        if not invoice_data.get("buyer", {}).get("signature_url"):
-            buyer_name = invoice_data.get("buyer", {}).get("name")
-            if buyer_name:
-                buyer_sig_resp = supabase.table("buyers_record").select("signature_url").eq("user_id", user_id).eq("name", buyer_name).single().execute()
-                if buyer_sig_resp.data and buyer_sig_resp.data.get("signature_url"):
-                    if "buyer" not in invoice_data: invoice_data["buyer"] = {}
-                    invoice_data["buyer"]["signature_url"] = buyer_sig_resp.data["signature_url"]
-        
+        buyer_name = invoice_data.get("buyer", {}).get("name")
+        if buyer_name:
+            # FIX: Use .select().execute() which returns a list, instead of the strict .single()
+            buyer_sig_resp = supabase.table("buyers_record").select("signature_url").eq("user_id", user_id).eq("name", buyer_name).execute()
+            # Check if the returned list has data
+            if buyer_sig_resp.data:
+                if "buyer" not in invoice_data: invoice_data["buyer"] = {}
+                # Get the signature from the first record in the list
+                invoice_data["buyer"]["signature_url"] = buyer_sig_resp.data[0].get("signature_url")
+                
         # --- End of Data Enrichment Block ---
 
         # Step 1: Validate the enriched data
