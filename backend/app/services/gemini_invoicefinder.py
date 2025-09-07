@@ -16,7 +16,7 @@ def gemini(data):
     prompt = data.replace("{data}", data_str)
 
     model = genai.GenerativeModel(
-        "gemini-1.5-flash",
+        "gemini-1.0-pro",
         generation_config={
             "max_output_tokens": 1024,
             "temperature": 0.3,

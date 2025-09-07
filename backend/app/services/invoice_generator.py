@@ -1890,6 +1890,742 @@ def generate_invoice_pdf3(invoice_data, filename="tax_invoice.pdf"):
     
     return filename
 
+
+
+# #latest with dupliacte/triplicate
+# import os
+# import re
+# import requests
+# from io import BytesIO
+# from reportlab.lib.pagesizes import A4
+# from reportlab.lib import colors
+# from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+# from reportlab.lib.units import mm
+# from reportlab.platypus import (
+#     Table, TableStyle, Paragraph, Spacer, SimpleDocTemplate, Image, PageBreak
+# )
+# from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+# from decimal import Decimal, ROUND_HALF_UP
+
+# # --- Professional Design Elements ---
+# PRIMARY_COLOR = colors.HexColor('#2c3e50') # Dark Slate Blue
+# LIGHT_GREY = colors.HexColor('#ecf0f1')
+# FOOTER_GREY = colors.HexColor('#7f8c8d')
+
+# # ==============================================================================
+# # HELPER FUNCTION: Number to Words (Indian System)
+# # ==============================================================================
+# def number_to_words_indian(num):
+#     """Converts a number to words in the Indian numbering system (Lakhs, Crores)."""
+#     if num == 0:
+#         return 'Zero'
+
+#     units = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine']
+#     teens = ['', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']
+#     tens = ['', 'Ten', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+
+#     def convert_less_than_thousand(n):
+#         if n == 0:
+#             return ''
+#         if n < 10:
+#             return units[n]
+#         if n < 20:
+#             return teens[n - 10]
+#         if n < 100:
+#             return tens[n // 10] + (' ' + units[n % 10] if n % 10 != 0 else '')
+#         return units[n // 100] + ' Hundred' + (' ' + convert_less_than_thousand(n % 100) if n % 100 != 0 else '')
+
+#     words = []
+#     num = int(num)
+#     if num // 10000000 > 0:
+#         words.append(convert_less_than_thousand(num // 10000000) + ' Crore')
+#         num %= 10000000
+#     if num // 100000 > 0:
+#         words.append(convert_less_than_thousand(num // 100000) + ' Lakh')
+#         num %= 100000
+#     if num // 1000 > 0:
+#         words.append(convert_less_than_thousand(num // 1000) + ' Thousand')
+#         num %= 1000
+#     if num > 0:
+#         words.append(convert_less_than_thousand(num))
+        
+#     return ' '.join(filter(None, words))
+
+
+# # ==============================================================================
+# # HELPER FUNCTION: To safely get values from the input dictionary
+# # ==============================================================================
+# def safe_get(data_dict, key, default=''):
+#     """Safely get a value from a nested dictionary."""
+#     keys = key.split('.')
+#     val = data_dict
+#     for k in keys:
+#         if isinstance(val, dict):
+#             val = val.get(k, default)
+#         else:
+#             return default
+#     return val or default
+
+# # ==============================================================================
+# # FOOTER FUNCTION: Adds the "VYAPARI AI" tag to every page
+# # ==============================================================================
+# def add_footer(canvas, doc):
+#     """
+#     This function is called on every page and draws the footer in the bottom-right.
+#     """
+#     canvas.saveState()
+#     canvas.setFont('Helvetica', 8)
+#     canvas.setFillColor(FOOTER_GREY)
+    
+#     footer_text = "Created using VYAPARI AI"
+#     text_y = doc.bottomMargin - 7 * mm
+#     canvas.drawRightString(doc.leftMargin + doc.width, text_y, footer_text)
+    
+#     canvas.restoreState()
+
+# # ==============================================================================
+# # CORE LOGIC: Creates the story (content) for a single invoice page
+# # ==============================================================================
+# def create_invoice_page_story(invoice_data, styles, doc_width, copy_type=""):
+#     """
+#     Generates the list of ReportLab flowables for a single invoice page.
+#     `copy_type` can be 'ORIGINAL COPY', 'DUPLICATE COPY', etc.
+#     """
+#     story = []
+
+#     if copy_type:
+#         story.append(Paragraph(copy_type, styles['CopyLabel']))
+#         story.append(Spacer(1, 5 * mm))
+
+#     # --- Header with Logo and Invoice Details (Restored Original Layout) ---
+#     header_content = []
+#     logo_url = safe_get(invoice_data, 'company.logo_url')
+#     logo_image = None
+    
+#     if logo_url:
+#         try:
+#             response = requests.get(logo_url, stream=True)
+#             # Ensure the request was successful before proceeding
+#             if response.status_code == 200:
+#                 # Create a file-like object in memory from the image content
+#                 image_data = BytesIO(response.content)
+#                 logo_image = Image(image_data, width=40 * mm, height=15 * mm)
+#                 logo_image.hAlign = 'LEFT'
+#         except Exception as e:
+#             print(f"Warning: Could not fetch or process logo from URL {logo_url}. Error: {e}")
+#             logo_image = None
+
+#     if logo_image:
+#         header_content.append(logo_image)
+#     else:
+#         # Fallback to company name if logo is not available or fails to load
+#         header_content.append(Paragraph(safe_get(invoice_data, 'company.name'), styles['CompanyHeader']))
+#     # MODIFICATION END
+
+#     invoice_details_content = [
+#         [Paragraph("INVOICE", styles['Title'])],
+#         [Spacer(1, 2 * mm)],
+#         [Paragraph(f"<b>Invoice #:</b> {safe_get(invoice_data, 'invoice.number')}", styles['Header'])],
+#         [Paragraph(f"<b>Date:</b> {safe_get(invoice_data, 'invoice.date')}", styles['Header'])],
+#         [Paragraph(f"<b>Due Date:</b> {safe_get(invoice_data, 'invoice.due_date')}", styles['Header'])]
+#     ]
+#     header_table = Table([[header_content, Table(invoice_details_content)]], colWidths=[doc_width * 0.5, doc_width * 0.5])
+#     header_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP')]))
+#     story.append(header_table)
+#     story.append(Spacer(1, 10 * mm))
+
+#     # --- Company and Buyer Details (Restored Original Layout) ---
+#     company_details_para = [
+#         Paragraph("FROM:", styles['SectionHeader']),
+#         Paragraph(f"<b>{safe_get(invoice_data, 'company.name')}</b>", styles['NormalLeft']),
+#         Paragraph(safe_get(invoice_data, 'company.address'), styles['NormalLeft']),
+#         Paragraph(f"<b>GSTIN:</b> {safe_get(invoice_data, 'company.gstin')}", styles['NormalLeft'])
+#     ]
+#     buyer_details_para = [
+#         Paragraph("BILL TO:", styles['SectionHeader']),
+#         Paragraph(f"<b>{safe_get(invoice_data, 'buyer.name')}</b>", styles['NormalLeft']),
+#         Paragraph(safe_get(invoice_data, 'buyer.address'), styles['NormalLeft']),
+#         Paragraph(f"<b>GSTIN:</b> {safe_get(invoice_data, 'buyer.gstin')}", styles['NormalLeft'])
+#     ]
+#     details_table = Table([[company_details_para, buyer_details_para]], colWidths=[doc_width / 2, doc_width / 2], hAlign='LEFT')
+#     details_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP')]))
+#     story.append(details_table)
+#     story.append(Spacer(1, 10 * mm))
+    
+#     # --- Items Table ---
+#     is_b2b_invoice = bool(safe_get(invoice_data, 'buyer.gstin'))
+#     if is_b2b_invoice:
+#         items_header = [Paragraph(h, s) for h, s in zip(
+#             ['#', 'Item & Description', 'HSN', 'Qty', 'Rate', 'Taxable Value', 'GST', 'Total'],
+#             [styles['TableHead'], styles['TableHead'], styles['TableHeadRight'], styles['TableHeadRight'], styles['TableHeadRight'], styles['TableHeadRight'], styles['TableHeadRight'], styles['TableHeadRight']]
+#         )]
+#         col_widths = [doc_width*0.05, doc_width*0.30, doc_width*0.10, doc_width*0.07, doc_width*0.12, doc_width*0.12, doc_width*0.07, doc_width*0.17]
+#     else:
+#         items_header = [Paragraph(h, styles['TableHead']) for h in ['#', 'Item & Description', 'Qty', 'Rate', 'Amount']]
+#         col_widths = [doc_width*0.05, doc_width*0.55, doc_width*0.13, doc_width*0.13, doc_width*0.14]
+
+#     items_data = [items_header]
+#     tax_summary = {}
+#     total_taxable_value = Decimal('0.00')
+
+#     for i, item in enumerate(safe_get(invoice_data, 'items', []), 1):
+#         quantity = Decimal(safe_get(item, 'quantity', 0))
+#         rate = Decimal(safe_get(item, 'rate', 0))
+#         gst_rate = Decimal(safe_get(item, 'gst_rate', 0))
+#         taxable_value = quantity * rate
+#         total_taxable_value += taxable_value
+#         tax_amount = taxable_value * (gst_rate / 100)
+#         total_item_value = taxable_value + tax_amount
+
+#         if is_b2b_invoice:
+#             row = [
+#                 Paragraph(str(i), styles['TableBody']), Paragraph(safe_get(item, 'name'), styles['TableBody']),
+#                 Paragraph(safe_get(item, 'hsn'), styles['TableBodyRight']), Paragraph(f"{quantity}", styles['TableBodyRight']),
+#                 Paragraph(f"{rate:,.2f}", styles['TableBodyRight']), Paragraph(f"{taxable_value:,.2f}", styles['TableBodyRight']),
+#                 Paragraph(f"{gst_rate}%", styles['TableBodyRight']), Paragraph(f"{total_item_value:,.2f}", styles['TableBodyRight'])
+#             ]
+#         else:
+#             inclusive_rate = total_item_value / quantity if quantity != 0 else 0
+#             row = [
+#                 Paragraph(str(i), styles['TableBody']), Paragraph(safe_get(item, 'name'), styles['TableBody']),
+#                 Paragraph(f"{quantity}", styles['TableBodyRight']), Paragraph(f"{inclusive_rate:,.2f}", styles['TableBodyRight']),
+#                 Paragraph(f"{total_item_value:,.2f}", styles['TableBodyRight'])
+#             ]
+#         items_data.append(row)
+#         if gst_rate not in tax_summary:
+#             tax_summary[gst_rate] = {'taxable_value': Decimal('0.00'), 'tax_amount': Decimal('0.00')}
+#         tax_summary[gst_rate]['taxable_value'] += taxable_value
+#         tax_summary[gst_rate]['tax_amount'] += tax_amount
+    
+#     items_table = Table(items_data, colWidths=col_widths, repeatRows=1)
+#     items_table.setStyle(TableStyle([
+#         ('BACKGROUND', (0, 0), (-1, 0), PRIMARY_COLOR), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+#         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke), ('LINEBELOW', (0, 0), (-1, 0), 1, PRIMARY_COLOR),
+#         ('LINEBELOW', (0, -1), (-1, -1), 1, colors.lightgrey), ('LEFTPADDING', (0, 0), (-1, -1), 6),
+#         ('RIGHTPADDING', (0, 0), (-1, -1), 6), ('TOPPADDING', (0, 0), (-1, -1), 4),
+#         ('BOTTOMPADDING', (0, 0), (-1, -1), 4), *[('BACKGROUND', (0, i), (-1, i), LIGHT_GREY) for i in range(1, len(items_data)) if i % 2 != 0]
+#     ]))
+#     story.append(items_table)
+#     story.append(Spacer(1, 8 * mm))
+
+#     # --- Totals Section ---
+#     grand_total = total_taxable_value + sum(v['tax_amount'] for v in tax_summary.values())
+#     rounded_total = grand_total.quantize(Decimal('0'), rounding=ROUND_HALF_UP)
+#     round_off = rounded_total - grand_total
+
+#     summary_content = []
+#     if is_b2b_invoice:
+#         summary_content.append(['Subtotal:', f"{total_taxable_value:,.2f}"])
+#         is_interstate = safe_get(invoice_data, 'company.state') != safe_get(invoice_data, 'buyer.state')
+#         for rate, values in sorted(tax_summary.items()):
+#             tax = values['tax_amount']
+#             if is_interstate:
+#                 summary_content.append([f"IGST @ {rate}%:", f"{tax:,.2f}"])
+#             else:
+#                 cgst, sgst = tax / 2, tax / 2
+#                 summary_content.append([f"CGST @ {rate/2}%:", f"{cgst:,.2f}"])
+#                 summary_content.append([f"SGST @ {rate/2}%:", f"{sgst:,.2f}"])
+#         if abs(round_off) > 0.005:
+#             summary_content.append(['Round Off:', f"{round_off:,.2f}"])
+    
+#     summary_styled = [[Paragraph(label, styles['TotalLabel']), Paragraph(value, styles['TotalLabel'])] for label, value in summary_content]
+#     summary_styled.append([Paragraph('Total', styles['TotalValue']), Paragraph(f"<b>₹ {rounded_total:,.2f}</b>", styles['TotalValue'])])
+    
+#     totals_table = Table([['', Table(summary_styled)]], colWidths=[doc_width * 0.6, doc_width * 0.4])
+#     totals_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP')]))
+#     story.append(totals_table)
+#     story.append(Spacer(1, 4 * mm))
+
+#     # --- Amount in Words (Using new function) ---
+#     amount_in_words_text = f"Rupees {number_to_words_indian(rounded_total)} Only"
+#     amount_in_words_para = Paragraph(f"<b>Amount in Words:</b> {amount_in_words_text}", styles['NormalLeft'])
+#     story.append(amount_in_words_para)
+#     story.append(Spacer(1, 10 * mm))
+    
+#     # --- Footer with Bank and Terms (Restored Original Layout) ---
+#     terms_list = safe_get(invoice_data, 'terms_and_conditions', [])
+    
+#     # CORRECTED: Smartly format terms to avoid double numbering
+#     formatted_terms = []
+#     for i, term in enumerate(terms_list):
+#         if re.match(r'^\d+\.\s*', term.strip()):
+#             formatted_terms.append(term.strip())
+#         else:
+#             formatted_terms.append(f"{i+1}. {term.strip()}")
+#     terms_text = "<br/>".join(formatted_terms)
+#     terms_para = Paragraph(terms_text, styles['NormalLeft'])
+    
+#     bank_details_text = f"<b>Bank:</b> {safe_get(invoice_data, 'bank.name')}<br/><b>A/C No:</b> {safe_get(invoice_data, 'bank.account')}<br/><b>IFSC:</b> {safe_get(invoice_data, 'bank.branch_ifsc')}"
+#     bank_para = Paragraph(bank_details_text, styles['NormalLeft'])
+
+#     terms_and_bank_table = Table([
+#         [Paragraph("Terms & Conditions", styles['SectionHeader']), Paragraph("Bank Details", styles['SectionHeader'])],
+#         [terms_para, bank_para]
+#     ], colWidths=[doc_width * 0.6, doc_width * 0.4], hAlign='LEFT')
+#     terms_and_bank_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP')]))
+#     story.append(terms_and_bank_table)
+
+#     # --- Signatures (CORRECTED: Restored Original Layout with single table for alignment) ---
+#     seller_signature_text = f"For <b>{safe_get(invoice_data, 'company.name')}</b>"
+    
+#     signature_table = Table(
+#         [
+#             [Spacer(1, 15*mm), Spacer(1, 15*mm)],
+#             [Paragraph('_________________________', styles['Signature']), Paragraph('_________________________', styles['Signature'])],
+#             [Paragraph('Authorized Signatory', styles['Signature']), Paragraph("Buyer's Signature", styles['Signature'])],
+#             [Paragraph(seller_signature_text, styles['Signature']), ''] # Empty cell to maintain alignment
+#         ], 
+#         colWidths=[doc_width / 2, doc_width / 2]
+#     )
+#     signature_table.setStyle(TableStyle([
+#         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+#         ('ALIGN', (0, 0), (-1, -1), 'CENTER')
+#     ]))
+#     story.append(signature_table)
+
+#     return story
+
+# # ==============================================================================
+# # MAIN FUNCTION: Builds the final PDF document
+# # ==============================================================================
+# def generate_final_invoice(invoice_data, filename="final_invoice.pdf"):
+#     """
+#     Main function to generate the invoice PDF.
+#     Handles single or multi-copy generation based on `generate_copies` flag.
+#     """
+#     doc = SimpleDocTemplate(filename, pagesize=A4,
+#                             topMargin=15 * mm, bottomMargin=15 * mm,
+#                             leftMargin=15 * mm, rightMargin=15 * mm)
+
+#     # --- Custom Styles ---
+#     styles = getSampleStyleSheet()
+
+#     # CORRECTED: Modify the existing 'Title' style instead of adding a new one
+#     styles['Title'].fontName = 'Helvetica-Bold'
+#     styles['Title'].fontSize = 22
+#     styles['Title'].alignment = TA_RIGHT
+#     styles['Title'].textColor = PRIMARY_COLOR
+
+#     # Add other custom styles
+#     styles.add(ParagraphStyle(name='CompanyHeader', fontName='Helvetica-Bold', fontSize=16, textColor=PRIMARY_COLOR, leading=18))
+#     styles.add(ParagraphStyle(name='Header', fontName='Helvetica', fontSize=9, alignment=TA_RIGHT, textColor=colors.darkgrey))
+#     styles.add(ParagraphStyle(name='CopyLabel', fontName='Helvetica-Bold', fontSize=14, alignment=TA_CENTER, textColor=colors.grey, spaceAfter=6))
+#     styles.add(ParagraphStyle(name='SectionHeader', fontName='Helvetica-Bold', fontSize=10, alignment=TA_LEFT, textColor=PRIMARY_COLOR, spaceBefore=8, spaceAfter=4))
+#     styles.add(ParagraphStyle(name='NormalLeft', parent=styles['Normal'], alignment=TA_LEFT, fontSize=9, leading=12))
+#     styles.add(ParagraphStyle(name='TableHead', fontName='Helvetica-Bold', fontSize=9, alignment=TA_CENTER, textColor=colors.whitesmoke))
+#     styles.add(ParagraphStyle(name='TableHeadRight', parent=styles['TableHead'], alignment=TA_RIGHT))
+#     styles.add(ParagraphStyle(name='TableBody', fontName='Helvetica', fontSize=9, alignment=TA_LEFT))
+#     styles.add(ParagraphStyle(name='TableBodyRight', parent=styles['TableBody'], alignment=TA_RIGHT))
+#     styles.add(ParagraphStyle(name='TotalLabel', fontName='Helvetica', fontSize=9, alignment=TA_RIGHT))
+#     styles.add(ParagraphStyle(name='TotalValue', fontName='Helvetica-Bold', fontSize=10, alignment=TA_RIGHT))
+#     styles.add(ParagraphStyle(name='Signature', parent=styles['Normal'], alignment=TA_CENTER, fontSize=9))
+
+#     master_story = []
+#     doc_width = doc.width
+
+#     # --- LOGIC FOR DUPLICATE/TRIPLICATE ---
+#     generate_copies = safe_get(invoice_data, 'generate_copies', False)
+#     if generate_copies:
+#         copy_types = ['ORIGINAL COPY', 'DUPLICATE COPY', 'TRIPLICATE COPY']
+#     else:
+#         copy_types = [''] # An empty string means no label will be added
+
+#     for i, copy_type in enumerate(copy_types):
+#         page_story = create_invoice_page_story(invoice_data, styles, doc_width, copy_type)
+#         master_story.extend(page_story)
+        
+#         if i < len(copy_types) - 1:
+#             master_story.append(PageBreak())
+    
+#     try: 
+#         doc.build(master_story, onFirstPage=add_footer, onLaterPages=add_footer)
+#         print(f"✅ Successfully generated final invoice: {filename}")
+#         return filename
+#     except Exception as e: 
+#         print(f"❌ Error building PDF: {e}")
+#         return None
+
+import os
+import re
+import requests
+from io import BytesIO
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import mm
+from reportlab.platypus import (
+    Table, TableStyle, Paragraph, Spacer, SimpleDocTemplate, Image, PageBreak
+)
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from decimal import Decimal, ROUND_HALF_UP
+
+# --- Professional Design Elements ---
+PRIMARY_COLOR = colors.HexColor('#2c3e50') # Dark Slate Blue
+LIGHT_GREY = colors.HexColor('#ecf0f1')
+FOOTER_GREY = colors.HexColor('#7f8c8d')
+BLACK_COLOR = colors.HexColor('#000000') # Define black for clarity
+
+# ==============================================================================
+# HELPER FUNCTION: Number to Words (Indian System)
+# ==============================================================================
+def number_to_words_indian(num):
+    """Converts a number to words in the Indian numbering system (Lakhs, Crores)."""
+    if num == 0:
+        return 'Zero'
+
+    units = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine']
+    teens = ['', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']
+    tens = ['', 'Ten', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+
+    def convert_less_than_thousand(n):
+        if n == 0: return ''
+        if n < 10: return units[n]
+        if n < 20: return teens[n - 10]
+        if n < 100: return tens[n // 10] + (' ' + units[n % 10] if n % 10 != 0 else '')
+        return units[n // 100] + ' Hundred' + (' ' + convert_less_than_thousand(n % 100) if n % 100 != 0 else '')
+
+    words = []
+    num = int(num)
+    if num // 10000000 > 0:
+        words.append(convert_less_than_thousand(num // 10000000) + ' Crore')
+        num %= 10000000
+    if num // 100000 > 0:
+        words.append(convert_less_than_thousand(num // 100000) + ' Lakh')
+        num %= 100000
+    if num // 1000 > 0:
+        words.append(convert_less_than_thousand(num // 1000) + ' Thousand')
+        num %= 1000
+    if num > 0:
+        words.append(convert_less_than_thousand(num))
+        
+    return ' '.join(filter(None, words))
+
+
+# ==============================================================================
+# HELPER FUNCTION: To safely get values from the input dictionary
+# ==============================================================================
+def safe_get(data_dict, key, default=''):
+    """Safely get a value from a nested dictionary."""
+    keys = key.split('.')
+    val = data_dict
+    for k in keys:
+        if isinstance(val, dict):
+            val = val.get(k, default)
+        else:
+            return default
+    return val or default
+
+# ==============================================================================
+# FOOTER FUNCTION: Adds the "VYAPARI AI" tag to every page
+# ==============================================================================
+# ==============================================================================
+# FOOTER FUNCTION: Adds the "VYAPARI AI" tag to every page
+# ==============================================================================
+def add_footer(canvas, doc):
+    """This function is called on every page and draws the footer in the bottom-right."""
+    canvas.saveState()
+    
+    # **CHANGES ARE HERE**
+    canvas.setFont('Helvetica-Bold', 8)  # Set font to Bold
+    canvas.setFillColor(BLACK_COLOR)      # Set color to Black
+    
+    footer_text = "Created using VYAPARI AI"
+    text_y = doc.bottomMargin - 7 * mm
+    canvas.drawRightString(doc.leftMargin + doc.width, text_y, footer_text)
+    
+    canvas.restoreState()
+
+# ==============================================================================
+# CORE LOGIC: Creates the story (content) for a single invoice page
+# ==============================================================================
+def create_invoice_page_story(invoice_data, styles, doc_width, copy_type=""):
+    """Generates the list of ReportLab flowables for a single invoice page."""
+    story = []
+
+    if copy_type:
+        story.append(Paragraph(copy_type, styles['CopyLabel']))
+        story.append(Spacer(1, 5 * mm))
+
+    # --- Header with Logo and Invoice Details ---
+    header_content = []
+    logo_url = safe_get(invoice_data, 'company.logo_url')
+    logo_image = None
+    
+    if logo_url:
+        try:
+            response = requests.get(logo_url, stream=True)
+            if response.status_code == 200:
+                image_data = BytesIO(response.content)
+                logo_image = Image(image_data, width=40 * mm, height=15 * mm)
+                logo_image.hAlign = 'LEFT'
+        except Exception as e:
+            print(f"Warning: Could not fetch or process logo from URL {logo_url}. Error: {e}")
+            logo_image = None
+
+    header_content.append(logo_image or Paragraph(safe_get(invoice_data, 'company.name'), styles['CompanyHeader']))
+
+    invoice_details_content = [
+        [Paragraph("INVOICE", styles['Title'])],
+        [Spacer(1, 2 * mm)],
+        [Paragraph(f"<b>Invoice #:</b> {safe_get(invoice_data, 'invoice.number')}", styles['Header'])],
+        [Paragraph(f"<b>Date:</b> {safe_get(invoice_data, 'invoice.date')}", styles['Header'])],
+        [Paragraph(f"<b>Due Date:</b> {safe_get(invoice_data, 'invoice.due_date')}", styles['Header'])]
+    ]
+    header_table = Table([[header_content, Table(invoice_details_content)]], colWidths=[doc_width * 0.5, doc_width * 0.5])
+    header_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP')]))
+    story.append(header_table)
+    story.append(Spacer(1, 10 * mm))
+
+    # --- Company and Buyer Details ---
+    company_details_para = [
+        Paragraph("FROM:", styles['SectionHeader']),
+        Paragraph(f"<b>{safe_get(invoice_data, 'company.name')}</b>", styles['NormalLeft']),
+        Paragraph(safe_get(invoice_data, 'company.address'), styles['NormalLeft']),
+        Paragraph(f"<b>GSTIN:</b> {safe_get(invoice_data, 'company.gstin')}", styles['NormalLeft'])
+    ]
+    buyer_details_para = [
+        Paragraph("BILL TO:", styles['SectionHeader']),
+        Paragraph(f"<b>{safe_get(invoice_data, 'buyer.name')}</b>", styles['NormalLeft']),
+        Paragraph(safe_get(invoice_data, 'buyer.address'), styles['NormalLeft']),
+        Paragraph(f"<b>GSTIN:</b> {safe_get(invoice_data, 'buyer.gstin')}", styles['NormalLeft'])
+    ]
+    details_table = Table([[company_details_para, buyer_details_para]], colWidths=[doc_width / 2, doc_width / 2], hAlign='LEFT')
+    details_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP')]))
+    story.append(details_table)
+    story.append(Spacer(1, 10 * mm))
+    
+    # --- Items Table ---
+    is_b2b_invoice = bool(safe_get(invoice_data, 'buyer.gstin'))
+    if is_b2b_invoice:
+        items_header = [Paragraph(h, s) for h, s in zip(
+            ['#', 'Item & Description', 'HSN', 'Qty', 'Rate', 'Taxable Value', 'GST', 'Total'],
+            [styles['TableHead'], styles['TableHead'], styles['TableHeadRight'], styles['TableHeadRight'], styles['TableHeadRight'], styles['TableHeadRight'], styles['TableHeadRight'], styles['TableHeadRight']]
+        )]
+        col_widths = [doc_width*0.05, doc_width*0.30, doc_width*0.10, doc_width*0.07, doc_width*0.12, doc_width*0.12, doc_width*0.07, doc_width*0.17]
+    else:
+        items_header = [Paragraph(h, styles['TableHead']) for h in ['#', 'Item & Description', 'Qty', 'Rate', 'Amount']]
+        col_widths = [doc_width*0.05, doc_width*0.55, doc_width*0.13, doc_width*0.13, doc_width*0.14]
+
+    items_data = [items_header]
+    tax_summary = {}
+    total_taxable_value = Decimal('0.00')
+
+    for i, item in enumerate(safe_get(invoice_data, 'items', []), 1):
+        quantity = Decimal(safe_get(item, 'quantity', 0))
+        rate = Decimal(safe_get(item, 'rate', 0))
+        gst_rate = Decimal(safe_get(item, 'gst_rate', 0))
+        taxable_value = quantity * rate
+        total_taxable_value += taxable_value
+        tax_amount = taxable_value * (gst_rate / 100)
+        total_item_value = taxable_value + tax_amount
+
+        if is_b2b_invoice:
+            row = [
+                Paragraph(str(i), styles['TableBody']), Paragraph(safe_get(item, 'name'), styles['TableBody']),
+                Paragraph(safe_get(item, 'hsn'), styles['TableBodyRight']), Paragraph(f"{quantity}", styles['TableBodyRight']),
+                Paragraph(f"{rate:,.2f}", styles['TableBodyRight']), Paragraph(f"{taxable_value:,.2f}", styles['TableBodyRight']),
+                Paragraph(f"{gst_rate}%", styles['TableBodyRight']), Paragraph(f"{total_item_value:,.2f}", styles['TableBodyRight'])
+            ]
+        else:
+            inclusive_rate = total_item_value / quantity if quantity != 0 else 0
+            row = [
+                Paragraph(str(i), styles['TableBody']), Paragraph(safe_get(item, 'name'), styles['TableBody']),
+                Paragraph(f"{quantity}", styles['TableBodyRight']), Paragraph(f"{inclusive_rate:,.2f}", styles['TableBodyRight']),
+                Paragraph(f"{total_item_value:,.2f}", styles['TableBodyRight'])
+            ]
+        items_data.append(row)
+        if gst_rate not in tax_summary:
+            tax_summary[gst_rate] = {'taxable_value': Decimal('0.00'), 'tax_amount': Decimal('0.00')}
+        tax_summary[gst_rate]['taxable_value'] += taxable_value
+        tax_summary[gst_rate]['tax_amount'] += tax_amount
+    
+    items_table = Table(items_data, colWidths=col_widths, repeatRows=1)
+    items_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), PRIMARY_COLOR), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke), ('LINEBELOW', (0, 0), (-1, 0), 1, PRIMARY_COLOR),
+        ('LINEBELOW', (0, -1), (-1, -1), 1, colors.lightgrey), ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 6), ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4), *[('BACKGROUND', (0, i), (-1, i), LIGHT_GREY) for i in range(1, len(items_data)) if i % 2 != 0]
+    ]))
+    story.append(items_table)
+    story.append(Spacer(1, 8 * mm))
+
+    # --- Totals Section ---
+    grand_total = total_taxable_value + sum(v['tax_amount'] for v in tax_summary.values())
+    rounded_total = grand_total.quantize(Decimal('0'), rounding=ROUND_HALF_UP)
+    round_off = rounded_total - grand_total
+
+    summary_content = []
+    if is_b2b_invoice:
+        summary_content.append(['Subtotal:', f"{total_taxable_value:,.2f}"])
+        is_interstate = safe_get(invoice_data, 'company.state') != safe_get(invoice_data, 'buyer.state')
+        for rate, values in sorted(tax_summary.items()):
+            tax = values['tax_amount']
+            if is_interstate:
+                summary_content.append([f"IGST @ {rate}%:", f"{tax:,.2f}"])
+            else:
+                cgst, sgst = tax / 2, tax / 2
+                summary_content.append([f"CGST @ {rate/2}%:", f"{cgst:,.2f}"])
+                summary_content.append([f"SGST @ {rate/2}%:", f"{sgst:,.2f}"])
+        if abs(round_off) > 0.005:
+            summary_content.append(['Round Off:', f"{round_off:,.2f}"])
+    
+    summary_styled = [[Paragraph(label, styles['TotalLabel']), Paragraph(value, styles['TotalLabel'])] for label, value in summary_content]
+    summary_styled.append([Paragraph('Total', styles['TotalValue']), Paragraph(f"<b>₹ {rounded_total:,.2f}</b>", styles['TotalValue'])])
+    
+    totals_table = Table([['', Table(summary_styled)]], colWidths=[doc_width * 0.6, doc_width * 0.4])
+    totals_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP')]))
+    story.append(totals_table)
+    story.append(Spacer(1, 4 * mm))
+
+    # --- Amount in Words ---
+    amount_in_words_text = f"Rupees {number_to_words_indian(rounded_total)} Only"
+    amount_in_words_para = Paragraph(f"<b>Amount in Words:</b> {amount_in_words_text}", styles['NormalLeft'])
+    story.append(amount_in_words_para)
+    story.append(Spacer(1, 10 * mm))
+    
+    # --- Footer with Bank and Terms ---
+    terms_list = safe_get(invoice_data, 'terms_and_conditions', [])
+    formatted_terms = []
+    for i, term in enumerate(terms_list):
+        if re.match(r'^\d+\.\s*', term.strip()):
+            formatted_terms.append(term.strip())
+        else:
+            formatted_terms.append(f"{i+1}. {term.strip()}")
+    terms_text = "<br/>".join(formatted_terms)
+    terms_para = Paragraph(terms_text, styles['NormalLeft'])
+    
+    bank_details_text = f"<b>Bank:</b> {safe_get(invoice_data, 'bank.name')}<br/><b>A/C No:</b> {safe_get(invoice_data, 'bank.account')}<br/><b>IFSC:</b> {safe_get(invoice_data, 'bank.branch_ifsc')}"
+    bank_para = Paragraph(bank_details_text, styles['NormalLeft'])
+
+    terms_and_bank_table = Table([
+        [Paragraph("Terms & Conditions", styles['SectionHeader']), Paragraph("Bank Details", styles['SectionHeader'])],
+        [terms_para, bank_para]
+    ], colWidths=[doc_width * 0.6, doc_width * 0.4], hAlign='LEFT')
+    terms_and_bank_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP')]))
+    story.append(terms_and_bank_table)
+
+    # # --- Signatures ---
+    # seller_signature_text = f"For <b>{safe_get(invoice_data, 'company.name')}</b>"
+    # signature_table = Table(
+    #     [
+    #         [Spacer(1, 15*mm), Spacer(1, 15*mm)],
+    #         [Paragraph('_________________________', styles['Signature']), Paragraph('_________________________', styles['Signature'])],
+    #         [Paragraph('Authorized Signatory', styles['Signature']), Paragraph("Buyer's Signature", styles['Signature'])],
+    #         [Paragraph(seller_signature_text, styles['Signature']), '']
+    #     ], 
+    #     colWidths=[doc_width / 2, doc_width / 2]
+    # )
+    # signature_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP'), ('ALIGN', (0, 0), (-1, -1), 'CENTER')]))
+    # story.append(signature_table)
+
+    # return story
+
+    # --- Signatures ---
+    seller_signature_text = f"For <b>{safe_get(invoice_data, 'company.name')}</b>"
+    
+    # NEW: Logic to fetch and display the buyer's signature image
+    buyer_signature_content = Paragraph('_________________________', styles['Signature']) # Default to a line
+    signature_url = safe_get(invoice_data, 'buyer.signature_url')
+    if signature_url:
+        try:
+            response = requests.get(signature_url, stream=True)
+            if response.status_code == 200:
+                image_data = BytesIO(response.content)
+                # Adjust width and height as needed for your signature images
+                signature_image = Image(image_data, width=40 * mm, height=15 * mm)
+                signature_image.hAlign = 'CENTER'
+                buyer_signature_content = signature_image
+        except Exception as e:
+            print(f"Warning: Could not fetch buyer signature. Error: {e}")
+            # If fetching fails, it will fall back to the default line
+
+    signature_table = Table(
+        [
+            [Spacer(1, 15*mm), Spacer(1, 15*mm)],
+            # The buyer's signature content is now dynamic
+            [Paragraph('_________________________', styles['Signature']), buyer_signature_content],
+            [Paragraph('Authorized Signatory', styles['Signature']), Paragraph("Buyer's Signature", styles['Signature'])],
+            [Paragraph(seller_signature_text, styles['Signature']), ''] 
+        ], 
+        colWidths=[doc_width / 2, doc_width / 2]
+    )
+    signature_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER')
+    ]))
+    story.append(signature_table)
+
+    return story
+
+
+# ==============================================================================
+# MAIN FUNCTION: Builds the final PDF document
+# ==============================================================================
+def generate_final_invoice(invoice_data, filename="final_invoice.pdf"):
+    """
+    Main function to generate the invoice PDF.
+    Handles single or multi-copy generation based on `generate_copies` flag.
+    """
+    doc = SimpleDocTemplate(filename, pagesize=A4,
+                            topMargin=15 * mm, bottomMargin=20 * mm,
+                            leftMargin=15 * mm, rightMargin=15 * mm)
+
+    # --- Custom Styles ---
+    styles = getSampleStyleSheet()
+    
+    title_style = styles['Title']
+    title_style.fontName = 'Helvetica-Bold'
+    title_style.fontSize = 22
+    title_style.alignment = TA_RIGHT
+    title_style.textColor = PRIMARY_COLOR
+
+    styles.add(ParagraphStyle(name='CompanyHeader', fontName='Helvetica-Bold', fontSize=16, textColor=BLACK_COLOR, leading=18))
+    styles.add(ParagraphStyle(name='Header', fontName='Helvetica', fontSize=10, alignment=TA_RIGHT, textColor=BLACK_COLOR))
+    styles.add(ParagraphStyle(name='CopyLabel', fontName='Helvetica-Bold', fontSize=14, alignment=TA_CENTER, textColor=colors.grey, spaceAfter=6))
+    styles.add(ParagraphStyle(name='SectionHeader', fontName='Helvetica-Bold', fontSize=11, alignment=TA_LEFT, textColor=PRIMARY_COLOR, spaceBefore=8, spaceAfter=4))
+    styles.add(ParagraphStyle(name='NormalLeft', parent=styles['Normal'], alignment=TA_LEFT, fontSize=10, leading=14, textColor=BLACK_COLOR))
+    styles.add(ParagraphStyle(name='TableHead', fontName='Helvetica-Bold', fontSize=10, alignment=TA_CENTER, textColor=colors.whitesmoke))
+    styles.add(ParagraphStyle(name='TableHeadRight', parent=styles['TableHead'], alignment=TA_RIGHT))
+    styles.add(ParagraphStyle(name='TableBody', fontName='Helvetica', fontSize=10, alignment=TA_LEFT, textColor=BLACK_COLOR))
+    styles.add(ParagraphStyle(name='TableBodyRight', parent=styles['TableBody'], alignment=TA_RIGHT))
+    styles.add(ParagraphStyle(name='TotalLabel', fontName='Helvetica', fontSize=10, alignment=TA_RIGHT, textColor=BLACK_COLOR))
+    styles.add(ParagraphStyle(name='TotalValue', fontName='Helvetica-Bold', fontSize=12, alignment=TA_RIGHT, textColor=BLACK_COLOR))
+    styles.add(ParagraphStyle(name='Signature', parent=styles['Normal'], alignment=TA_CENTER, fontSize=10, textColor=BLACK_COLOR))
+
+    master_story = []
+    doc_width = doc.width
+
+    # --- **FIXED**: LOGIC FOR DUPLICATE/TRIPLICATE ---
+    # This logic now correctly interprets a boolean 'true' from the frontend.
+    generate_copies_value = safe_get(invoice_data, 'generate_copies', False)
+
+    if generate_copies_value is True:
+        # If frontend sends 'true', generate all three default copies.
+        copy_types = ["ORIGINAL COPY", "DUPLICATE COPY", "TRIPLICATE COPY"]
+    elif isinstance(generate_copies_value, list) and generate_copies_value:
+        # If frontend sends a specific list, use that.
+        copy_types = generate_copies_value
+    else:
+        # Otherwise, default to a single copy with no label.
+        copy_types = ['']
+
+    for i, copy_type in enumerate(copy_types):
+        page_story = create_invoice_page_story(invoice_data, styles, doc_width, copy_type)
+        master_story.extend(page_story)
+        
+        if i < len(copy_types) - 1:
+            master_story.append(PageBreak())
+    
+    try: 
+        doc.build(master_story, onFirstPage=add_footer, onLaterPages=add_footer)
+        print(f"✅ Successfully generated final invoice: {filename}")
+        return filename
+    except Exception as e: 
+        print(f"❌ Error building PDF: {e}")
+        return None
+    
+# ==============================================================================
 import os
 import datetime
 from num2words import num2words

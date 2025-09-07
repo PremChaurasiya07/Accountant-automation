@@ -7,12 +7,24 @@ import { User } from "@supabase/supabase-js"
 import { DashboardContent } from "@/components/dashboard-content"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { ProtectedRoute } from "@/components/ui/protected-route"
-import { AuthLoadingScreen } from "@/components/ui/modern_loader" // <-- Import the new component
+import { AuthLoadingScreen } from "@/components/ui/modern_loader"
 
 export default function HomePage() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
+
+  const wakeUpServer = async () => {
+    try {
+      console.log("Ping sent to wake up the server in the background...");
+      await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/ping`, {
+        method: 'GET',
+      });
+      console.log("Server has received the ping.");
+    } catch (error) {
+      console.error("Background server ping failed:", error);
+    }
+  };
 
   useEffect(() => {
     const handleOAuthRedirect = async () => {
@@ -33,7 +45,6 @@ export default function HomePage() {
           return
         }
         
-        // Clean the URL after setting the session
         window.history.replaceState({}, document.title, "/")
       }
 
@@ -43,20 +54,26 @@ export default function HomePage() {
       } = await supabase.auth.getUser()
 
       if (error || !user) {
+        setLoading(false); // Stop loading even if there's an error
         console.error("❌ User not found or error:", error?.message)
         router.push("/login")
       } else {
         console.log("✅ Logged in as:", user.email)
         setUser(user)
+        
+        // ** THE FIX IS HERE **
+        // Stop loading and show the UI IMMEDIATELY
+        setLoading(false);
+        
+        // Now, start the server wake-up call in the background
+        wakeUpServer(); 
       }
-
-      setLoading(false)
     }
 
     handleOAuthRedirect()
   }, [router])
 
-  // MODIFIED: Use the new animated loading screen
+  // This loading screen will now only show during the Supabase auth check
   if (loading) {
     return <AuthLoadingScreen />
   }

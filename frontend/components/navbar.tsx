@@ -31,15 +31,15 @@ export function Navbar() {
         if (user) {
           const { data, error } = await supabase
             .from("sellers_record")
-            .select("logo")
+            .select("logo_url")
             .eq("user_id", user.id) // Adjust if your user ID field is named differently
             .single()
-          
+          console.log(data)
           if (error) {
             console.error("Error fetching logo:", error)
-          } else if (data?.logo) {
+          } else if (data?.logo_url) {
             // If you stored a public URL directly
-            setLogoUrl(data.logo)
+            setLogoUrl(data.logo_url)
 
           }
         }
@@ -111,6 +111,9 @@ export function Navbar() {
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuItem onClick={() => router.push("/profile")}>
                 Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push("/setting")}>
+                Setting
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
             </DropdownMenuContent>

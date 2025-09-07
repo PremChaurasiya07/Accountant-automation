@@ -231,21 +231,21 @@ export default function VyapariLandingPage() {
                     ))}
                 </nav>
                 
-                <div className="hidden md:flex items-center gap-4">
+                <div className="flex items-center gap-2">
                     {installPrompt ? (
-                        <Button onClick={handleInstallClick} className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-5 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-2">
+                        <Button onClick={handleInstallClick} className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-3 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-2">
                             <Download size={16} /> Install App
                         </Button>
                     ) : (
-                        <Button onClick={() => router.push('/login')} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-2">
+                        <Button onClick={() => router.push('/login')} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-5 rounded-full transition-transform duration-300 hover:scale-105 flex items-center gap-1">
                             <Zap size={16} /> Launch App
                         </Button>
                     )}
                 </div>
                 
-                <div className="flex items-center gap-2 md:hidden">
+                <div className="flex items-center gap-1 md:hidden">
                     {/* Simplified mobile buttons */}
-                    <Button onClick={() => router.push('/login')} size="sm" className="rounded-full">Launch</Button>
+                 
                     <Button onClick={() => setIsMenuOpen(!isMenuOpen)} variant="ghost" size="icon">
                         {isMenuOpen ? <X /> : <Menu />}
                     </Button>

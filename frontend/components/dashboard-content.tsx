@@ -76,12 +76,12 @@ export function DashboardContent() {
     }
   }
 
-  const handleActionClick = (actionName: string, cardTitle: string) => {
-    toast({
-      title: "Action Triggered",
-      description: `${actionName} action for ${cardTitle}`,
-    })
-  }
+  // const handleActionClick = (actionName: string, cardTitle: string) => {
+  //   toast({
+  //     title: "Action Triggered",
+  //     description: `${actionName} action for ${cardTitle}`,
+  //   })
+  // }
 
   return (
     <TooltipProvider>

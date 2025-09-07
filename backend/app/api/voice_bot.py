@@ -31,7 +31,7 @@ async def voice_bot(data: InputData):
     try:
         # 1. Get the agent for the specific user. This loads their unique
         #    conversation history and tools.
-        agent_executor = get_vyapari_agent_executor(data.user_id)
+        agent_executor = await get_vyapari_agent_executor(data.user_id)
 
         # 2. Invoke the agent with the user's input.
         #    The agent will now autonomously reason, use tools, and

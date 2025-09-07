@@ -58,6 +58,7 @@
     "next-themes": "latest",
     "or": "^0.2.0",
     "react": "^18.3.1",
+    "react-countup": "^6.5.3",
     "react-datepicker": "^8.4.0",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
@@ -66,10 +67,12 @@
     "react-resizable-panels": "^2.1.7",
     "react-router-dom": "^7.6.2",
     "recharts": "2.15.0",
+    "remark-gfm": "^4.0.1",
     "sonner": "^1.7.1",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.6",
+    "xlsx": "^0.18.5",
     "zod": "^3.24.1"
   },
   "devDependencies": {

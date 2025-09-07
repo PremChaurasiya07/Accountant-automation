@@ -20,6 +20,12 @@ import google.generativeai as genai
 import asyncio
 from pydantic import BaseModel
 
+from app.api import reports
+from fastapi import FastAPI, Depends, Security, HTTPException, status
+from fastapi.security import APIKeyHeader
+from dotenv import load_dotenv
+from app.services.reminder_service import process_reminders_job
+
 
 app = FastAPI()
 
@@ -48,6 +54,44 @@ app.include_router(voice_bot.router)
 # drive routing
 app.include_router(drive.router)
 
+# reports routing
+app.include_router(reports.router)
+
+@app.get("/ping")
+async def ping():
+    return {"status": "ok", "message": "Vyapari API is awake"}
+
+# --- Security Setup ---
+API_KEY = os.getenv("CRON_SECRET_KEY", "your-default-secret-key") # Get key from environment
+API_KEY_NAME = "Authorization"
+api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
+
+async def get_api_key(key: str = Security(api_key_header)):
+    if key and key == f"Bearer {API_KEY}":
+        return key
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing API Key",
+        )
+
+# set cron job sechedular onc cron job.org when push on server
+@app.post("/api/cron/trigger-reminders", dependencies=[Depends(get_api_key)])
+async def trigger_reminders():
+    """
+    A secure endpoint to be called by an external cron job service.
+    """
+    print("CRON endpoint triggered securely.")
+    try:
+        await process_reminders_job()
+        return {"status": "success", "message": "Reminder process initiated."}
+    except Exception as e:
+        print(f"Error during triggered reminder process: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred during the reminder process.",
+        )
+
 
 
 class InputData(BaseModel):
@@ -60,7 +104,7 @@ genai.configure(api_key=os.environ["GEMINI_API_KEY_1"])
 async def gemini(prompt: str) -> str:
     try:
         print("🔥 Sending prompt to Gemini...")
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-1.0-pro")
 
         # Run blocking Gemini code in async context
         loop = asyncio.get_event_loop()
