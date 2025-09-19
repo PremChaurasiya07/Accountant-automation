@@ -986,102 +986,102 @@ def get_next_invoice_number(user_id: str) -> str:
 
 # In app/tools/sql_query_tool.py
 
-# async def create_invoice(invoice_data: Dict[str, Any], user_id: str) -> str:
-#     """
-#     Asynchronously creates a complete invoice by taking simple data from the agent,
-#     fetching seller details from the database, and combining them into a final payload.
-#     """
-#     pdf_path = None
-#     try:
-#         # Step 1: Fetch all seller and bank details from the database.
-#         # This keeps your company data secure on the backend.
-#         seller_resp = supabase.table("sellers_record").select("*").eq("user_id", user_id).single().execute()
-#         if not seller_resp.data:
-#             return "Error: Seller details not found. Please complete your company profile before creating an invoice."
-#         seller_details = seller_resp.data
+async def create_invoice(invoice_data: Dict[str, Any], user_id: str) -> str:
+    """
+    Asynchronously creates a complete invoice by taking simple data from the agent,
+    fetching seller details from the database, and combining them into a final payload.
+    """
+    pdf_path = None
+    try:
+        # Step 1: Fetch all seller and bank details from the database.
+        # This keeps your company data secure on the backend.
+        seller_resp = supabase.table("sellers_record").select("*").eq("user_id", user_id).single().execute()
+        if not seller_resp.data:
+            return "Error: Seller details not found. Please complete your company profile before creating an invoice."
+        seller_details = seller_resp.data
 
-#         # Step 2: Assemble the final, complete payload for the system.
-#         # This merges the simple input from the agent with the secure data from the database.
-#         final_payload = {
-#             "invoice": invoice_data.get("invoice", {}),
-#             "company": {
-#                 "name": seller_details.get("name", ""),
-#                 "address": seller_details.get("address", ""),
-#                 "state": seller_details.get("state", ""),
-#                 "gstin": seller_details.get("gstin", ""),
-#                 "contact": seller_details.get("contact", ""),
-#                 "email": seller_details.get("email", "")
-#             },
-#             "buyer": invoice_data.get("buyer", {}),
-#             "items": invoice_data.get("items", []),
-#             "bank": {
-#                 "name": seller_details.get("bank_name", ""),
-#                 "account": seller_details.get("account_no", ""),
-#                 "branch_ifsc": seller_details.get("ifsc_code", "")
-#             },
-#             "terms_and_conditions": invoice_data.get("terms_and_conditions", [])
-#             # Add other flags from invoice_data if they exist
-#         }
-#         final_payload['invoice']['title'] = "Tax Invoice" if final_payload['buyer'].get("gstin") else "Retail Invoice"
+        # Step 2: Assemble the final, complete payload for the system.
+        # This merges the simple input from the agent with the secure data from the database.
+        final_payload = {
+            "invoice": invoice_data.get("invoice", {}),
+            "company": {
+                "name": seller_details.get("name", ""),
+                "address": seller_details.get("address", ""),
+                "state": seller_details.get("state", ""),
+                "gstin": seller_details.get("gstin", ""),
+                "contact": seller_details.get("contact", ""),
+                "email": seller_details.get("email", "")
+            },
+            "buyer": invoice_data.get("buyer", {}),
+            "items": invoice_data.get("items", []),
+            "bank": {
+                "name": seller_details.get("bank_name", ""),
+                "account": seller_details.get("account_no", ""),
+                "branch_ifsc": seller_details.get("ifsc_code", "")
+            },
+            "terms_and_conditions": invoice_data.get("terms_and_conditions", [])
+            # Add other flags from invoice_data if they exist
+        }
+        final_payload['invoice']['title'] = "Tax Invoice" if final_payload['buyer'].get("gstin") else "Retail Invoice"
 
 
-#         # Step 3: Validate the essential data from the assembled payload.
-#         invoice_no = final_payload["invoice"].get("number")
-#         buyer_name = final_payload["buyer"].get("name")
-#         if not all([invoice_no, buyer_name, final_payload["items"]]):
-#             return "Error: Validation failed. The agent must provide an invoice number, buyer name, and at least one item."
+        # Step 3: Validate the essential data from the assembled payload.
+        invoice_no = final_payload["invoice"].get("number")
+        buyer_name = final_payload["buyer"].get("name")
+        if not all([invoice_no, buyer_name, final_payload["items"]]):
+            return "Error: Validation failed. The agent must provide an invoice number, buyer name, and at least one item."
 
-#         # Step 4: Check for Duplicate Invoice Number
-#         existing_invoice_resp = supabase.table("invoices_record").select("id", count='exact').eq("number", invoice_no).eq("seller_id", seller_details["id"]).execute()
-#         if existing_invoice_resp.count > 0:
-#             return f"Error: An invoice with number {invoice_no} already exists."
+        # Step 4: Check for Duplicate Invoice Number
+        existing_invoice_resp = supabase.table("invoices_record").select("id", count='exact').eq("number", invoice_no).eq("seller_id", seller_details["id"]).execute()
+        if existing_invoice_resp.count > 0:
+            return f"Error: An invoice with number {invoice_no} already exists."
 
-#         # Step 5: Upsert Buyer and Retrieve ID (Robust Method)
-#         buyer_payload = {**final_payload["buyer"], "user_id": user_id}
-#         supabase.table("buyers_record").upsert(buyer_payload, on_conflict="user_id, name").execute()
-#         buyer_id_resp = supabase.table("buyers_record").select("id").eq("user_id", user_id).eq("name", buyer_name).single().execute()
-#         if not buyer_id_resp.data: return "Error: Could not retrieve buyer ID after saving."
-#         buyer_id = buyer_id_resp.data["id"]
+        # Step 5: Upsert Buyer and Retrieve ID (Robust Method)
+        buyer_payload = {**final_payload["buyer"], "user_id": user_id}
+        supabase.table("buyers_record").upsert(buyer_payload, on_conflict="user_id, name").execute()
+        buyer_id_resp = supabase.table("buyers_record").select("id").eq("user_id", user_id).eq("name", buyer_name).single().execute()
+        if not buyer_id_resp.data: return "Error: Could not retrieve buyer ID after saving."
+        buyer_id = buyer_id_resp.data["id"]
 
-#         # Step 6: Generate PDF using the complete payload and Upload Asynchronously
-#         pdf_data = _format_data_for_pdf(final_payload)
-#         pdf_path = generate_final_invoice(pdf_data) # Assuming this is your PDF generation function
-#         storage_result = await upload_file(pdf_path, "invoices", user_id, invoice_no)
-#         storage_url = storage_result["url"]
+        # Step 6: Generate PDF using the complete payload and Upload Asynchronously
+        pdf_data = _format_data_for_pdf(final_payload)
+        pdf_path = generate_final_invoice(pdf_data) # Assuming this is your PDF generation function
+        storage_result = await upload_file(pdf_path, "invoices", user_id, invoice_no)
+        storage_url = storage_result["url"]
         
-#         # Step 7: Insert Invoice Record into the database
-#         db_invoice_payload = {
-#             "number": invoice_no, "date": _normalize_date(final_payload["invoice"].get("date")),
-#             "due_date": _normalize_date(final_payload["invoice"].get("due_date")),
-#             "invoice_url": storage_url, "buyer_id": buyer_id,
-#             "seller_id": seller_details["id"], "user_id": user_id,
-#             "title": final_payload['invoice']['title'],
-#             "terms_and_conditions": final_payload["terms_and_conditions"]
-#         }
-#         supabase.table("invoices_record").insert(db_invoice_payload).execute()
-#         invoice_id_resp = supabase.table("invoices_record").select("id").eq("number", invoice_no).eq("seller_id", seller_details["id"]).single().execute()
-#         if not invoice_id_resp.data: return "Error: Could not retrieve invoice ID after saving."
-#         invoice_id = invoice_id_resp.data["id"]
+        # Step 7: Insert Invoice Record into the database
+        db_invoice_payload = {
+            "number": invoice_no, "date": _normalize_date(final_payload["invoice"].get("date")),
+            "due_date": _normalize_date(final_payload["invoice"].get("due_date")),
+            "invoice_url": storage_url, "buyer_id": buyer_id,
+            "seller_id": seller_details["id"], "user_id": user_id,
+            "title": final_payload['invoice']['title'],
+            "terms_and_conditions": final_payload["terms_and_conditions"]
+        }
+        supabase.table("invoices_record").insert(db_invoice_payload).execute()
+        invoice_id_resp = supabase.table("invoices_record").select("id").eq("number", invoice_no).eq("seller_id", seller_details["id"]).single().execute()
+        if not invoice_id_resp.data: return "Error: Could not retrieve invoice ID after saving."
+        invoice_id = invoice_id_resp.data["id"]
         
-#         # Step 8: Insert all invoice items
-#         items_to_insert = [{**item, "invoice_id": invoice_id} for item in final_payload["items"]]
-#         if items_to_insert:
-#             supabase.table("items_record").insert(items_to_insert).execute()
+        # Step 8: Insert all invoice items
+        items_to_insert = [{**item, "invoice_id": invoice_id} for item in final_payload["items"]]
+        if items_to_insert:
+            supabase.table("items_record").insert(items_to_insert).execute()
 
-#         # Step 9: Create embeddings for search (optional)
-#         embed_and_store_invoice(invoice_id, final_payload)
+        # Step 9: Create embeddings for search (optional)
+        embed_and_store_invoice(invoice_id, final_payload)
         
-#         logging.info(f"✅ Successfully created invoice {invoice_no}.")
-#         return f"Success: Invoice {invoice_no} created. URL: {storage_url}"
+        logging.info(f"✅ Successfully created invoice {invoice_no}.")
+        return f"Success: Invoice {invoice_no} created. URL: {storage_url}"
 
-#     except Exception as e:
-#         logging.error(f"❌ An unexpected error occurred in create_invoice: {e}", exc_info=True)
-#         return f"Error creating invoice: An unexpected error occurred. Details: {e}"
+    except Exception as e:
+        logging.error(f"❌ An unexpected error occurred in create_invoice: {e}", exc_info=True)
+        return f"Error creating invoice: An unexpected error occurred. Details: {e}"
         
-#     finally:
-#         # Step 10: Clean up the temporary PDF file
-#         if pdf_path and os.path.exists(pdf_path):
-#             os.remove(pdf_path)
+    finally:
+        # Step 10: Clean up the temporary PDF file
+        if pdf_path and os.path.exists(pdf_path):
+            os.remove(pdf_path)
 
 # # ==============================================================================
 # # PYDANTIC MODELS: Defines the blueprint for the update data
@@ -1309,101 +1309,45 @@ class InvoiceUpdateData(BaseModel):
 # TOOL FUNCTIONS
 # ==============================================================================
 
-async def create_invoice(invoice_data: Dict[str, Any], user_id: str) -> str:
-    """Creates a new, complete invoice. Automatically fetches seller details and missing URLs."""
-    pdf_path = None
-    try:
-        # --- CORRECTED: Data Enrichment Block ---
-        # Fetch company logo if not provided by the agent
-        seller_logo_resp = supabase.table("sellers_record").select("logo_url").eq("user_id", user_id).maybe_single().execute()
-        if seller_logo_resp.data and seller_logo_resp.data.get("logo_url"):
-            if "company" not in invoice_data: invoice_data["company"] = {}
-            invoice_data["company"]["logo_url"] = seller_logo_resp.data["logo_url"]
+from datetime import datetime
 
-        # Fetch buyer signature if not provided by the agent
-        buyer_name = invoice_data.get("buyer", {}).get("name")
-        if buyer_name:
-            # FIX: Use .select().execute() which returns a list, instead of the strict .single()
-            buyer_sig_resp = supabase.table("buyers_record").select("signature_url").eq("user_id", user_id).eq("name", buyer_name).execute()
-            # Check if the returned list has data
-            if buyer_sig_resp.data:
-                if "buyer" not in invoice_data: invoice_data["buyer"] = {}
-                # Get the signature from the first record in the list
-                invoice_data["buyer"]["signature_url"] = buyer_sig_resp.data[0].get("signature_url")
-                
-        # --- End of Data Enrichment Block ---
+REQUIRED_FIELDS = ["buyer_name", "buyer_address", "buyer_state", "items"]
+OPTIONAL_FIELDS = ["phone_no", "email", "gstin", "terms_and_conditions"]
 
-        # Step 1: Validate the enriched data
-        validated_data = InvoiceCreateData(**invoice_data)
-        
-        invoice_no = validated_data.invoice.number
-        buyer_name = validated_data.buyer.name
-        
-        # Step 2: Fetch full seller details (needed for PDF)
-        seller_resp = supabase.table("sellers_record").select("*").eq("user_id", user_id).single().execute()
-        if not seller_resp.data:
-            return "Error: Seller details not found. Please complete your company profile."
-        seller_details = seller_resp.data
+def validate_invoice_data(invoice_data: dict):
+    """
+    Validate invoice data before saving.
+    Returns structured response with success/failure and missing fields.
+    """
+    errors = []
+    buyer = invoice_data.get("buyer", {})
+    
+    # Required checks
+    if not buyer.get("name"):
+        errors.append("buyer_name")
+    if not buyer.get("address"):
+        errors.append("buyer_address")
+    if not buyer.get("state"):
+        errors.append("buyer_state")
+    if not invoice_data.get("items"):
+        errors.append("items")
 
-        # Step 3: Check for Duplicate Invoice Number
-        existing_invoice_resp = supabase.table("invoices_record").select("id", count='exact').eq("number", invoice_no).eq("seller_id", seller_details["id"]).execute()
-        if existing_invoice_resp.count > 0:
-            return f"Error: An invoice with number {invoice_no} already exists."
-
-        # Step 4: Assemble final payload for PDF
-        final_payload = {
-            "company": seller_details,
-            "bank": { "name": seller_details.get("bank_name", ""), "account": seller_details.get("account_no", ""), "branch_ifsc": seller_details.get("ifsc_code", "") },
-            **validated_data.model_dump()
+    if errors:
+        return {
+            "success": False,
+            "error": "Missing required fields",
+            "missing_fields": errors,
+            "metadata": invoice_data
         }
-        final_payload['invoice']['title'] = "Tax Invoice" if final_payload['buyer'].get("gstin") else "Retail Invoice"
-        
-        # Step 5: Upsert Buyer and Retrieve ID
-        supabase.table("buyers_record").upsert({**validated_data.buyer.model_dump(), "user_id": user_id}, on_conflict="user_id, name").execute()
-        buyer_id_resp = supabase.table("buyers_record").select("id").eq("user_id", user_id).eq("name", buyer_name).single().execute()
-        if not buyer_id_resp.data:
-             return "Error: Could not retrieve buyer ID after saving."
-        buyer_id = buyer_id_resp.data["id"]
 
-        # Step 6: Generate and Upload PDF
-        pdf_data = _format_data_for_pdf(final_payload)
-        pdf_path = generate_final_invoice(pdf_data)
-        storage_result = await upload_file(pdf_path, "invoices", user_id, invoice_no)
-        storage_url = storage_result["url"]
-        
-        # Step 7: Insert Invoice Record
-        db_invoice_payload = {
-            "number": invoice_no, "date": _normalize_date(validated_data.invoice.date),
-            "due_date": _normalize_date(validated_data.invoice.due_date),
-            "invoice_url": storage_url, "buyer_id": buyer_id,
-            "seller_id": seller_details["id"], "user_id": user_id,
-            "title": final_payload['invoice']['title'],
-            "terms_and_conditions": validated_data.terms_and_conditions
-        }
-        await supabase.table("invoices_record").insert(db_invoice_payload).execute()
-        invoice_id_resp = supabase.table("invoices_record").select("id").eq("number", invoice_no).eq("seller_id", seller_details["id"]).single().execute()
-        if not invoice_id_resp.data:
-            return "Error: Could not retrieve invoice ID after saving."
-        invoice_id = invoice_id_resp.data["id"]
-        
-        # Step 8: Insert all invoice items
-        items_to_insert = [{**item.model_dump(), "invoice_id": invoice_id} for item in validated_data.items]
-        if items_to_insert:
-            await supabase.table("items_record").insert(items_to_insert).execute()
+    # Optional fields → if user skipped them, set as None
+    for field in OPTIONAL_FIELDS:
+        if not buyer.get(field):
+            buyer[field] = None
 
-        # Step 9: Create embeddings for search
-        await embed_and_store_invoice(invoice_id, final_payload)
-        
-        logging.info(f"✅ Successfully created invoice {invoice_no}.")
-        return f"Success: Invoice {invoice_no} created. URL: {storage_url}"
+    return {"success": True, "error": None, "metadata": invoice_data}
 
-    except Exception as e:
-        logging.error(f"❌ An unexpected error occurred in create_invoice: {e}", exc_info=True)
-        return f"Error creating invoice: An unexpected error occurred. Details: {e}"
-    finally:
-        # Step 10: Clean up the temporary PDF file
-        if pdf_path and os.path.exists(pdf_path):
-            os.remove(pdf_path)
+
 
 
 async def update_invoice(update_data: Dict[str, Any], user_id: str) -> str:
@@ -1423,6 +1367,7 @@ async def update_invoice(update_data: Dict[str, Any], user_id: str) -> str:
     ```
     """
     pdf_path = None
+    invoice_id = None # Initialize invoice_id to None
     try:
         # Step 1: Validate the incoming dictionary into a Pydantic model
         validated_data = InvoiceUpdateData(**update_data)
@@ -1441,12 +1386,14 @@ async def update_invoice(update_data: Dict[str, Any], user_id: str) -> str:
         if old_storage_url:
             try:
                 file_path = old_storage_url.split(f"/invoices/")[-1].split("?")[0]
-                await supabase.storage.from_("invoices").remove([file_path])
+                # CORRECTED: Removed 'await' from synchronous call
+                supabase.storage.from_("invoices").remove([file_path])
             except Exception as e:
                 logging.warning(f"Could not delete old PDF: {e}")
 
-        await supabase.table("invoice_embeddings").delete().eq("invoice_id", invoice_id).execute()
-        await supabase.table("items_record").delete().eq("invoice_id", invoice_id).execute()
+        # CORRECTED: Removed 'await' from synchronous calls
+        supabase.table("invoice_embeddings").delete().eq("invoice_id", invoice_id).execute()
+        supabase.table("items_record").delete().eq("invoice_id", invoice_id).execute()
 
         # Step 3: Fetch full seller/company details for the new PDF
         seller_resp = supabase.table("sellers_record").select("*").eq("id", seller_id).single().execute()
@@ -1454,42 +1401,59 @@ async def update_invoice(update_data: Dict[str, Any], user_id: str) -> str:
             return "Error: Could not find seller details for the invoice."
 
         # Step 4: Generate and upload the new PDF
-        full_pdf_payload = {"company": seller_resp.data, **update_data.model_dump()}
+        full_pdf_payload = {"company": seller_resp.data, **validated_data.model_dump()}
         pdf_path = generate_final_invoice(full_pdf_payload)
-        storage_result = await upload_file(pdf_path, "invoices", user_id, update_data.invoice.number)
+        # This assumes 'upload_file' is a genuine async function
+        storage_result = await upload_file(pdf_path, "invoices", user_id, validated_data.invoice.number)
         new_storage_url = storage_result["url"]
 
         # Step 5: Upsert Buyer and get their ID
-        buyer_payload = update_data.buyer.model_dump()
-        buyer_resp = await supabase.table("buyers_record").upsert({**buyer_payload, "user_id": user_id}, on_conflict="user_id, name").select("id").execute()
+
+        buyer_payload = validated_data.buyer.model_dump()
+
+        # CORRECTED: Added returning="representation" to the upsert call
+        # This tells Supabase to return the data of the row that was modified.
+        buyer_resp = supabase.table("buyers_record").upsert(
+            {**buyer_payload, "user_id": user_id},
+            on_conflict="user_id, name",
+            returning="representation" 
+        ).execute()
+
+        # The buyer_id can now be safely extracted from the response data
         buyer_id = buyer_resp.data[0]["id"]
 
         # Step 6: Update the main invoice record in the database
         invoice_payload = {
             "buyer_id": buyer_id,
-            "title": update_data.invoice.title,
-            "number": update_data.invoice.number,
-            "date": _normalize_date(update_data.invoice.date),
-            "due_date": _normalize_date(update_data.invoice.due_date),
-            "terms_and_conditions": update_data.terms_and_conditions,
+            "title": validated_data.invoice.title,
+            "number": validated_data.invoice.number,
+            "date": _normalize_date(validated_data.invoice.date),
+            "due_date": _normalize_date(validated_data.invoice.due_date),
+            "terms_and_conditions": validated_data.terms_and_conditions,
             "invoice_url": new_storage_url,
-            "payment_reminder_enabled": update_data.set_payment_reminder
+            "payment_reminder_enabled": validated_data.set_payment_reminder
         }
-        await supabase.table("invoices_record").update(invoice_payload).eq("id", invoice_id).execute()
+        # CORRECTED: Removed 'await' from synchronous call
+        supabase.table("invoices_record").update(invoice_payload).eq("id", invoice_id).execute()
 
         # Step 7: Re-insert the updated items
-        # Note: We exclude 'id' from the item dict since it's not a column in items_record
-        items_to_insert = [{**item.model_dump(exclude={'id'}), "invoice_id": invoice_id} for item in update_data.items]
+        items_to_insert = [{**item.model_dump(exclude={'id'}), "invoice_id": invoice_id} for item in validated_data.items]
         if items_to_insert:
-            await supabase.table("items_record").insert(items_to_insert).execute()
+            # CORRECTED: Removed 'await' from synchronous call
+            supabase.table("items_record").insert(items_to_insert).execute()
         
         # Step 8: Re-create embeddings for the updated invoice
+        # This assumes 'embed_and_store_invoice' is a genuine async function
         await embed_and_store_invoice(invoice_id, full_pdf_payload)
 
-        return f"Success: Invoice {update_data.invoice.number} updated. New URL: {new_storage_url}"
+        return f"Success: Invoice {validated_data.invoice.number} updated. New URL: {new_storage_url}"
 
     except Exception as e:
-        logging.error(f"An error occurred during invoice update for ID {invoice_id}: {e}", exc_info=True)
+        error_msg = f"An error occurred during invoice update"
+        if invoice_id:
+            error_msg += f" for ID {invoice_id}"
+        error_msg += f": {e}"
+        logging.error(error_msg, exc_info=True)
         return f"Error updating invoice: An unexpected error occurred. Details: {e}"
     finally:
         # Step 9: Clean up the locally generated PDF file
@@ -1628,26 +1592,28 @@ def get_buyer_purchase_history(user_id: str, name: str) -> str:
     except Exception as e:
         return f"Error retrieving purchase history: {e}"
 
-def get_top_performing_entities(user_id: str, time_period: str, entity_type: str = 'product', limit: int = 5) -> str:
+# --- Add this import at the top of your file ---
+from decimal import Decimal
+
+def get_top_performing_entities(user_id: str, time_period: str, entity_type: str, limit: int = 5) -> str:
     """
-    Finds the top-performing products or buyers based on sales revenue within a specified time period.
+    Finds top products OR buyers based on sales.
+    You MUST provide an entity_type: either 'product' or 'buyer'.
 
     Args:
-        user_id (str): The ID of the user requesting the data.
-        time_period (str): A string describing the time frame (e.g., "this month", "last year", "Q1").
-        entity_type (str, optional): The entity to analyze. Must be 'product' or 'buyer'. Defaults to 'product'.
-        limit (int, optional): The number of top entities to return. Defaults to 5.
+        user_id (str): The ID of the user.
+        time_period (str): Time frame (e.g., "this month", "last year").
+        entity_type (str): The entity to analyze. MUST be 'product' or 'buyer'.
+        limit (int, optional): Number of results to return. Defaults to 5.
 
     Returns:
-        str: A JSON string containing a list of top entities and their performance metrics,
-             or an error/status message.
+        str: A JSON string with a list of top entities or an error message.
     """
     try:
         start_date, end_date = _parse_time_period(time_period)
         entity = entity_type.lower()
 
         if entity == 'product':
-            # Query to find top products by total revenue from items sold.
             query = """
                 SELECT
                     it.name,
@@ -1660,7 +1626,6 @@ def get_top_performing_entities(user_id: str, time_period: str, entity_type: str
                 LIMIT %s;
             """
         elif entity == 'buyer':
-            # Query to find top buyers by their total spending.
             query = """
                 SELECT
                     br.name,
@@ -1681,17 +1646,17 @@ def get_top_performing_entities(user_id: str, time_period: str, entity_type: str
         if not results:
             return json.dumps({"status": "no_data", "message": f"No data found for top {entity_type}s in {time_period}."})
 
-        # UPDATED: The database may return numeric values as Decimal objects, which are not
-        # directly serializable to JSON. This loop explicitly converts them to floats.
+        # This loop now works because 'Decimal' is defined via the import
         for row in results:
             for key, value in row.items():
-                # UPDATED: Using isinstance() is a more standard and readable way to check for Decimal types.
                 if isinstance(value, Decimal):
                     row[key] = float(value)
         
         return json.dumps({"status": "success", "data": results})
 
     except Exception as e:
+        # It's helpful to log the actual exception for debugging
+        print(f"Error in get_top_performing_entities: {e}")
         return json.dumps({"status": "error", "message": f"Could not retrieve top entities. Details: {e}"})
 # --- Inventory Tools ---
 

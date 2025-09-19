@@ -57,7 +57,6 @@ async def generate_gstr1_from_database(payload: DateRangePayload, request: Reque
 
             buyer_gstin = buyer_record["gstin"]
             buyer_state_code = "27" # Default to Maharashtra; can be made dynamic if state codes are stored
-            
             taxable_value = 0.0
             total_cgst = 0.0
             total_sgst = 0.0

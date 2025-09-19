@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
-
+import { useUserId } from "@/hooks/context/UserContext"
 export function Navbar() {
   const { setTheme } = useTheme()
   const router = useRouter()
@@ -59,7 +59,7 @@ export function Navbar() {
       console.error("Logout failed", err)
     }
   }
-
+  const {userId}= useUserId()
   return (
     <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-14 items-center px-4 lg:px-6">
@@ -111,6 +111,9 @@ export function Navbar() {
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuItem onClick={() => router.push("/profile")}>
                 Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push(`/profile/card/${userId}`)}>
+                Cards
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => router.push("/setting")}>
                 Setting
