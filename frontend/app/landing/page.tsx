@@ -827,7 +827,7 @@ export default function VyapariLandingPage() {
                     Create invoices, check stock, and get business reports—all with your voice. Vyapari is the smartest & fastest way to run your business in India.
                 </motion.p>
                 <motion.div variants={fadeIn("up", 0.2)} className="flex justify-center">
-                    <Button onClick={() => router.push('/')} size="lg" className="bg-white text-black font-bold py-3 px-8 rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-white/20 flex items-center gap-2 text-lg">
+                    <Button onClick={() => router.push('/login')} size="lg" className="bg-white text-black font-bold py-3 px-8 rounded-full transition-all duration-300 hover:scale-105 shadow-lg shadow-white/20 flex items-center gap-2 text-lg">
                         Get Started for Free <ArrowRight className="w-5 h-5" />
                     </Button>
                 </motion.div>
@@ -943,7 +943,7 @@ export default function VyapariLandingPage() {
               <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-white/10 rounded-full filter blur-2xl"></div>
               <h2 className="relative text-4xl md:text-6xl font-bold tracking-tighter">Stop Managing. Start Growing.</h2>
               <p className="relative max-w-xl mx-auto text-lg text-blue-100 mt-4 mb-8">Experience the future of business management. Your first 10 invoices are on us. No credit card required.</p>
-              <Button onClick={() => router.push('/')} size="lg" className="relative bg-white text-blue-600 font-bold py-4 px-10 rounded-full transition-transform duration-300 hover:scale-105 text-lg shadow-2xl hover:bg-gray-200">
+              <Button onClick={() => router.push('/login')} size="lg" className="relative bg-white text-blue-600 font-bold py-4 px-10 rounded-full transition-transform duration-300 hover:scale-105 text-lg shadow-2xl hover:bg-gray-200">
                 Claim Your Free Invoices
               </Button>
             </motion.div>
