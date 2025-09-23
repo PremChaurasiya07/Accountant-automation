@@ -1,4 +1,4 @@
-from app.services.invoice_generator import generate_invoice_pdf1
+
 from fastapi import FastAPI, HTTPException, Request, Form, File, UploadFile
 from pydantic import BaseModel
 from typing import List, Optional
@@ -51,8 +51,8 @@ app.include_router(product.router, prefix="/api")
 # voicebot routing
 app.include_router(voice_bot.router)
 
-# drive routing
-app.include_router(drive.router)
+# # drive routing
+# app.include_router(drive.router)
 
 # reports routing
 app.include_router(reports.router)

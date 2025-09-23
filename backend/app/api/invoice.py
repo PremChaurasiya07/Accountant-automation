@@ -9,7 +9,7 @@ from app.services.embedding import embed_and_store_invoice
 from utils.upload_to_storage import upload_file
 from app.deps.auth import get_current_user
 from datetime import datetime
-from app.services.invoice_generator import generate_invoice_pdf1, generate_invoice_pdf2,generate_invoice_pdf3,generate_final_invoice
+from app.services.invoice_generator import create_dynamic_invoice,generate_final_invoice
 from app.services.gemini import parsed_info
 from app.services.invoice_parser import parse_invoice
 from cryptography.fernet import Fernet
@@ -166,234 +166,7 @@ class InvoiceRequest(BaseModel):
     seller_id: Optional[int] = None
 
 
-# @router.post("/create")
-# async def create_invoice(request: Request):
-    
-#     pdf_path = None
-#     storage_url = None # Initialize storage_url to None
-#     try:
-#         # --- STEP 1: AUTHENTICATE USER FIRST ---
-#         try:
-#             user = await get_current_user(request)
-#             if not user or not user.id:
-#                 raise HTTPException(status_code=401, detail="User not authenticated or session expired.")
-#         except HTTPException as e:
-#              # If get_current_user raises an exception (e.g., token expired), catch it
-#              raise HTTPException(status_code=401, detail=f"Authentication failed: {e.detail}")
-        
-#         user_id = user.id
 
-#         # --- STEP 2: PROCESS REQUEST DATA ---
-#         data = await request.json()
-#         print(data)
-#         template_no = data.get('template_id')
-#         invoice_no = data.get("invoice_no")
-#         if not invoice_no:
-#             raise HTTPException(status_code=400, detail="Invoice number is required")
-        
-#         redefined_data = parsed_info(data)
-#         parsed = json.loads(redefined_data)
-
-#         # --- STEP 3: CHECK FOR DUPLICATE INVOICE ---
-#         existing_invoice = supabase.table("invoices_record").select("id").eq("invoice_no", invoice_no).eq("user_id", user_id).execute()
-#         if existing_invoice.data and len(existing_invoice.data) > 0:
-#             return {
-#                 "message": f"Invoice with number {invoice_no} already exists.",
-#                 "invoice_id": existing_invoice.data[0]["id"]
-#             }
-
-#         # --- STEP 4: GENERATE PDF ---
-#         if not template_no:
-#             return {'message': 'template unknown'}
-#         elif template_no == 'temp1':
-#             pdf_path = generate_invoice_pdf3(parsed)
-#             print("PDF path:", pdf_path)
-
-#         def normalize_date(value):
-#             try:
-#                 if value and value.strip():
-#                     return datetime.strptime(value.strip(), "%Y-%m-%d").date().isoformat()
-#             except Exception:
-#                 return None
-#             return None
-
-#         # --- STEP 5: UPLOAD PDF TO STORAGE ---
-#         storage_result = await upload_file(
-#             pdf_path,
-#             folder="invoices",
-#             user_id=user_id,
-#             invoice_no=invoice_no
-#         )
-#         storage_url = storage_result["url"]
-
-#         # --- STEP 6: DATABASE OPERATIONS (Wrapped in a try block for cleanup) ---
-#         try:
-#             # UPSERT BUYER RECORD
-#             buyer_data = {
-#                 "name": parsed["buyer"]["name"],
-#                 "gst_no": parsed["buyer"]["gstin"],
-#                 "email": "",
-#                 "address": parsed["buyer"]["address"],
-#                 "phone_no": ""
-#             }
-#             buyer_response = supabase.table("buyers_record").insert(buyer_data).execute()
-#             buyer_id = buyer_response.data[0]["id"]
-
-#             # GET SELLER ID
-#             seller_response = supabase.table("sellers_record").select("id").eq("user_id", user_id).single().execute()
-#             if not seller_response.data:
-#                 raise HTTPException(status_code=404, detail="Seller not found for the current user.")
-#             seller_id = seller_response.data["id"]
-
-#             # INSERT INVOICE & ITEM RECORDS
-#             invoice_data = {
-#                 "challan_date": normalize_date(parsed.get("challan_date")),
-#                 "challan_no": parsed.get("challan_no"),
-#                 "invoice_date": normalize_date(parsed["invoice"]["date"]),
-#                 "invoice_no": invoice_no,
-#                 "purchase_date": normalize_date(parsed.get("purchase_date")),
-#                 "purchase_no": parsed.get("purchase_no"),
-#                 "vehicle_no": parsed.get("vehicle_no"),
-#                 "invoice_url": storage_url,
-#                 "buyer_id": buyer_id,
-#                 "seller_id": seller_id,
-#                 "template_no": parsed.get("template_id", template_no),
-#                 "user_id": user_id
-#             }
-#             invoice_response = supabase.table("invoices_record").insert(invoice_data).execute()
-#             invoice_id = invoice_response.data[0]["id"]
-
-#             records = []
-#             for item in parsed.get("items", []):
-#                 records.append({
-#                     "product_id": invoice_id,
-#                     "item_name": item.get('name') or item.get('description'),
-#                     "hsn_code": item.get("hsn"),
-#                     "gst_rate": item.get("gst_rate"),
-#                     "item_rate": item.get("amount"),
-#                     "per_unit": item.get("rate") or item.get("price_per_unit"),
-#                     "qty": item.get("quantity"),
-#                 })
-#             supabase.table("items_record").insert(records).execute()
-
-#             # EMBED AND STORE INVOICE DATA
-#             embed_and_store_invoice(invoice_id, parsed)
-
-#         except Exception as db_error:
-#             # --- CLEANUP ON FAILURE ---
-#             print(f"Database operation failed: {db_error}. Cleaning up uploaded file.")
-#             if storage_url:
-#                 # Extract filename from URL to delete from bucket
-#                 filename = storage_url.split("/")[-1].split("?")[0]
-#                 supabase.storage.from_("invoices").remove([f"{user_id}/{filename}"])
-#                 print(f"Successfully deleted orphaned file from bucket: {filename}")
-#             # Re-raise the error to send a 500 response
-#             raise db_error
-
-#         return {
-#             "message": "Invoice created successfully",
-#             "invoice_id": invoice_id,
-#             "url": storage_url
-#         }
-#     except HTTPException as he:
-#         # Re-raise HTTP exceptions to be handled by FastAPI
-#         raise he
-#     except Exception as e:
-#         # Catch any other unexpected errors
-#         print(f"An unexpected error occurred in /create: {str(e)}")
-#         raise HTTPException(status_code=500, detail=f"Error creating invoice: {str(e)}")
-#     finally:
-#         # --- FINAL CLEANUP ---
-#         # Always remove the local temporary PDF file if it was created
-#         if pdf_path and os.path.exists(pdf_path):
-#             os.remove(pdf_path)
-
-
-# @router.post("/create")
-# async def create_invoice(request: Request):
-#     pdf_path = None
-#     storage_url = None
-#     try:
-#         # Steps 1-6 remain the same
-#         user = await get_current_user(request)
-#         user_id = user.id
-#         data = await request.json()
-#         invoice_no = data.get("invoice", {}).get("number")
-#         if not invoice_no:
-#             raise HTTPException(status_code=400, detail="Invoice number is required.")
-#         print(user_id)
-#         seller_response = supabase.table("sellers_record").select("*").eq("user_id", user_id).single().execute()
-#         print(seller_response)
-#         if not seller_response.data:
-#             raise HTTPException(status_code=404, detail="Seller not found for the current user.")
-#         seller_id = seller_response.data["id"]
-#         existing_invoice = supabase.table("invoices_record").select("id").eq("number", invoice_no).eq("seller_id", seller_id).execute()
-#         if existing_invoice.data:
-#             raise HTTPException(status_code=409, detail=f"Invoice with number {invoice_no} already exists.")
-
-#         pdf_path = generate_final_invoice(data, filename=f"temp_invoice_{invoice_no.replace('/', '_')}.pdf")
-        
-#         storage_result = await upload_file(pdf_path, folder="invoices", user_id=user_id, invoice_no=invoice_no)
-#         storage_url = storage_result["url"]
-
-#         # --- STEP 7: DATABASE OPERATIONS (WITH MORE ROBUST CHECKS) ---
-#         try:
-#             # UPSERT BUYER: Check if buyer exists, if not, create them.
-#             buyer_payload = data.get("buyer", {})
-#             buyer_name = buyer_payload.get("name")
-            
-#             print("--- DEBUG: Checking for existing buyer...")
-#             existing_buyer_response = supabase.table("buyers_record").select("id").eq("name", buyer_name).eq("user_id", user_id).maybe_single().execute()
-#             print(f"--- DEBUG: existing_buyer response: {existing_buyer_response}")
-
-#             # ADDED: Check if the response object itself is valid before accessing .data
-#             if existing_buyer_response and existing_buyer_response.data:
-#                 buyer_id = existing_buyer_response.data["id"]
-#                 print(f"--- DEBUG: Found existing buyer_id: {buyer_id}")
-#             else:
-#                 print("--- DEBUG: No existing buyer found. Inserting new buyer...")
-#                 buyer_data_to_insert = { "user_id": user_id, "name": buyer_name, "address": buyer_payload.get("address"), "state": buyer_payload.get("state"), "gstin": buyer_payload.get("gstin") }
-#                 buyer_response = supabase.table("buyers_record").insert(buyer_data_to_insert, returning="representation").execute()
-                
-#                 if not buyer_response or not buyer_response.data:
-#                     raise Exception("Failed to create buyer record. Please check RLS policies on 'buyers_record' table.")
-#                 buyer_id = buyer_response.data[0]["id"]
-#                 print(f"--- DEBUG: Created new buyer_id: {buyer_id}")
-
-#             # (The rest of the code for inserting the invoice and items remains the same)
-#             invoice_payload = data.get("invoice", {})
-#             terms_payload = data.get("terms_and_conditions", [])
-#             invoice_data_to_insert = { "user_id": user_id, "seller_id": seller_id, "buyer_id": buyer_id, "title": invoice_payload.get("title"), "number": invoice_no, "date": invoice_payload.get("date"), "due_date": invoice_payload.get("due_date"), "terms_and_conditions": terms_payload, "invoice_url": storage_url }
-#             invoice_response = supabase.table("invoices_record").insert(invoice_data_to_insert, returning="representation").execute()
-#             if not invoice_response or not invoice_response.data:
-#                 raise Exception("Failed to create invoice record. Check RLS policies on 'invoices_record' table.")
-#             invoice_id = invoice_response.data[0]["id"]
-
-#             items_to_insert = []
-#             for item in data.get("items", []):
-#                 items_to_insert.append({ "invoice_id": invoice_id, "name": item.get("name"), "hsn": item.get("hsn"), "quantity": item.get("quantity"), "unit": item.get("unit"), "rate": item.get("rate"), "gst_rate": item.get("gst_rate") })
-#             if items_to_insert:
-#                 supabase.table("items_record").insert(items_to_insert).execute()
-
-#             embed_and_store_invoice(invoice_id, data)
-
-#         except Exception as db_error:
-#             print(f"Database operation failed: {db_error}. Cleaning up uploaded file.")
-#             if storage_url:
-#                 filename_to_delete = storage_url.split("/")[-1].split("?")[0]
-#                 file_path_in_bucket = f"{user_id}/{invoice_no.replace('/', '-')}/{filename_to_delete}"
-#                 supabase.storage.from_("invoices").remove([file_path_in_bucket])
-#                 print(f"Successfully deleted orphaned file: {filename_to_delete}")
-#             raise db_error
-
-#         return { "message": "Invoice created successfully", "invoice_id": invoice_id, "url": storage_url }
-        
-#     except Exception as e:
-#         print(f"An unexpected error occurred in /create: {str(e)}")
-#         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
-#     finally:
-#         if pdf_path and os.path.exists(pdf_path):
-#             os.remove(pdf_path)
 
 
 from fastapi import BackgroundTasks, HTTPException, Request
@@ -458,7 +231,7 @@ def background_send_invoice_email(user_id: str, email_details: dict):
         logging.error(f"⚠️ Background email sending failed: {e}")
 
 
-# --- MAIN ENDPOINT ---
+
 @router.post("/create")
 async def create_invoice(request: Request, background_tasks: BackgroundTasks):
     pdf_path = None
@@ -486,8 +259,18 @@ async def create_invoice(request: Request, background_tasks: BackgroundTasks):
         if existing_invoice and getattr(existing_invoice, "data", None):
             raise HTTPException(status_code=409, detail=f"Invoice with number {invoice_no} already exists.")
 
-        # --- PDF GEN + UPLOAD ---
-        pdf_path = generate_final_invoice(data, filename=f"temp_invoice_{invoice_no.replace('/', '_')}.pdf")
+        # --- NEW: DYNAMIC TEMPLATE SELECTION ---
+        template_choice = data.get("template", "template1") # Default to template1 if not provided
+        file_name = f"temp_invoice_{invoice_no.replace('/', '_')}.pdf"
+
+        if template_choice == 'template2':
+            print("Generating invoice with Template 2")
+            pdf_path = generate_final_invoice(data, filename=file_name)
+        else: # Default to template1
+            print("Generating invoice with Template 1")
+            pdf_path = create_dynamic_invoice(data, filename=file_name)
+        # --- END OF CHANGE ---
+
         storage_result = await upload_file(pdf_path, folder="invoices", user_id=user_id, invoice_no=invoice_no)
         storage_url = storage_result.get("url")
 
@@ -574,8 +357,6 @@ async def create_invoice(request: Request, background_tasks: BackgroundTasks):
     finally:
         if pdf_path and os.path.exists(pdf_path):
             os.remove(pdf_path)
-
-
             
 @router.put("/edit/{invoice_id}")
 async def edit_invoice(invoice_id: int, request: Request, background_tasks: BackgroundTasks):

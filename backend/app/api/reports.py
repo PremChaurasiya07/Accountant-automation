@@ -8,7 +8,6 @@ import re
 from datetime import datetime
 import os
 from app.services.gemini_invoicefinder import gemini
-# Import your project's modules
 from app.deps.auth import get_current_user # Assuming gemini is your async helper
 
 from app.core.supabase import supabase
