@@ -787,8 +787,22 @@ export default function Invoice() {
                                 </table>
                             </div>
                             {/* --- RESPONSIVE FIX: The mobile view is already a good pattern --- */}
-                            <div className="block md:hidden space-y-4">
-                                {formState.products.map((p, i) => (
+                            <div className="hidden md:block overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b">
+                                            {/* RESPONSIVE FIX: min-w classes added to prevent squishing */}
+                                            <th className="p-2 min-w-[200px] w-[35%] text-left">Item Name</th>
+                                            <th className="p-2 min-w-[100px] w-[15%] text-left">HSN</th>
+                                            <th className="p-2 w-[10%] text-left">Qty</th>
+                                            <th className="p-2 w-[10%] text-left">Unit</th>
+                                            <th className="p-2 min-w-[120px] w-[15%] text-left">Rate</th>
+                                            <th className="p-2 w-[10%] text-left">GST %</th>
+                                            <th className="p-2 w-[5%]"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {formState.products.map((p, i) => (
                                             <tr key={i}>
                                                 <td className="p-1 relative" ref={el => productSuggestionRefs.current[i] = el as HTMLTableCellElement}>{/* ... */}</td>
                                                 <td className="p-1"><Input value={p.hsn} onChange={(e) => handleProductChange(i, "hsn", e.target.value)} /></td>
@@ -798,7 +812,9 @@ export default function Invoice() {
                                                 <td className="p-1"><Input type="number" value={p.gst_rate} onChange={(e) => handleProductChange(i, "gst_rate", e.target.value)} /></td>
                                                 <td className="p-1 text-center"><Button variant="ghost" size="icon" onClick={() => deleteProductRow(i)}><Trash2 size={16} /></Button></td>
                                             </tr>
-                                ))}
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                             <Button onClick={addProductRow} className="mt-4" variant="outline"><PlusCircle size={16} className="mr-2" />Add Item</Button>
                         </FormSectionCard>
