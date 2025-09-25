@@ -789,10 +789,15 @@ export default function Invoice() {
                             {/* --- RESPONSIVE FIX: The mobile view is already a good pattern --- */}
                             <div className="block md:hidden space-y-4">
                                 {formState.products.map((p, i) => (
-                                    <div key={i} className="border rounded-lg p-3 space-y-3">
-                                        <div className="flex justify-between items-center"><p className="font-semibold">Item #{i + 1}</p><Button variant="ghost" size="icon" onClick={() => deleteProductRow(i)}><Trash2 size={16} className="text-red-500"/></Button></div>
-                                        {/* ... mobile form fields ... */}
-                                    </div>
+                                            <tr key={i}>
+                                                <td className="p-1 relative" ref={el => productSuggestionRefs.current[i] = el as HTMLTableCellElement}>{/* ... */}</td>
+                                                <td className="p-1"><Input value={p.hsn} onChange={(e) => handleProductChange(i, "hsn", e.target.value)} /></td>
+                                                <td className="p-1"><Input type="number" value={p.quantity} onChange={(e) => handleProductChange(i, "quantity", e.target.value)} /></td>
+                                                <td className="p-1"><Input value={p.unit} onChange={(e) => handleProductChange(i, "unit", e.target.value)} /></td>
+                                                <td className="p-1"><Input type="number" value={p.rate} onChange={(e) => handleProductChange(i, "rate", e.target.value)} /></td>
+                                                <td className="p-1"><Input type="number" value={p.gst_rate} onChange={(e) => handleProductChange(i, "gst_rate", e.target.value)} /></td>
+                                                <td className="p-1 text-center"><Button variant="ghost" size="icon" onClick={() => deleteProductRow(i)}><Trash2 size={16} /></Button></td>
+                                            </tr>
                                 ))}
                             </div>
                             <Button onClick={addProductRow} className="mt-4" variant="outline"><PlusCircle size={16} className="mr-2" />Add Item</Button>
