@@ -1,20 +1,4 @@
 import os
-import re
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import mm
-import datetime
-from num2words import num2words
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Frame,PageBreak,PageTemplate
-from reportlab.lib.styles import getSampleStyleSheet,ParagraphStyle
-from reportlab.lib import colors
-from reportlab.lib.enums import TA_RIGHT, TA_CENTER, TA_LEFT
-from datetime import datetime
-
-
-
-  #--------------------------------------------------------------------------------#  
-import os
 import requests
 from io import BytesIO
 from reportlab.lib import colors
@@ -38,7 +22,7 @@ def safe_get(data_dict, key, default=''):
 
 def get_image_from_url(url, width, height):
     """Downloads an image from a URL and returns a ReportLab Image object."""
-    if not url: return Spacer(1, height)
+    if not url: return Spacer(width, height)
     try:
         response = requests.get(url, stream=True)
         if response.status_code == 200:
@@ -46,7 +30,7 @@ def get_image_from_url(url, width, height):
             return Image(image_data, width=width, height=height)
     except Exception as e:
         print(f"Warning: Could not fetch image from {url}. Error: {e}")
-    return Spacer(1, height)
+    return Spacer(width, height)
 
 def number_to_words_indian(num):
     if num is None or num == 0: return 'Zero'
@@ -67,32 +51,16 @@ def number_to_words_indian(num):
     if num > 0: words.append(convert_less_than_thousand(num))
     return ' '.join(filter(None, words))
 
-# ==============================================================================
-# NEW FOOTER FUNCTION: Adds a clickable branding link to every page
-# ==============================================================================
 def add_footer_with_link(canvas, doc):
-    """
-    This function is called on every page and draws the footer.
-    """
     canvas.saveState()
-    
-    # Define the linked text and style
     style = ParagraphStyle(
-        name='FooterLink',
-        fontName='Helvetica',
-        fontSize=8,
-        # --- MODIFICATION 1: Changed text color to black ---
-        textColor=colors.black,
-        alignment=TA_RIGHT
+        name='FooterLink', fontName='Helvetica', fontSize=8,
+        textColor=colors.black, alignment=TA_RIGHT
     )
-    # --- MODIFICATION 2: Removed underline <u> and color attribute ---
     link_text = '<a href="https://vyapari.vercel.app/">Created using VYAPARI AI</a>'
     p = Paragraph(link_text, style)
-    
-    # Calculate position and draw the paragraph
     p.wrapOn(canvas, doc.width, doc.bottomMargin)
-    p.drawOn(canvas, doc.leftMargin, doc.bottomMargin - 5*mm)
-    
+    p.drawOn(canvas, doc.leftMargin, doc.bottomMargin - 7*mm)
     canvas.restoreState()
 
 # ==============================================================================
@@ -108,6 +76,8 @@ def _generate_page_flowables(invoice_data, copy_label=""):
     style_amount_words = ParagraphStyle(name='AmountWordsBold', fontName='Helvetica-Bold', fontSize=11, leading=11, alignment=TA_CENTER)
     style_total_label = ParagraphStyle(name='TotalLabel', fontName='Helvetica-Bold', fontSize=9, leading=11, alignment=TA_LEFT, textColor=colors.black)
     style_total_value = ParagraphStyle(name='TotalValue', fontName='Helvetica-Bold', fontSize=9, leading=11, alignment=TA_RIGHT, textColor=colors.black)
+    # Give text a small indent, but not the table cell itself
+    style_invoice_details = ParagraphStyle(name='InvoiceDetails', parent=style, leftIndent=2*mm)
 
     col_width_srno=15*mm; col_width_desc=78*mm; col_width_hsn=22*mm
     col_width_qty=22*mm; col_width_unitprice=24*mm; col_width_amount=25*mm
@@ -122,17 +92,12 @@ def _generate_page_flowables(invoice_data, copy_label=""):
     tax_invoice_bar = Table([[tax_invoice_bar_content]], colWidths=[doc_width - 24*mm])
     tax_invoice_bar.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#9ac1e6')),
-        ('TOPPADDING', (0,0), (-1,-1), 2),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 2),
-        ('LINEBELOW', (0,0), (-1,-1), 1, colors.black)
+        ('TOPPADDING', (0,0), (-1,-1), 2), ('BOTTOMPADDING', (0,0), (-1,-1), 2),
     ]))
+
+    # --- Header Section based on User's new design ---
     logo_image = get_image_from_url(safe_get(invoice_data, 'company.logo_url'), width=40*mm, height=18*mm)
-    logo_block = Table([[logo_image], [Spacer(1, 1*mm)], [Paragraph(copy_label, style_centered)]], rowHeights=[10*mm, 10.7*mm, 14.3*mm])
-    logo_block.setStyle(TableStyle([
-        ('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (0,0), 'TOP'),
-        ('TOPPADDING', (0,0), (0,0), 2), ('VALIGN', (0,2), (0,2), 'MIDDLE'),
-        ('LINEABOVE', (0,2), (0,2), 1, colors.black)
-    ]))
+    copy_label_para = Paragraph(copy_label, style_centered)
 
     company_lines = [f"<font size=12><b>{safe_get(invoice_data, 'company.name')}</b></font>"]
     if address := safe_get(invoice_data, 'company.address'): company_lines.append(f"<b>Address:</b> {address}")
@@ -140,23 +105,51 @@ def _generate_page_flowables(invoice_data, copy_label=""):
     if email := safe_get(invoice_data, 'company.email'): company_lines.append(f"<b>Email:</b> {email}")
     if gstin := safe_get(invoice_data, 'company.gstin'): company_lines.append(f"<b>GSTIN:</b> {gstin}")
     company_text = "<br/>".join(company_lines)
-    company_details_para = Paragraph(company_text, ParagraphStyle(name='CompanyDetailsStyle', fontName='Helvetica', fontSize=8, leading=9.5, leftIndent=2*mm))
+    company_details_para = Paragraph(company_text, ParagraphStyle(name='CompanyDetailsStyle', fontName='Helvetica', fontSize=8, leading=9.5, leftIndent=4*mm))
 
     invoice_details_data = [
-        [Paragraph('Bill Date:', style), Paragraph(safe_get(invoice_data, 'invoice.date'), style)],
-        [Paragraph('Invoice No.', style), Paragraph(safe_get(invoice_data, 'invoice.number'), style)],
-        [Paragraph('PO No.', style), Paragraph(safe_get(invoice_data, 'invoice.po_number', ''), style)]
+        [Paragraph('Bill Date:', style_invoice_details), Paragraph(safe_get(invoice_data, 'invoice.date'), style_invoice_details)],
+        [Paragraph('Invoice No.', style_invoice_details), Paragraph(safe_get(invoice_data, 'invoice.number'), style_invoice_details)],
+        [Paragraph('PO No.', style_invoice_details), Paragraph(safe_get(invoice_data, 'invoice.po_number', ''), style_invoice_details)]
     ]
-    invoice_details_table = Table(invoice_details_data, colWidths=[23*mm, 70*mm])
-    invoice_details_table.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 1, colors.black), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('LEFTPADDING', (0,0), (-1,-1), 3), ('TOPPADDING', (0,0), (-1,-1), 2)]))
-
-    right_header_block = Table([[company_details_para], [invoice_details_table]], rowHeights=[20*mm, 16.5*mm])
-    right_header_block.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('TOPPADDING', (0,0), (-1,-1), 2), ('BOTTOMPADDING', (0,0), (-1,0), 0), ('LEFTPADDING', (0,0), (-1,-1), 0), ('RIGHTPADDING', (0,0), (-1,-1), 0)]))
-    main_header_section = Table([[logo_block, right_header_block]], colWidths=[93*mm, 93*mm])
-    main_header_section.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('LEFTPADDING', (0,0), (-1,-1), 0), ('RIGHTPADDING', (0,0), (-1,-1), 0), ('LINEAFTER', (0,0), (0,0), 1, colors.black)]))
-
-    col_width_addr = (doc_width - 24*mm) / 2
     
+    invoice_details_table = Table(invoice_details_data, colWidths=[23*mm, 70*mm])
+    # FIX: Removed all internal padding to ensure the grid lines are flush
+    invoice_details_table.setStyle(TableStyle([
+        ('GRID', (0,0), (-1,-1), 1, colors.black), 
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 1.5*mm), # Add vertical padding for aesthetics
+        ('BOTTOMPADDING', (0,0), (-1,-1), 1.5*mm)
+    ]))
+
+    upper_header_table = Table([[logo_image, company_details_para]], colWidths=[93*mm, 93*mm])
+    upper_header_table.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('ALIGN', (0,0), (0,0), 'CENTER'),
+        ('LINEAFTER', (0,0), (0,0), 1, colors.black),
+        ('TOPPADDING', (0,0), (0,0), 2),
+    ]))
+
+    lower_header_table = Table([[copy_label_para, invoice_details_table]], colWidths=[93*mm, 93*mm])
+    lower_header_table.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('LINEAFTER', (0,0), (0,0), 1, colors.black),
+        # FIX: Remove all padding from the container cell to ensure a perfect fit
+        ('LEFTPADDING', (0,0), (-1,-1), 0),
+        ('RIGHTPADDING', (0,0), (-1,-1), 0),
+        ('TOPPADDING', (0,0), (-1,-1), 0),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+    ]))
+
+    main_header_section = Table([[upper_header_table], [lower_header_table]], colWidths=[186*mm])
+    main_header_section.setStyle(TableStyle([
+        ('LEFTPADDING', (0,0), (-1,-1), 0), ('RIGHTPADDING', (0,0), (-1,-1), 0),
+        ('TOPPADDING', (0,0), (-1,-1), 0), ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+        ('LINEBELOW', (0,0), (0,0), 1, colors.black)
+    ]))
+    
+    # --- Billing and Delivery Address Section ---
+    col_width_addr = (doc_width - 24*mm) / 2
     bill_to_header = Paragraph(f"<b>Bill To: {safe_get(invoice_data, 'buyer.name')}</b>", style_bold_header)
     bill_to_lines = []
     if address := safe_get(invoice_data, 'buyer.address'): bill_to_lines.append(f"<b>Address:</b> {address}")
@@ -177,6 +170,7 @@ def _generate_page_flowables(invoice_data, copy_label=""):
     address_section = Table(address_data, colWidths=[col_width_addr, col_width_addr])
     address_section.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('LINEAFTER', (0,0), (0,1), 1, colors.black), ('PADDING', (0,0), (-1,-1), 4), ('LEFTPADDING', (0,0), (0,0), 5), ('LINEBELOW', (0,0), (-1,0), 1, colors.black)]))
 
+    # --- Items Table and Footer Sections ---
     items_header = [Paragraph(h, style_table_header) for h in ['Sr. No.', 'Description', 'HSN', 'Quantity', 'Unit Price', 'Amount']]
     item_rows = []
     for i, item in enumerate(safe_get(invoice_data, 'items', []), 1):
@@ -190,23 +184,18 @@ def _generate_page_flowables(invoice_data, copy_label=""):
     items_col_widths = [col_width_srno, col_width_desc, col_width_hsn, col_width_qty, col_width_unitprice, col_width_amount]
     items_section = Table(items_data, colWidths=items_col_widths)
     items_section.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#9ac1e6')),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.black),
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#9ac1e6')), ('TEXTCOLOR', (0,0), (-1,0), colors.black),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('ALIGN', (0,1), (0,-1), 'CENTER'),
         ('ALIGN', (2,1), (4,-1), 'CENTER'), ('ALIGN', (5,1), (5,-1), 'RIGHT'),
-        ('BOX', (0,0), (-1,-1), 1, colors.black),
-        ('LINEBELOW', (0,0), (-1,0), 1, colors.black),
-        ('LINEAFTER', (0,0), (0,-1), 1, colors.black),
-        ('LINEAFTER', (1,0), (1,-1), 1, colors.black),
-        ('LINEAFTER', (2,0), (2,-1), 1, colors.black),
-        ('LINEAFTER', (3,0), (3,-1), 1, colors.black),
+        ('BOX', (0,0), (-1,-1), 1, colors.black), ('LINEBELOW', (0,0), (-1,0), 1, colors.black),
+        ('LINEAFTER', (0,0), (0,-1), 1, colors.black), ('LINEAFTER', (1,0), (1,-1), 1, colors.black),
+        ('LINEAFTER', (2,0), (2,-1), 1, colors.black), ('LINEAFTER', (3,0), (3,-1), 1, colors.black),
         ('LINEAFTER', (4,0), (4,-1), 1, colors.black),
     ]))
 
     left_footer_width = col_width_srno + col_width_desc + col_width_hsn
     amount_words_block = Table([[Paragraph("Amount in words", style)], [Paragraph(f"<b>{amount_in_words}</b>", style_amount_words)]], colWidths=[left_footer_width])
     amount_words_block.setStyle(TableStyle([('LEFTPADDING', (0,0), (-1,-1), 2*mm), ('BOTTOMPADDING', (0,0), (-1,-1), 4*mm)]))
-
     bank_lines = ["<b>Bank Details :</b>"]
     if name := safe_get(invoice_data, 'bank.name'): bank_lines.append(f"<b>Bank Name:</b> {name}")
     if account := safe_get(invoice_data, 'bank.account'): bank_lines.append(f"<b>Bank A/C No.:</b> {account}")
@@ -214,32 +203,25 @@ def _generate_page_flowables(invoice_data, copy_label=""):
     bank_lines.append(f"<b>Branch:</b> {safe_get(invoice_data, 'bank.branch', '')}")
     bank_text = "<br/>".join(bank_lines)
     bank_details_para = Paragraph(bank_text, style)
-    
     bank_details_block = Table([[bank_details_para]], colWidths=[left_footer_width], style=TableStyle([('BOX', (0,0), (-1,-1), 1, colors.black), ('PADDING', (0,0), (-1,-1), 4)]))
     left_footer_content = Table([[amount_words_block], [bank_details_block]], colWidths=[left_footer_width], rowHeights=[18*mm, 28*mm])
     left_footer_content.setStyle(TableStyle([('LEFTPADDING', (0,0), (-1,-1), 0),('RIGHTPADDING', (0,0), (-1,-1), 0),('TOPPADDING', (0,0), (-1,-1), 0),('BOTTOMPADDING', (0,0), (-1,-1), 0)]))
-
-    is_interstate = safe_get(invoice_data, 'company.state', '').lower() != safe_get(invoice_data, 'buyer.state', '').lower()
+    company_state = safe_get(invoice_data, 'company.state', '').strip().lower()
+    buyer_state = safe_get(invoice_data, 'buyer.state', '').strip().lower()
+    is_interstate = company_state != buyer_state
     igst_val, cgst_val, sgst_val = (total_gst, 0, 0) if is_interstate else (0, total_gst / 2, total_gst / 2)
-    
-    total_gst_rate = 0
-    items = safe_get(invoice_data, 'items', [])
-    if items:
-        total_gst_rate = float(items[0].get('gst_rate', 0))
-
+    total_gst_rate = 0; items = safe_get(invoice_data, 'items', [])
+    if items: total_gst_rate = float(items[0].get('gst_rate', 0))
     cgst_rate_label = sgst_rate_label = igst_rate_label = ''
     if total_gst_rate > 0:
-        if is_interstate:
-            igst_rate_label = Paragraph(f"<b>{total_gst_rate}%</b>", style)
+        if is_interstate: igst_rate_label = Paragraph(f"<b>{total_gst_rate}%</b>", style)
         else:
             half_rate = total_gst_rate / 2
             formatted_half_rate = f"{int(half_rate)}" if half_rate == int(half_rate) else f"{half_rate}"
             cgst_rate_label = Paragraph(f"<b>{formatted_half_rate}%</b>", style)
             sgst_rate_label = Paragraph(f"<b>{formatted_half_rate}%</b>", style)
-
     right_footer_width = col_width_qty + col_width_unitprice + col_width_amount + 2.1*mm
     totals_col_widths = [22*mm, 24*mm, 25*mm]
-    
     totals_data = [
         ['', Paragraph('Sub Total', style), Paragraph(f"{sub_total:,.2f}", style)],
         [cgst_rate_label, Paragraph('CGST', style), Paragraph(f"{cgst_val:,.2f}", style)],
@@ -248,41 +230,24 @@ def _generate_page_flowables(invoice_data, copy_label=""):
         ['', Paragraph('Total', style_total_label), Paragraph(f"{grand_total:,.2f}", style_total_value)]
     ]
     totals_table = Table(totals_data, colWidths=totals_col_widths, rowHeights=[5.1*mm]*5)
-    totals_table.setStyle(TableStyle([
-        ('GRID', (0,0), (-1,-1), 1, colors.black), ('ALIGN', (0,0), (-1,-1), 'RIGHT'),
-        ('ALIGN', (1,0), (1,-1), 'LEFT'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('BACKGROUND', (0,0), (-1,-2), colors.HexColor('#D9E1F2')),
-        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor('#9ac1e6')), 
-        ('TEXTCOLOR', (0,-1), (-1,-1), colors.black)
-    ]))
-    
-    signature_image = get_image_from_url(safe_get(invoice_data, 'buyer.signature_path'), width=35*mm, height=12*mm)
+    totals_table.setStyle(TableStyle([('GRID', (0,0), (-1,-1), 1, colors.black), ('ALIGN', (0,0), (-1,-1), 'RIGHT'), ('ALIGN', (1,0), (1,-1), 'LEFT'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE'), ('BACKGROUND', (0,0), (-1,-2), colors.HexColor('#D9E1F2')), ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor('#9ac1e6')), ('TEXTCOLOR', (0,-1), (-1,-1), colors.black)]))
+    signature_image = get_image_from_url(safe_get(invoice_data, 'company.sign_url'), width=35*mm, height=12*mm)
     signature_block = Table([[signature_image], [Paragraph(f"For {safe_get(invoice_data, 'company.name')}", style_centered)]], rowHeights=[14*mm, 6*mm])
     signature_block.setStyle(TableStyle([('ALIGN', (0,0), (-1,-1), 'CENTER')]))
     right_footer_content = Table([[totals_table], [Spacer(1, 2*mm)], [signature_block]], rowHeights=[26.6*mm, 1.5*mm, 20*mm])
     right_footer_content.setStyle(TableStyle([('ALIGN', (0,0), (-1,-1), 'RIGHT')]))
-    
     footer_section = Table([[left_footer_content, right_footer_content]], colWidths=[left_footer_width, right_footer_width])
-    footer_section.setStyle(TableStyle([
-        ('VALIGN', (0,0), (-1,-1), 'BOTTOM'), ('LEFTPADDING', (0,0), (-1,-1), 0), 
-        ('RIGHTPADDING', (0,0), (-1,-1), 0), ('TOPPADDING', (0,0), (-1,-1), 0), 
-        ('BOTTOMPADDING', (0,0), (-1,-1), 0),
-    ]))
+    footer_section.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'BOTTOM'), ('LEFTPADDING', (0,0), (-1,-1), 0), ('RIGHTPADDING', (0,0), (-1,-1), 0), ('TOPPADDING', (0,0), (-1,-1), 0), ('BOTTOMPADDING', (0,0), (-1,-1), 0)]))
     
+    # --- Final Assembly ---
     master_table_data = [
-        [tax_invoice_bar], 
-        [main_header_section], 
-        [address_section], 
-        [items_section], 
-        [footer_section]
+        [tax_invoice_bar], [main_header_section], [address_section], [items_section], [footer_section]
     ]
     master_table = Table(master_table_data, colWidths=[doc_width - 24*mm])
     master_table.setStyle(TableStyle([
-        ('BOX', (0,0), (-1,-1), 1, colors.black), ('LEFTPADDING', (0,0), (-1,-1), 0), 
-        ('RIGHTPADDING', (0,0), (-1,-1), 0), ('TOPPADDING', (0,0), (-1,-1), 0), 
-        ('BOTTOMPADDING', (0,0), (-1,-1), 0), ('LINEBELOW', (0,1), (0,1), 1, colors.black), 
-        ('LINEBELOW', (0,2), (0,2), 1, colors.black), 
-        ('LINEABOVE', (0,4), (-1,4), 1, colors.black)
+        ('BOX', (0,0), (-1,-1), 1, colors.black), ('LEFTPADDING', (0,0), (-1,-1), 0), ('RIGHTPADDING', (0,0), (-1,-1), 0), 
+        ('TOPPADDING', (0,0), (-1,-1), 0), ('BOTTOMPADDING', (0,0), (-1,-1), 0), ('LINEBELOW', (0,1), (0,1), 1, colors.black), 
+        ('LINEBELOW', (0,2), (0,2), 1, colors.black), ('LINEABOVE', (0,4), (-1,4), 1, colors.black)
     ]))
     
     return [master_table]
@@ -292,7 +257,6 @@ def _generate_page_flowables(invoice_data, copy_label=""):
 # ==============================================================================
 def create_dynamic_invoice(invoice_data, filename="invoice_dynamic.pdf"):
     doc = SimpleDocTemplate(filename, pagesize=A4, leftMargin=12*mm, rightMargin=12*mm, topMargin=10*mm, bottomMargin=10*mm)
-    
     master_story = []
     copy_labels = []
 
@@ -304,13 +268,10 @@ def create_dynamic_invoice(invoice_data, filename="invoice_dynamic.pdf"):
     for i, label in enumerate(copy_labels):
         page_flowables = _generate_page_flowables(invoice_data, copy_label=label)
         master_story.extend(page_flowables)
-        
         if i < len(copy_labels) - 1:
             master_story.append(PageBreak())
-
-    # --- MODIFIED ---
+            
     doc.build(master_story, onFirstPage=add_footer_with_link, onLaterPages=add_footer_with_link)
-    
     print(f"✅ Successfully created dynamic invoice: {filename}")
     return filename
 
@@ -320,16 +281,21 @@ def create_dynamic_invoice(invoice_data, filename="invoice_dynamic.pdf"):
 if __name__ == '__main__':
     payload = {
         "invoice": { "title": "Tax Invoice", "number": "CEW/24-25/797", "date": "22-01-2025", "po_number": "PO2024-00101001"},
-        "company": { "name": "Chaurasiya Engineering Works", "address": "Parmar Industrial Estate, Vasai - (E), Palghar - 401208.", "state": "Maharashtra", "contact": "+91 99308 62568", "email": "ceworks79@gmail.com", "gstin": "27AGCPC6212E1Z1"},
-        "buyer": { "name": "Dhongadi Engineering", "address": "2/1, 1st Floor, R.E. Nagar, 5th Street Kundrathur Main Road, Near EB Office, Porur, Chennai - 600116, India.", "state": "Tamil Nadu", "phone_no": "+91 98849 79422", "email": "suresh@dhongadiengineering.com", "gstin": "33AIOEPD9487Q1Z8"},
+        "company": { 
+            "name": "Chaurasiya Engineering Works", 
+            "address": "Parmar Industrial Estate, Vasai - (E), Palghar - 401208. A very long second line in the company address to demonstrate the dynamic height adjustment.", 
+            "state": "Maharashtra", 
+            "contact": "+91 99308 62568", "email": "ceworks79@gmail.com", "gstin": "27AGCPC6212E1Z1",
+            "sign_url": "https://i.ibb.co/7N8bS2Z/signature-image.png"
+        },
+        "buyer": { "name": "Dhongadi Engineering", "address": "2/1, 1st Floor, R.E. Nagar, Chennai.", "state": "Tamil Nadu", "phone_no": "+91 98849 79422", "email": "suresh@dhongadiengineering.com", "gstin": "33AIOEPD9487Q1Z8"},
         "items": [
             {"name": "SS BOX WITH SNAP LOCK<br/>MATERIAL GRADE: SS304", "hsn": "7326", "quantity": 5, "rate": 3600, "gst_rate": 18},
-            {"name": "Cross Bench gap filler sheet", "hsn": "7326", "quantity": 8, "rate": 1200, "gst_rate": 18},
         ],
         "bank": { "name": "SVC Cooperative Bank Limited", "account": "101704180001638", "branch_ifsc": "SVCB0000017", "branch": "Mahakali Caves Road"},
         "generate_copies": False
     }
-    create_dynamic_invoice(payload, filename="final_styled_invoice.pdf")
+    create_dynamic_invoice(payload, filename="final_invoice_final_fix.pdf")
 
     
 from reportlab.lib.pagesizes import A4
