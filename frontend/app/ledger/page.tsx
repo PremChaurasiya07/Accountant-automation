@@ -387,25 +387,62 @@ const GeneralLedgerPage: React.FC = () => {
         return () => window.removeEventListener('resize', checkScreenSize);
     }, []);
 
-    useEffect(() => {
-        const fetchEntries = async () => {
-            if (!userId) return;
-            setLoading(true);
-            // Fetching logic remains the same
-            const { data: manualEntries } = await supabase.from('ledger_entries').select(`*`).eq('user_id', userId);
-            const formattedManualEntries = (manualEntries || []).map((entry: any) => ({ ...entry, id: `man-${entry.id}`, date: entry.created_at }));
-            setAllEntries([...formattedManualEntries].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-            setLoading(false);
-        };
-        fetchEntries();
-    }, [userId, dateRange]);
+useEffect(() => {
+    const fetchEntries = async () => {
+      if (!userId) return;
+      setLoading(true);
 
-    const filteredEntries = useMemo(() => allEntries.filter(entry =>
-        (filterType === 'all' || entry.type === filterType) &&
-        (searchTerm.trim() === '' ||
-          entry.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          entry.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())))
-    ), [allEntries, searchTerm, filterType]);
+      let invoiceQuery = supabase
+        .from('invoices_record')
+        .select(`id, number, date, buyers_record(name), items_record(rate, quantity, gst_rate)`)
+        .eq('user_id', userId);
+      
+      if (dateRange?.from) invoiceQuery = invoiceQuery.gte('date', dateRange.from.toISOString());
+      if (dateRange?.to) invoiceQuery = invoiceQuery.lte('date', dateRange.to.toISOString());
+
+      const { data: invoiceData, error: invoiceError } = await invoiceQuery;
+      if (invoiceError) console.error('Error fetching invoice debits:', invoiceError);
+
+      const invoiceEntries: LedgerEntryItem[] = (invoiceData || []).map((invoice: any) => {
+        const totalAmount = (invoice.items_record || []).reduce((sum: number, item: any) => {
+            const rate = Number(item.rate) || 0;
+            const quantity = Number(item.quantity) || 0;
+            const gst_rate = Number(item.gst_rate) || 0;
+            const taxableAmount = rate * quantity;
+            return sum + taxableAmount * (1 + (gst_rate / 100));
+        }, 0);
+        return { 
+            id: `inv-${invoice.id}`, 
+            type: 'debit', 
+            amount: totalAmount, 
+            description: `#${invoice.number}`, 
+            tags: [invoice.buyers_record?.name || 'Unknown Buyer'], 
+            date: invoice.date 
+        };
+      });
+
+      let manualQuery = supabase.from('ledger_entries').select(`id, type, amount, description, tags, created_at`).eq('user_id', userId);
+      if (dateRange?.from) manualQuery = manualQuery.gte('created_at', dateRange.from.toISOString());
+      if (dateRange?.to) manualQuery = manualQuery.lte('created_at', dateRange.to.toISOString());
+
+      const { data: manualEntries, error: manualError } = await manualQuery;
+      if (manualError) console.error('Error fetching manual entries:', manualError);
+      const formattedManualEntries: LedgerEntryItem[] = (manualEntries || []).map((entry: any) => ({ ...entry, id: `man-${entry.id}`, date: entry.created_at }));
+
+      setAllEntries([...invoiceEntries, ...formattedManualEntries].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      setLoading(false);
+    };
+    fetchEntries();
+  }, [userId, dateRange]);
+
+  // --- Memoized Filtering and Calculations (Unchanged) ---
+  const filteredEntries = useMemo(() => allEntries.filter(entry => 
+    (filterType === 'all' || entry.type === filterType) &&
+    (searchTerm.trim() === '' || 
+      entry.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      entry.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())))
+  ), [allEntries, searchTerm, filterType]);
+
 
     const { totalDebit, totalCredit, netBalance } = useMemo(() => {
         return filteredEntries.reduce((acc, entry) => {
