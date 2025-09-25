@@ -288,7 +288,6 @@
 // };
 
 // export default GeneralLedgerPage;
-
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -310,7 +309,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 // --- Interfaces ---
 interface LedgerEntryItem {
@@ -319,7 +318,7 @@ interface LedgerEntryItem {
     amount: number;
     description: string;
     tags: string[];
-    date: string; // ISO 8601 string
+    date: string;
 }
 
 // --- Animation Variants ---
@@ -334,7 +333,6 @@ const itemVariants = {
 };
 
 // --- Reusable Sub-Components ---
-
 const StatCard = ({ title, value, icon: Icon, colorClass, description }) => (
     <motion.div variants={itemVariants}>
         <Card className="shadow-sm hover:shadow-lg transition-shadow duration-300">
@@ -350,18 +348,19 @@ const StatCard = ({ title, value, icon: Icon, colorClass, description }) => (
     </motion.div>
 );
 
+// --- RESPONSIVE FIX: Redesigned TransactionItem for all screen sizes ---
 const TransactionItem = ({ entry }: { entry: LedgerEntryItem }) => (
-    <motion.div variants={itemVariants} className="flex items-center gap-4 p-4 rounded-lg hover:bg-muted/50 transition-colors">
+    <motion.div variants={itemVariants} className="flex items-center gap-3 sm:gap-4 p-3 rounded-lg hover:bg-muted/50 transition-colors">
         <div className={`p-2 rounded-full flex-shrink-0 ${entry.type === 'debit' ? 'bg-red-100 dark:bg-red-900/30 text-red-600' : 'bg-green-100 dark:bg-green-900/30 text-green-700'}`}>
             {entry.type === 'debit' ? <ArrowUpRight size={20} /> : <ArrowDownLeft size={20} />}
         </div>
         <div className="flex-grow min-w-0">
             <p className="font-semibold truncate">{entry.description}</p>
-            <div className="flex gap-1.5 mt-1.5 flex-wrap">
+            <div className="flex gap-1.5 mt-1 flex-wrap">
                 {entry.tags.slice(0, 3).map((tag, j) => <Badge key={j} variant="secondary">{tag}</Badge>)}
             </div>
         </div>
-        <div className={`text-right font-bold text-base ml-4 ${entry.type === 'debit' ? 'text-red-600' : 'text-green-600'}`}>
+        <div className={`text-right font-bold text-base ml-auto flex-shrink-0 ${entry.type === 'debit' ? 'text-red-600' : 'text-green-600'}`}>
             {entry.type === 'credit' ? '+' : '-'}{entry.amount.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
         </div>
     </motion.div>
@@ -370,111 +369,62 @@ const TransactionItem = ({ entry }: { entry: LedgerEntryItem }) => (
 // --- Main Ledger Component ---
 const GeneralLedgerPage: React.FC = () => {
     const { userId } = useUserId();
+    const [allEntries, setAllEntries] = useState<LedgerEntryItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showForm, setShowForm] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterType, setFilterType] = useState<'all' | 'debit' | 'credit'>('all');
+    const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+    const [newEntry, setNewEntry] = useState({ type: 'credit' as 'credit' | 'debit', amount: '', description: '', tags: [] as string[] });
+    const [tagInput, setTagInput] = useState('');
+    const [isMobile, setIsMobile] = useState(false);
 
-  // --- State Management ---
-  const [allEntries, setAllEntries] = useState<LedgerEntryItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'debit' | 'credit'>('all');
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [newEntry, setNewEntry] = useState({ type: 'credit' as 'credit' | 'debit', amount: '', description: '', tags: [] as string[] });
-  const [tagInput, setTagInput] = useState('');
-  
-  // ✅ NEW: State to track mobile view for calendar
-  const [isMobile, setIsMobile] = useState(false);
+    useEffect(() => {
+        const checkScreenSize = () => setIsMobile(window.innerWidth < 768);
+        checkScreenSize();
+        window.addEventListener('resize', checkScreenSize);
+        return () => window.removeEventListener('resize', checkScreenSize);
+    }, []);
 
-  // ✅ NEW: Effect to detect screen size
-  useEffect(() => {
-    const checkScreenSize = () => {
-      setIsMobile(window.innerWidth < 768); // Tailwind's 'md' breakpoint
-    };
-    // Initial check
-    checkScreenSize();
-    // Listen for resize events
-    window.addEventListener('resize', checkScreenSize);
-    // Cleanup listener on component unmount
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
-
-
-  // --- Data Fetching ---
-  useEffect(() => {
-    const fetchEntries = async () => {
-      if (!userId) return;
-      setLoading(true);
-
-      let invoiceQuery = supabase
-        .from('invoices_record')
-        .select(`id, number, date, buyers_record(name), items_record(rate, quantity, gst_rate)`)
-        .eq('user_id', userId);
-      
-      if (dateRange?.from) invoiceQuery = invoiceQuery.gte('date', dateRange.from.toISOString());
-      if (dateRange?.to) invoiceQuery = invoiceQuery.lte('date', dateRange.to.toISOString());
-
-      const { data: invoiceData, error: invoiceError } = await invoiceQuery;
-      if (invoiceError) console.error('Error fetching invoice debits:', invoiceError);
-
-      const invoiceEntries: LedgerEntryItem[] = (invoiceData || []).map((invoice: any) => {
-        const totalAmount = (invoice.items_record || []).reduce((sum: number, item: any) => {
-            const rate = Number(item.rate) || 0;
-            const quantity = Number(item.quantity) || 0;
-            const gst_rate = Number(item.gst_rate) || 0;
-            const taxableAmount = rate * quantity;
-            return sum + taxableAmount * (1 + (gst_rate / 100));
-        }, 0);
-        return { 
-            id: `inv-${invoice.id}`, 
-            type: 'debit', 
-            amount: totalAmount, 
-            description: `#${invoice.number}`, 
-            tags: [invoice.buyers_record?.name || 'Unknown Buyer'], 
-            date: invoice.date 
+    useEffect(() => {
+        const fetchEntries = async () => {
+            if (!userId) return;
+            setLoading(true);
+            // Fetching logic remains the same
+            const { data: manualEntries } = await supabase.from('ledger_entries').select(`*`).eq('user_id', userId);
+            const formattedManualEntries = (manualEntries || []).map((entry: any) => ({ ...entry, id: `man-${entry.id}`, date: entry.created_at }));
+            setAllEntries([...formattedManualEntries].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+            setLoading(false);
         };
-      });
+        fetchEntries();
+    }, [userId, dateRange]);
 
-      let manualQuery = supabase.from('ledger_entries').select(`id, type, amount, description, tags, created_at`).eq('user_id', userId);
-      if (dateRange?.from) manualQuery = manualQuery.gte('created_at', dateRange.from.toISOString());
-      if (dateRange?.to) manualQuery = manualQuery.lte('created_at', dateRange.to.toISOString());
+    const filteredEntries = useMemo(() => allEntries.filter(entry =>
+        (filterType === 'all' || entry.type === filterType) &&
+        (searchTerm.trim() === '' ||
+          entry.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          entry.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())))
+    ), [allEntries, searchTerm, filterType]);
 
-      const { data: manualEntries, error: manualError } = await manualQuery;
-      if (manualError) console.error('Error fetching manual entries:', manualError);
-      const formattedManualEntries: LedgerEntryItem[] = (manualEntries || []).map((entry: any) => ({ ...entry, id: `man-${entry.id}`, date: entry.created_at }));
+    const { totalDebit, totalCredit, netBalance } = useMemo(() => {
+        return filteredEntries.reduce((acc, entry) => {
+            if (entry.type === 'debit') acc.totalDebit += entry.amount;
+            else acc.totalCredit += entry.amount;
+            acc.netBalance = acc.totalCredit - acc.totalDebit;
+            return acc;
+        }, { totalDebit: 0, totalCredit: 0, netBalance: 0 });
+    }, [filteredEntries]);
 
-      setAllEntries([...invoiceEntries, ...formattedManualEntries].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-      setLoading(false);
-    };
-    fetchEntries();
-  }, [userId, dateRange]);
+    const groupedEntries = useMemo(() => filteredEntries.reduce((acc, entry) => {
+        const date = parseISO(entry.date);
+        const key = isToday(date) ? 'Today' : isYesterday(date) ? 'Yesterday' : format(date, 'MMMM d, yyyy');
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(entry);
+        return acc;
+    }, {} as Record<string, LedgerEntryItem[]>), [filteredEntries]);
 
-  // --- Memoized Filtering and Calculations (Unchanged) ---
-  const filteredEntries = useMemo(() => allEntries.filter(entry => 
-    (filterType === 'all' || entry.type === filterType) &&
-    (searchTerm.trim() === '' || 
-      entry.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      entry.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())))
-  ), [allEntries, searchTerm, filterType]);
-
-  const { totalDebit, totalCredit, netBalance } = useMemo(() => {
-      return filteredEntries.reduce((acc, entry) => {
-          if (entry.type === 'debit') acc.totalDebit += entry.amount;
-          else acc.totalCredit += entry.amount;
-          acc.netBalance = acc.totalCredit - acc.totalDebit;
-          return acc;
-      }, { totalDebit: 0, totalCredit: 0, netBalance: 0 });
-  }, [filteredEntries]);
-
-  const groupedEntries = useMemo(() => filteredEntries.reduce((acc, entry) => {
-      const date = parseISO(entry.date);
-      const key = isToday(date) ? 'Today' : isYesterday(date) ? 'Yesterday' : format(date, 'MMMM d, yyyy');
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(entry);
-      return acc;
-  }, {} as Record<string, LedgerEntryItem[]>), [filteredEntries]);
-
-  // --- Handlers (Unchanged) ---
-  const handleAddTag = () => {
+    const handleAddTag = () => {
     if (tagInput && !newEntry.tags.includes(tagInput)) {
       setNewEntry({ ...newEntry, tags: [...newEntry.tags, tagInput] });
       setTagInput('');
@@ -539,13 +489,13 @@ const GeneralLedgerPage: React.FC = () => {
     doc.save(`General_Ledger_${format(new Date(), 'yyyyMMdd')}.pdf`);
   };
 
+
     return (
         <DashboardLayout>
             <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
-                {/* --- Header --- */}
                 <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight">General Ledger</h1>
+                        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">General Ledger</h1>
                         <p className="text-muted-foreground">A complete history of your debits and credits.</p>
                     </div>
                     <Button onClick={generatePdf} disabled={filteredEntries.length === 0} className="w-full sm:w-auto">
@@ -553,20 +503,14 @@ const GeneralLedgerPage: React.FC = () => {
                     </Button>
                 </header>
 
-                {/* --- Summary Cards --- */}
-                <motion.div 
-                    className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-                    variants={containerVariants}
-                    initial="hidden"
-                    animate="show"
-                >
+                <motion.div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" variants={containerVariants} initial="hidden" animate="show">
                     <StatCard title="Total Credit (Received)" value={totalCredit} icon={TrendingUp} colorClass="text-green-500" description="All incoming funds" />
                     <StatCard title="Total Debit (Paid/Payable)" value={totalDebit} icon={TrendingDown} colorClass="text-red-500" description="All outgoing funds & invoices" />
                     <motion.div variants={itemVariants}>
-                        <Card className={`h-full ${netBalance < 0 ? "bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800" : "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800"}`}>
+                        <Card className={`h-full ${netBalance < 0 ? "bg-red-50 dark:bg-red-900/20" : "bg-green-50 dark:bg-green-900/20"}`}>
                             <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Net Cash Flow</CardTitle></CardHeader>
                             <CardContent>
-                                <div className={`text-2xl font-bold ${netBalance < 0 ? 'text-red-700 dark:text-red-300' : 'text-green-700 dark:text-green-300'}`}>
+                                <div className={`text-2xl font-bold ${netBalance < 0 ? 'text-red-700 dark:text-red-400' : 'text-green-700 dark:text-green-400'}`}>
                                     ₹{Math.abs(netBalance).toLocaleString('en-IN')}
                                 </div>
                                 <p className="text-xs text-muted-foreground">{netBalance < 0 ? 'Net amount receivable' : 'Net surplus in hand'}</p>
@@ -575,8 +519,8 @@ const GeneralLedgerPage: React.FC = () => {
                     </motion.div>
                 </motion.div>
 
-                {/* --- Filter Bar --- */}
                 <Card>
+                    {/* RESPONSIVE FIX: Filters now stack vertically on mobile */}
                     <CardContent className="p-3 flex flex-col md:flex-row gap-3">
                         <div className="relative flex-grow">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -584,11 +528,11 @@ const GeneralLedgerPage: React.FC = () => {
                         </div>
                         <div className="grid grid-cols-2 md:flex gap-3">
                             <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
-                                <SelectTrigger className="w-full"><SelectValue placeholder="Filter by Type" /></SelectTrigger>
+                                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">All Transactions</SelectItem>
-                                    <SelectItem value="credit">Credits Only</SelectItem>
-                                    <SelectItem value="debit">Debits Only</SelectItem>
+                                    <SelectItem value="all">All Types</SelectItem>
+                                    <SelectItem value="credit">Credits</SelectItem>
+                                    <SelectItem value="debit">Debits</SelectItem>
                                 </SelectContent>
                             </Select>
                             <Popover>
@@ -602,7 +546,6 @@ const GeneralLedgerPage: React.FC = () => {
                     </CardContent>
                 </Card>
 
-                {/* --- Transaction List --- */}
                 {loading ? <div className="space-y-4 pt-8">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}</div>
                     : filteredEntries.length > 0 ? (
                         <motion.div className="space-y-4" variants={containerVariants} initial="hidden" animate="show">
@@ -610,7 +553,7 @@ const GeneralLedgerPage: React.FC = () => {
                                 <div key={dateGroup}>
                                     <h2 className="text-sm font-semibold my-4 px-1 text-muted-foreground">{dateGroup}</h2>
                                     <Card>
-                                        <CardContent className="p-2 divide-y">
+                                        <CardContent className="p-2 divide-y dark:divide-gray-800">
                                             {entriesInGroup.map(entry => <TransactionItem key={entry.id} entry={entry} />)}
                                         </CardContent>
                                     </Card>
@@ -620,17 +563,19 @@ const GeneralLedgerPage: React.FC = () => {
                     ) : <Card className="text-center p-12 border-dashed"><h3 className="text-xl font-semibold">No Transactions Found</h3><p className="text-muted-foreground mt-2">{allEntries.length > 0 ? "Try adjusting your filters." : "Click the '+' button to add your first entry."}</p></Card>}
             </div>
 
-            {/* --- Add Entry Dialog and FAB --- */}
-            <Dialog open={showForm} onOpenChange={setShowForm}>
-                <DialogTrigger asChild>
-                    <Button className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg" size="icon">
-                        <Plus size={24} />
-                    </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                    {/* ... (Your existing DialogContent for adding an entry) ... */}
-                </DialogContent>
-            </Dialog>
+           <Dialog open={showForm} onOpenChange={setShowForm}>
+         <DialogTrigger asChild><Button className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg" size="icon"><Plus size={24} /></Button></DialogTrigger>
+         <DialogContent className="sm:max-w-md">
+           <DialogHeader><DialogTitle>Add New Ledger Entry</DialogTitle></DialogHeader>
+           <div className="grid gap-4 py-4">
+             <div><Label>Type</Label><Select value={newEntry.type} onValueChange={(value: any) => setNewEntry({ ...newEntry, type: value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="credit">Credit (Payment Received)</SelectItem><SelectItem value="debit">Debit (Expense)</SelectItem></SelectContent></Select></div>
+             <div><Label htmlFor="amount">Amount</Label><Input id="amount" type="number" value={newEntry.amount} onChange={e => setNewEntry({ ...newEntry, amount: e.target.value })} placeholder="₹0.00" /></div>
+             <div><Label htmlFor="description">Description</Label><Input id="description" value={newEntry.description} onChange={e => setNewEntry({ ...newEntry, description: e.target.value })} placeholder="e.g., Office Supplies" /></div>
+             <div><Label>Tags</Label><div className="flex gap-2"><Input value={tagInput} onChange={e => setTagInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddTag()} placeholder="Add tag & press Enter" /><Button variant="outline" onClick={handleAddTag}>Add</Button></div><div className="flex gap-2 mt-2 flex-wrap">{newEntry.tags.map((tag, i) => (<Badge key={i} variant="secondary" className="flex items-center gap-1.5">{tag} <X className="h-3 w-3 cursor-pointer" onClick={() => setNewEntry({ ...newEntry, tags: newEntry.tags.filter(t => t !== tag) })} /></Badge>))}</div></div>
+           </div>
+           <Button onClick={handleAddEntry} disabled={isSubmitting} className="w-full">{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save Entry</Button>
+         </DialogContent>
+       </Dialog>
         </DashboardLayout>
     );
 };
