@@ -796,6 +796,7 @@ export default function VyapariLandingPage() {
             <div className="hidden md:flex items-center gap-2">
                 <Button onClick={() => router.push('/login')} variant="ghost" className="text-gray-300 hover:text-white">Log In</Button>
                 
+            </div>
             <div className="md:hidden">
                 <Button onClick={() => setIsMenuOpen(!isMenuOpen)} variant="ghost" size="icon">{isMenuOpen ? <X/> : <Menu />}</Button>
             </div>
