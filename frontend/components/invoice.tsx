@@ -18,6 +18,7 @@ import { useToast } from "../hooks/use-toast";
 import { indianStates } from "@/lib/indianStates";
 import { FileText, User, Building, Banknote, Trash2, PlusCircle, Save, Bell, Send, Copy, Settings, Phone, Mail, Palette, Stamp } from 'lucide-react';
 import Image from "next/image";
+import { logEvent } from '@/lib/gtag';
 
 // --- TYPE DEFINITIONS (UPDATED) ---
 interface Item {
@@ -360,6 +361,12 @@ const validateForm = () => {
             const response = await res.json();
             if (!res.ok) throw new Error(response.detail || "Failed to create invoice.");
             toast({ title: "Invoice Created ✅", description: "Invoice PDF has been generated successfully." });
+                logEvent('create_invoice', {
+                category: 'engagement',
+                label: 'User created a new invoice',
+                value: 1 // You can assign a numeric value to events if you wish
+            });
+            
             if (response.url) window.open(response.url, '_blank');
             if (seller) await incremented_invoice_no(seller.id);
         } catch (e: any) {

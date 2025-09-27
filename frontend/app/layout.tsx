@@ -1,49 +1,64 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import Script from "next/script"; // 1. Import the Script component
 import "./globals.css";
 import RootClient from './root-client';
 
 const inter = Inter({ subsets: ["latin"] });
 
-// Metadata is now synchronized with your manifest.json
+// Metadata remains the same
 export const metadata: Metadata = {
-  // Title now matches the 'name' property from your manifest
   title: {
-    default: "Vyapari AI", // Changed from "Vyapari"
-    template: "%s | Vyapari AI", // Updated template for consistency
+    default: "Vyapari AI",
+    template: "%s | Vyapari AI",
   },
-  
-  // Description now matches the 'description' from your manifest
   description: "Business tool at your hand",
-  
-  // This correctly points to your manifest file
   manifest: "/manifest.json",
-  
-  // Icons for the HTML <head> can remain as they are
   icons: {
     icon: "/favicon.ico",
     shortcut: "/favicon.svg",
     apple: "/apple-touch-icon.png",
   },
-
-  // Apple-specific settings. The title here correctly uses your 'short_name'
   appleWebApp: {
     title: "Vyapari",
-    capable: true, 
+    capable: true,
     statusBarStyle: "black-translucent",
   },
 };
 
-// Viewport now matches the 'theme_color' from your manifest.json
+// Viewport remains the same
 export const viewport: Viewport = {
-  themeColor: "#3b82f6", // Changed from "#2563eb"
+  themeColor: "#3b82f6",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // 2. Define your Google Analytics Measurement ID
+  const GA_MEASUREMENT_ID = process.env.GA_MEASUREMENT_ID;
+
   return (
     <html lang="en" suppressHydrationWarning>
-      {/* The <head> is automatically managed by Next.js using the metadata above */}
       <body className={inter.className}>
+        {/* 3. Add the Google Analytics scripts before your main content */}
+        <Script
+          strategy="afterInteractive"
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+        />
+        <Script
+          id="google-analytics"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', '${GA_MEASUREMENT_ID}', {
+                page_path: window.location.pathname,
+              });
+            `,
+          }}
+        />
+        
+        {/* Your app's client wrapper and children */}
         <RootClient>{children}</RootClient>
       </body>
     </html>

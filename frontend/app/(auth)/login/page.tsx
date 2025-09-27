@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { handleEmailAuth, startGoogleOAuth } from "../../../utils/auth";
+import { logEvent } from '@/lib/gtag';
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -41,6 +42,9 @@ export default function LoginPage() {
   };
 
   const handleGoogleLogin = () => {
+    logEvent('sign_up', {
+      method: 'Google',
+    });
     startGoogleOAuth();
   };
 
