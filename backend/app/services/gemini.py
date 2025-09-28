@@ -304,7 +304,7 @@ User query: "{data}"
     )
 
     model = genai.GenerativeModel(
-        "gemini-1.0-pro",
+        "gemini-2.0-flash",
         generation_config={"response_mime_type": "application/json"} # Use JSON mode
     )
 

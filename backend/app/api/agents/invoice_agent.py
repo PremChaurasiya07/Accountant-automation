@@ -256,7 +256,7 @@ async def get_vyapari_agent_executor(user_id: str):
 
     logging.info(f"✅ Creating new agent session for user: {user_id}")
     
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=gemini_key_manager.get_initial_key(), temperature=0.0)
+    llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", google_api_key=gemini_key_manager.get_initial_key(), temperature=0.0)
     
     memory = ConversationBufferWindowMemory(
         k=10, memory_key="chat_history", input_key="input", output_key="output", return_messages=True

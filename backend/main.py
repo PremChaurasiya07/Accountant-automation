@@ -104,7 +104,7 @@ genai.configure(api_key=os.environ["GEMINI_API_KEY_1"])
 async def gemini(prompt: str) -> str:
     try:
         print("🔥 Sending prompt to Gemini...")
-        model = genai.GenerativeModel("gemini-1.0-pro")
+        model = genai.GenerativeModel("gemini-2.0-flash")
 
         # Run blocking Gemini code in async context
         loop = asyncio.get_event_loop()
