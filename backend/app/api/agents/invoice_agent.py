@@ -278,6 +278,10 @@ async def get_vyapari_agent_executor(user_id: str):
         "load_invoice_for_editing": load_invoice_for_edit,
         "create_invoice": create_invoice,
         "update_invoice": update_invoice,
+        "get_buyer_purchase_history": get_buyer_purchase_history,
+        "log_business_expense": log_business_expense,
+        "get_profit_and_loss_summary": get_profit_and_loss_summary,
+        "schedule_payment_reminder": schedule_payment_reminder,
     }
 
     tools = []

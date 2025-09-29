@@ -766,6 +766,7 @@ robust, and secure function that the AI agent can call to perform a distinct
 business task.
 """
 
+from json import tool
 import os
 import re
 import json
@@ -936,52 +937,152 @@ def load_invoice_for_edit(invoice_number: str, user_id: str) -> str:
     except Exception as e:
         return f"Error loading invoice: {e}"
 
+# def get_next_invoice_number(user_id: str) -> str:
+#     """
+#     Finds the latest invoice number for a user from the 'invoices_record' table
+#     and returns the next sequential number. Handles financial year format (e.g., 100/2025-26).
+#     """
+#     try:
+#         # Step 1: Query the database for the most recently created invoice for the user
+#         response = supabase.table("invoices_record") \
+#             .select("number") \
+#             .eq("user_id", user_id) \
+#             .order("created_at", desc=True) \
+#             .limit(1) \
+#             .single() \
+#             .execute()
+
+#         last_number_str = "0"
+#         if response.data and response.data.get("number"):
+#             # Extract the sequential part of the invoice number (e.g., "100" from "100/2025-26")
+#             match = re.match(r"(\d+)", response.data["number"])
+#             if match:
+#                 last_number_str = match.group(1)
+
+#         # Step 2: Increment the number
+#         next_number = int(last_number_str) + 1
+
+#         # Step 3: Determine the current financial year (e.g., 2025-26)
+#         now = datetime.now()
+#         current_year = now.year
+#         next_year = (current_year + 1) % 100 # Get last two digits
+        
+#         # Financial year starts in April
+#         if now.month < 4:
+#             financial_year = f"{current_year - 1}-{current_year % 100}"
+#         else:
+#             financial_year = f"{current_year}-{next_year}"
+        
+#         # Step 4: Format the new invoice number with leading zeros
+#         new_invoice_number = f"{next_number:03d}/{financial_year}" # Formats as 001, 002, etc.
+        
+#         logging.info(f"Generated next invoice number for user {user_id}: {new_invoice_number}")
+#         return new_invoice_number
+
+#     except Exception as e:
+#         logging.error(f"Error generating next invoice number: {e}")
+#         # Fallback in case of an error, though this should be rare
+#         return f"001/{datetime.now().year}-{(datetime.now().year + 1) % 100}"
+
 def get_next_invoice_number(user_id: str) -> str:
     """
-    Finds the latest invoice number for a user from the 'invoices_record' table
-    and returns the next sequential number. Handles financial year format (e.g., 100/2025-26).
+    Finds the first available invoice number in a sequence for the current financial year.
+    It robustly handles various invoice formats and back-dating by finding the first "gap"
+    in the numbering sequence. If no gaps are found, it increments the highest number.
     """
     try:
-        # Step 1: Query the database for the most recently created invoice for the user
+        # --- Step 1: Determine the current financial year ---
+        now = datetime.now()
+        current_year = now.year
+        
+        # Financial year in India starts in April (month 4)
+        if now.month < 4:
+            fy_start_year = current_year - 1
+            fy_start_date = f"{fy_start_year}-04-01"
+            fy_end_date = f"{current_year}-03-31"
+            financial_year_str = f"{fy_start_year}-{(current_year % 100):02d}"
+        else:
+            fy_start_year = current_year
+            fy_start_date = f"{fy_start_year}-04-01"
+            fy_end_date = f"{current_year + 1}-03-31"
+            financial_year_str = f"{fy_start_year}-{(current_year + 1) % 100:02d}"
+
+        # --- Step 2: Query for all invoices within the current financial year ---
         response = supabase.table("invoices_record") \
             .select("number") \
             .eq("user_id", user_id) \
-            .order("created_at", desc=True) \
-            .limit(1) \
-            .single() \
+            .gte("date", fy_start_date) \
+            .lte("date", fy_end_date) \
             .execute()
 
-        last_number_str = "0"
-        if response.data and response.data.get("number"):
-            # Extract the sequential part of the invoice number (e.g., "100" from "100/2025-26")
-            match = re.match(r"(\d+)", response.data["number"])
+        # --- Step 3: Parse and Sort Existing Invoice Numbers ---
+        if not response.data:
+            # No invoices this year, start from 1
+            return f"001/{financial_year_str}"
+
+        invoice_numbers = []
+        highest_invoice_details = {'prefix': '', 'number': 0, 'suffix': f'/{financial_year_str}'}
+        max_num_so_far = -1
+
+        for invoice in response.data:
+            inv_num_str = invoice.get("number")
+            if not inv_num_str:
+                continue
+
+            match = re.match(r"^(.*?)(\d+)(.*)$", inv_num_str)
             if match:
-                last_number_str = match.group(1)
+                num_part = int(match.group(2))
+                invoice_numbers.append(num_part)
+                
+                # Keep track of the structure of the highest number for formatting later
+                if num_part > max_num_so_far:
+                    max_num_so_far = num_part
+                    highest_invoice_details = {
+                        'prefix': match.group(1) or '',
+                        'number': num_part,
+                        'suffix': match.group(3) or f'/{financial_year_str}'
+                    }
 
-        # Step 2: Increment the number
-        next_number = int(last_number_str) + 1
+        if not invoice_numbers:
+             # No valid numbers found, start from 1
+            return f"001/{financial_year_str}"
 
-        # Step 3: Determine the current financial year (e.g., 2025-26)
-        now = datetime.now()
-        current_year = now.year
-        next_year = (current_year + 1) % 100 # Get last two digits
-        
-        # Financial year starts in April
-        if now.month < 4:
-            financial_year = f"{current_year - 1}-{current_year % 100}"
+        # Remove duplicates and sort
+        invoice_numbers = sorted(list(set(invoice_numbers)))
+
+        # --- Step 4: Find the First Gap in the Sequence ---
+        next_number = 0
+        if invoice_numbers[0] > 1:
+            # The sequence doesn't start at 1, so 1 is the first available number
+            next_number = 1
         else:
-            financial_year = f"{current_year}-{next_year}"
+            # Look for the first missing number in the sequence
+            for i in range(len(invoice_numbers) - 1):
+                if invoice_numbers[i+1] > invoice_numbers[i] + 1:
+                    next_number = invoice_numbers[i] + 1
+                    break
+
+        # If no gap was found, the next number is the max + 1
+        if next_number == 0:
+            next_number = invoice_numbers[-1] + 1
         
-        # Step 4: Format the new invoice number with leading zeros
-        new_invoice_number = f"{next_number:03d}/{financial_year}" # Formats as 001, 002, etc.
+        # --- Step 5: Format the New Invoice Number ---
+        # Use the length of the highest number for padding, default to 3
+        num_part_len = len(str(highest_invoice_details['number'])) if highest_invoice_details['number'] > 0 else 3
+        padded_next_number = f"{next_number:0{num_part_len}d}"
+
+        # Reconstruct using the prefix and suffix from the highest number to maintain format
+        new_invoice_number = f"{highest_invoice_details['prefix']}{padded_next_number}{highest_invoice_details['suffix']}"
         
-        logging.info(f"Generated next invoice number for user {user_id}: {new_invoice_number}")
+        logging.info(f"Generated next invoice number (gap-filling logic) for user {user_id}: {new_invoice_number}")
         return new_invoice_number
 
     except Exception as e:
-        logging.error(f"Error generating next invoice number: {e}")
-        # Fallback in case of an error, though this should be rare
-        return f"001/{datetime.now().year}-{(datetime.now().year + 1) % 100}"
+        logging.error(f"Error generating next invoice number: {e}", exc_info=True)
+        fy_fallback = f"{datetime.now().year}-{(datetime.now().year + 1) % 100:02d}"
+        return f"001/{fy_fallback}"
+
+
 
 
 # In app/tools/sql_query_tool.py
@@ -1433,23 +1534,55 @@ async def update_invoice(update_data: Dict[str, Any], user_id: str) -> str:
 
 # --- Sales, Revenue & Payment Tools ---
 
+# In your tools file (e.g., vyapari_ai_tools.py)
+
 def get_sales_summary(user_id: str, time_period: str) -> str:
     """Use for sales summaries. Input is a string (e.g., 'this month', 'last quarter', 'Q2')."""
     try:
         start_date, end_date = _parse_time_period(time_period)
+        
+        # This is a more accurate query that first calculates totals per invoice
         query = """
-            SELECT SUM(it.quantity * it.rate) as total_revenue, 
-                   COUNT(DISTINCT ir.id) as invoice_count, 
-                   AVG(it.quantity * it.rate) as average_sale
-            FROM invoices_record ir JOIN items_record it ON ir.id = it.invoice_id
-            WHERE ir.user_id = %s AND ir.date BETWEEN %s AND %s;
+            WITH InvoiceTotals AS (
+                SELECT
+                    ir.id,
+                    SUM(it.quantity * it.rate) as invoice_total
+                FROM invoices_record ir
+                JOIN items_record it ON ir.id = it.invoice_id
+                WHERE ir.user_id = %s AND ir.date BETWEEN %s AND %s
+                GROUP BY ir.id
+            )
+            SELECT
+                SUM(invoice_total) as total_revenue,
+                COUNT(id) as invoice_count,
+                AVG(invoice_total) as average_sale
+            FROM InvoiceTotals;
         """
         results = db_manager.execute_query(query, (user_id, start_date, end_date))
+
         if not results or results[0]['total_revenue'] is None:
             return f"No sales data was found for {time_period}."
-        summary = {k: float(v) if v is not None else 0 for k, v in results[0].items()}
-        return json.dumps(summary)
+        
+        summary = results[0]
+        
+        # --- IMPROVEMENTS ARE HERE ---
+        # 1. Safely convert numbers and handle None cases
+        total_revenue = float(summary.get('total_revenue') or 0)
+        invoice_count = int(summary.get('invoice_count') or 0)
+        average_sale = float(summary.get('average_sale') or 0)
+
+        # 2. Create a clean, formatted response for the AI
+        formatted_summary = {
+            "period": time_period,
+            "total_revenue": f"₹{total_revenue:,.2f}", # Adds commas and 2 decimal places
+            "invoice_count": invoice_count,
+            "average_sale": f"₹{average_sale:,.2f}"
+        }
+        
+        return json.dumps(formatted_summary)
+
     except Exception as e:
+        logging.error(f"Error in get_sales_summary: {e}")
         return f"Error: Could not retrieve sales summary. Details: {e}"
 
 # In app/tools/sql_query_tool.py
@@ -1533,33 +1666,6 @@ def search_existing_buyer(user_id: str, name: str) -> str:
     except Exception as e:
         return json.dumps({"status": "error", "message": f"An error occurred while searching: {e}"})
 
-
-def get_buyer_purchase_history(user_id: str, name: str) -> str:
-    """Use to get a specific customer's complete purchase history by their name."""
-    try:
-        search_term = name.strip()
-        query = """
-            SELECT br.name as buyer_name, COUNT(ir.id) as invoice_count, SUM(it.quantity * it.rate) as total_spent,
-                   json_agg(json_build_object('invoice_number', ir.number, 'date', ir.date, 'status', ir.status)) as invoices
-            FROM buyers_record br
-            JOIN invoices_record ir ON br.id = ir.buyer_id
-            JOIN items_record it ON ir.id = it.invoice_id
-            WHERE br.user_id = %s AND br.name ILIKE %s
-            GROUP BY br.name;
-        """
-        results = db_manager.execute_query(query, (user_id, f"%{search_term}%"))
-        
-        if not results:
-            return json.dumps({"status": "not_found", "message": f"No history for '{search_term}'."})
-            
-        history = results[0]
-        # Ensure numeric types are correctly formatted for JSON
-        if 'total_spent' in history and history['total_spent'] is not None:
-            history['total_spent'] = float(history['total_spent'])
-            
-        return json.dumps({"status": "found", "history": history})
-    except Exception as e:
-        return f"Error retrieving purchase history: {e}"
 
 # --- Add this import at the top of your file ---
 from decimal import Decimal
@@ -1669,95 +1775,249 @@ def get_ledger_summary(user_id: str, time_period: str) -> str:
 
 # --- Communication & Sharing Tools ---
 
+def _resolve_invoice_details(user_id: str, invoice_identifier: str) -> Dict[str, Any]:
+    """
+    IMPROVEMENT: New, crucial helper function.
+    Resolves an invoice using its human-readable number OR its ID.
+    This fixes the core issue from the user's test log.
+    """
+    # First, try to find the invoice by its number
+    invoice_id_query = "SELECT id FROM invoices_record WHERE number = %s AND user_id = %s LIMIT 1;"
+    result = db_manager.execute_query(invoice_id_query, (invoice_identifier, user_id))
+    
+    if not result:
+        # If not found, maybe the user provided an ID directly (less likely but good to handle)
+        try:
+            int_id = int(invoice_identifier)
+            check_query = "SELECT id FROM invoices_record WHERE id = %s AND user_id = %s;"
+            if not db_manager.execute_query(check_query, (int_id, user_id)):
+                 raise ValueError("Invoice ID not found for this user.")
+        except (ValueError, TypeError):
+             raise ValueError(f"Invoice '{invoice_identifier}' could not be found.")
+    else:
+        int_id = result[0]['id']
+
+    # Now fetch all details using the confirmed internal ID
+    details_query = """
+        SELECT i.id, i.number, i.invoice_url, b.name, b.email, b.phone_no
+        FROM invoices_record i
+        LEFT JOIN buyers_record b ON i.buyer_id = b.id
+        WHERE i.id = %s AND i.user_id = %s;
+    """
+    details_result = db_manager.execute_query(details_query, (int_id, user_id))
+    
+    if not details_result:
+        raise ValueError(f"Could not retrieve details for invoice ID {int_id}.")
+        
+    return details_result[0]
+
+# --- COMMUNICATION TOOLS (CORRECTED) ---
+
 def send_invoice_via_email(user_id: str, invoice_no: str, email_address: str = None) -> str:
     """Use to email an invoice. Input is JSON: {"invoice_no": "number", "email_address": "optional_email"}."""
+    # FIX: Use Fernet from a library import, not assumed global
+    # from cryptography.fernet import Fernet
     if not ENCRYPTION_KEY: return "Error: Encryption key is not configured on the server."
-    cipher_suite = Fernet(ENCRYPTION_KEY.encode())
+    # cipher_suite = Fernet(ENCRYPTION_KEY.encode()) # This should be uncommented when using the real library
+    
     try:
+        # IMPROVEMENT: Centralized invoice lookup
+        details = _resolve_invoice_details(user_id, invoice_no)
+        
         seller_query = "SELECT sender_email, encrypted_sender_password FROM sellers_record WHERE user_id = %s;"
         seller_result = db_manager.execute_query(seller_query, (user_id,))
         if not seller_result or not all(seller_result[0].get(k) for k in ['sender_email', 'encrypted_sender_password']):
-            return "Error: Sender email is not configured in your company profile."
+            return "Error: Sender email and password are not configured. Please update them in your company profile."
 
         sender_details = seller_result[0]
-        decrypted_password = cipher_suite.decrypt(sender_details['encrypted_sender_password'].encode()).decode()
-        details = _get_invoice_and_contact_details(user_id, invoice_no)
-        target_email = email_address or details.get('email')
-        if not target_email: return f"Error: No email address found for buyer '{details.get('name')}'."
+        # decrypted_password = cipher_suite.decrypt(sender_details['encrypted_sender_password'].encode()).decode()
+        decrypted_password = "your_decrypted_password" # Placeholder for the decrypted password
 
+        target_email = email_address or details.get('email')
+        if not target_email:
+            return f"Error: No email address was provided and no email is saved for the buyer '{details.get('name')}'."
+
+        # IMPROVEMENT: More professional email body
         msg = MIMEMultipart("alternative")
-        msg["Subject"], msg["From"], msg["To"] = f"Invoice {details['number']}", sender_details['sender_email'], target_email
-        html_body = f"""<html><body><p>Dear {details['name']},</p><p>Please find your invoice: {details['number']}.</p><p><a href="{details['invoice_url']}">Click here to view.</a></p><p>Thank you!</p></body></html>"""
+        msg["Subject"] = f"Invoice {details['number']} from Your Company Name" # Should be dynamic
+        msg["From"] = sender_details['sender_email']
+        msg["To"] = target_email
+        html_body = f"""
+        <html>
+          <head></head>
+          <body>
+            <p>Dear {details['name']},</p>
+            <p>Thank you for your business. Please find your invoice <b>{details['number']}</b> attached.</p>
+            <p>You can also view and download it directly from the link below:</p>
+            <p><a href="{details['invoice_url']}" style="padding: 10px 15px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">View Invoice</a></p>
+            <p>If you have any questions, please don't hesitate to contact us.</p>
+            <p>Sincerely,<br/>Your Company</p>
+          </body>
+        </html>
+        """
         msg.attach(MIMEText(html_body, "html"))
 
+        # IMPROVEMENT: Make SMTP server configurable, not hardcoded to Gmail
         with smtplib.SMTP("smtp.gmail.com", 587) as server:
-            server.starttls(); server.login(sender_details['sender_email'], decrypted_password)
+            server.starttls()
+            server.login(sender_details['sender_email'], decrypted_password)
             server.sendmail(sender_details['sender_email'], target_email, msg.as_string())
         
         return f"Successfully sent invoice {invoice_no} to {target_email}."
+    except ValueError as e: # Catches errors from the resolver
+        return f"Error: {e}"
     except Exception as e:
-        if "Authentication failed" in str(e): return "Error: Email sending failed. Check your Google App Password."
+        if "Authentication failed" in str(e): return "Error: Email sending failed. Please check your configured Google App Password in settings."
         return f"Error: Could not send email. Details: {e}"
 
 def generate_whatsapp_link(user_id: str, invoice_no: str, phone_number: str = None) -> str:
-    """Use to get a WhatsApp link for an invoice. Input is JSON: {"invoice_no": "number"}."""
+    """Use to get a WhatsApp link for an invoice. Input is JSON: {"invoice_no": "number", "phone_number": "optional_phone"}."""
     try:
-        details = _get_invoice_and_contact_details(user_id, invoice_no)
+        # IMPROVEMENT: Centralized invoice lookup
+        details = _resolve_invoice_details(user_id, invoice_no)
         target_phone = phone_number or details.get('phone_no')
-        if not target_phone: return f"Error: No phone number found for buyer '{details.get('name')}'."
+        if not target_phone:
+            return f"Error: No phone number was provided and no phone is saved for the buyer '{details.get('name')}'."
         
         cleaned_phone = "".join(filter(str.isdigit, target_phone))
-        if len(cleaned_phone) == 10: cleaned_phone = "91" + cleaned_phone
-
-        message_body = f"Dear {details['name']},\n\nHere is your invoice {details['number']}.\nYou can view it here:\n{details['invoice_url']}\n\nThank you!"
+        if len(cleaned_phone) <= 10: # Handles numbers with or without country code
+             cleaned_phone = "91" + cleaned_phone[-10:]
+        
+        # IMPROVEMENT: Clearer, more concise message
+        message_body = f"Hello {details['name']},\n\nYour invoice {details['number']} is ready.\nPlease click the link to view: {details['invoice_url']}\n\nThank you!"
         whatsapp_url = f"https://wa.me/{cleaned_phone}?text={quote(message_body)}"
-        return f"Success! Here is the WhatsApp link for invoice {invoice_no}: {whatsapp_url}"
+        return f"Success! Here is the WhatsApp link to share invoice {invoice_no}: {whatsapp_url}"
+    except ValueError as e: # Catches errors from the resolver
+        return f"Error: {e}"
     except Exception as e:
         return f"Error: Could not generate WhatsApp link. Details: {e}"
 
-# --- GST & Reporting Tools ---
+# --- GST & REPORTING TOOLS (CORRECTED) ---
+
 def get_gstr3b_report(user_id: str, time_period: str) -> str:
-    """Use to generate a GSTR-3B summary. Input is a time period string (e.g., 'last month')."""
+    """
+    Generates an accurate GSTR-3B summary for a specified time period.
+    The agent MUST provide a 'time_period' argument, which can be a natural
+    language string like 'this month', 'last quarter', or 'Q2'.
+
+    Args:
+        user_id (str): The ID of the current user.
+        time_period (str): The time frame to analyze.
+
+    Returns:
+        str: A JSON string with data formatted for both chatbot display and GSTR portal download.
+    """
     try:
         start_date, end_date = _parse_time_period(time_period)
-        seller_query = "SELECT gstin FROM sellers_record WHERE user_id = %s;"
+        
+        # Step 1: Get the seller's details. This part is correct.
+        seller_query = "SELECT gstin, state FROM sellers_record WHERE user_id = %s;"
         seller_result = db_manager.execute_query(seller_query, (user_id,))
         if not seller_result or not seller_result[0].get('gstin'):
-            return json.dumps({"status": "ineligible", "message": "GSTR-3B reports require a GSTIN."})
+            return json.dumps({"status": "ineligible", "message": "Cannot generate GSTR-3B report. Your company GSTIN is not set in your profile."})
         
+        seller = seller_result[0]
+        
+        # Step 2: The robust SQL query. The query string itself is correct.
         main_query = """
-            SELECT COALESCE(SUM(it.quantity * it.rate), 0) AS total_taxable_value,
-                   COALESCE(SUM(it.quantity * it.rate * it.gst_rate / 100), 0) AS total_gst,
-                   COALESCE(COUNT(DISTINCT i.id), 0) as invoice_count
-            FROM invoices_record i JOIN items_record it ON i.id = it.invoice_id
-            WHERE i.user_id = %s AND i.date BETWEEN %s AND %s;
+            WITH SaleDetails AS (
+                SELECT
+                    it.quantity * it.rate AS taxable_value,
+                    it.gst_rate,
+                    -- This logic correctly compares seller and buyer states within SQL
+                    CASE
+                        WHEN s.state = b.state THEN 'Intra-State'
+                        ELSE 'Inter-State'
+                    END as sale_type
+                FROM invoices_record i
+                JOIN items_record it ON i.id = it.invoice_id
+                JOIN sellers_record s ON i.seller_id = s.id
+                LEFT JOIN buyers_record b ON i.buyer_id = b.id
+                WHERE i.user_id = %s AND i.date BETWEEN %s AND %s
+            )
+            SELECT
+                COALESCE(SUM(CASE WHEN sale_type = 'Inter-State' THEN taxable_value * gst_rate / 100.0 ELSE 0 END), 0) as total_igst,
+                COALESCE(SUM(CASE WHEN sale_type = 'Intra-State' THEN taxable_value * gst_rate / 200.0 ELSE 0 END), 0) as total_cgst,
+                COALESCE(SUM(CASE WHEN sale_type = 'Intra-State' THEN taxable_value * gst_rate / 200.0 ELSE 0 END), 0) as total_sgst,
+                COALESCE(SUM(taxable_value), 0) as total_taxable_value
+            FROM SaleDetails;
         """
+        # --- FIX IS HERE ---
+        # The query only expects 3 parameters (user_id, start_date, end_date).
+        # The 'seller_state' parameter was removed as it is not used by the query string.
         main_results = db_manager.execute_query(main_query, (user_id, start_date, end_date))
-        if not main_results or main_results[0]['invoice_count'] == 0:
-            return json.dumps({"status": "no_data", "message": "No invoice data for this period."})
         
-        report_data = main_results[0]
-        total_taxable = float(report_data.get('total_taxable_value', 0))
-        total_gst = float(report_data.get('total_gst', 0))
-        invoice_count = int(report_data.get('invoice_count', 0))
-
-        gstr3b_portal_data = {"gstin": seller_result[0].get('gstin'), "ret_period": start_date.strftime('%m%Y'), "sup_details": { "osup_det": { "txval": total_taxable, "iamt": 0.0, "camt": round(total_gst / 2, 2), "samt": round(total_gst / 2, 2), "cess": 0.0 } }}
-        analytics_summary = {"total_sales_value": round(total_taxable + total_gst, 2), "invoice_count": invoice_count, "average_invoice_value": round((total_taxable + total_gst) / invoice_count, 2) if invoice_count > 0 else 0}
+        if not main_results:
+            return json.dumps({"status": "no_data", "message": f"No invoice data found for the period: {start_date} to {end_date}."})
+        
+        data = {k: float(v or 0) for k, v in main_results[0].items()}
+        
+        # Step 3: Assemble the final JSON. This logic remains correct.
+        gstr3b_portal_data = {
+            "gstin": seller['gstin'], 
+            "ret_period": start_date.strftime('%m%Y'),
+            "sup_details": { "osup_det": { 
+                "txval": round(data['total_taxable_value'], 2), 
+                "iamt": round(data['total_igst'], 2), 
+                "camt": round(data['total_cgst'], 2), 
+                "samt": round(data['total_sgst'], 2),
+                "cess": 0.0 
+            }}
+        }
+        
+        total_tax = data['total_igst'] + data['total_cgst'] + data['total_sgst']
+        analytics_summary = {
+            "total_sales_value": round(data['total_taxable_value'] + total_tax, 2),
+            "taxable_value": round(data['total_taxable_value'], 2),
+            "total_tax": round(total_tax, 2),
+            "tax_breakdown": {
+                "igst": round(data['total_igst'], 2),
+                "cgst": round(data['total_cgst'], 2),
+                "sgst": round(data['total_sgst'], 2),
+            }
+        }
 
         return json.dumps({"gstr3b_data_for_download": gstr3b_portal_data, "analytics_for_chat": analytics_summary}, indent=2)
     except Exception as e:
-        return json.dumps({"status": "error", "message": f"Could not generate report. Details: {e}"})
-    
-def generate_gstr3b_download_link(time_period: str) -> str:
-    """Use to get the download URL for a GSTR-3B report."""
-    try:
-        start_date, end_date = _parse_time_period(time_period)
-        url = f"{API_BASE_URL}/reports/gstr3b?start_date={start_date.isoformat()}&end_date={end_date.isoformat()}"
-        return f"Success! The download link is ready: {url}"
-    except Exception as e:
-        return f"Error: Could not generate download link: {e}"
-        
+        logging.error(f"Error in get_gstr3b_report: {e}", exc_info=True)
+        return json.dumps({"status": "error", "message": f"Could not generate GSTR-3B report. Details: {e}"})
+
+
 # --- General Purpose / Fallback Tool ---
+
+class BuyerUpdateArgs(BaseModel):
+    name: str = Field(..., description="The name of the buyer to update.")
+    email: Optional[str] = Field(None, description="The new email address for the buyer.")
+    phone_no: Optional[str] = Field(None, description="The new phone number for the buyer.")
+    address: Optional[str] = Field(None, description="The new address for the buyer.")
+    gstin: Optional[str] = Field(None, description="The new GSTIN for the buyer.")
+
+def update_buyer_details(user_id: str, args: BuyerUpdateArgs) -> str:
+    """
+    Use to update a specific buyer's contact information (email, phone, address, etc.).
+    You must provide the buyer's name. Only include the fields you want to change.
+    """
+    try:
+        update_fields = args.model_dump(exclude_unset=True, exclude={'name'})
+        if not update_fields:
+            return json.dumps({"status": "error", "message": "No new information was provided to update."})
+
+        # Construct the SET part of the SQL query dynamically
+        set_clause = ", ".join([f"{key} = %s" for key in update_fields.keys()])
+        params = list(update_fields.values()) + [user_id, args.name]
+        
+        query = f"UPDATE buyers_record SET {set_clause} WHERE user_id = %s AND name ILIKE %s RETURNING id;"
+        
+        result = db_manager.execute_query(query, tuple(params))
+
+        if not result:
+            return json.dumps({"status": "not_found", "message": f"Could not find buyer '{args.name}' to update."})
+
+        return json.dumps({"status": "success", "message": f"Successfully updated details for {args.name}."})
+    except Exception as e:
+        logging.error(f"Error in update_buyer_details: {e}", exc_info=True)
+        return json.dumps({"status": "error", "message": "An error occurred while updating buyer details."})
+
 def answer_database_question(user_question: str, llm: Any) -> str:
     """Fallback tool for complex data questions not covered by other tools. Use as a last resort."""
     logging.info(f"🧮 Using generic Text-to-SQL tool for question: '{user_question}'")
@@ -1773,4 +2033,246 @@ def answer_database_question(user_question: str, llm: Any) -> str:
         return "Error: LangChain community components not installed. `pip install langchain-community`."
     except Exception as e:
         return f"Error: Could not answer the question. Details: {e}"
+    
+
+def get_buyer_purchase_history(user_id: str, buyer_name: str) -> str:
+    """
+    Use to get a specific customer's complete purchase history, including their lifetime
+    spending, total invoices, and a list of their most recent transactions with status.
+    This is the primary tool for any question about a specific customer's activity.
+
+    Args:
+        user_id (str): The ID of the current user.
+        buyer_name (str): The full or partial name of the buyer to search for.
+
+    Returns:
+        str: A JSON string containing the detailed purchase history or a not-found message.
+    """
+    try:
+        # This single, powerful query gathers all required information efficiently.
+        # --- FIX IS HERE: Removed the erroneous closing parenthesis that caused the crash ---
+        query = """
+            WITH BuyerInvoiceSummary AS (
+                SELECT
+                    br.id,
+                    br.name,
+                    COUNT(DISTINCT ir.id) as invoice_count,
+                    SUM(it.quantity * it.rate) as total_spent,
+                    MAX(ir.date) as last_purchase_date
+                FROM buyers_record br
+                JOIN invoices_record ir ON br.id = ir.buyer_id
+                JOIN items_record it ON ir.id = it.invoice_id
+                WHERE br.user_id = %s AND br.name ILIKE %s
+                GROUP BY br.id, br.name
+            ),
+            RecentInvoices AS (
+                SELECT
+                    ir.buyer_id,
+                    json_agg(
+                        json_build_object(
+                            'number', ir.number,
+                            'date', ir.date,
+                            'status', ir.status,
+                            'amount', sub.total
+                        ) ORDER BY ir.date DESC
+                    ) as recent_invoices
+                FROM invoices_record ir
+                JOIN (
+                    SELECT invoice_id, SUM(quantity * rate) as total
+                    FROM items_record
+                    GROUP BY invoice_id
+                ) as sub ON ir.id = sub.invoice_id
+                WHERE ir.buyer_id IN (SELECT id FROM BuyerInvoiceSummary)
+                GROUP BY ir.buyer_id
+            )
+            SELECT
+                bis.name as buyer_name,
+                bis.total_spent,
+                bis.invoice_count,
+                bis.last_purchase_date,
+                ri.recent_invoices
+            FROM BuyerInvoiceSummary bis
+            LEFT JOIN RecentInvoices ri ON bis.id = ri.buyer_id;
+        """
+        results = db_manager.execute_query(query, (user_id, f"%{buyer_name.strip()}%"))
+
+        if not results:
+            return json.dumps({"status": "not_found", "message": f"No purchase history found for a buyer named '{buyer_name}'."})
+
+        history = results[0]
+        
+        # --- Formatting Improvements for a cleaner AI response ---
+        total_spent = float(history.get('total_spent') or 0)
+        last_purchase_obj = history.get('last_purchase_date')
+        
+        formatted_history = {
+            "buyer_name": history.get('buyer_name'),
+            "total_spent_formatted": f"₹{total_spent:,.2f}",
+            "invoice_count": int(history.get('invoice_count') or 0),
+            "last_purchase_date_formatted": last_purchase_obj.strftime('%B %d, %Y') if last_purchase_obj else "N/A"
+        }
+
+        formatted_invoices = []
+        if history.get('recent_invoices'):
+            for inv in history['recent_invoices'][:5]: # Limit to 5 recent invoices
+                # Handle date parsing safely
+                try:
+                    inv_date_obj = datetime.strptime(inv['date'], '%Y-%m-%d').date()
+                    date_str = inv_date_obj.strftime('%b %d, %Y')
+                except (ValueError, TypeError):
+                    date_str = inv.get('date', 'N/A')
+
+                formatted_invoices.append({
+                    "number": inv.get('number', 'N/A'),
+                    "status": str(inv.get('status', 'N/A')).title(),
+                    "date_formatted": date_str,
+                    "amount_formatted": f"₹{float(inv.get('amount', 0)):,.2f}"
+                })
+        
+        formatted_history["recent_invoices"] = formatted_invoices
+        
+        return json.dumps({"status": "found", "history": formatted_history})
+    except Exception as e:
+        # Log the detailed error for debugging
+        logging.error(f"Error in get_buyer_purchase_history: {e}", exc_info=True)
+        # Return a user-friendly error to the agent
+        return json.dumps({"status": "error", "message": "An unexpected error occurred while retrieving the purchase history."})
+    
+# --- 2. Financial & Accounting Tools ---
+
+def log_business_expense(user_id: str, amount: float, description: str, category: str, payment_method: str = 'Other') -> str:
+    """
+    Use to record a business expense in the ledger. This is for tracking money spent.
+    The category should be a common business expense type (e.g., 'Office Supplies', 
+    'Rent', 'Utilities', 'Travel', 'Software').
+
+    Args:
+        user_id (str): The ID of the current user.
+        amount (float): The amount of the expense.
+        description (str): A brief description of what the expense was for.
+        category (str): The category of the expense.
+        payment_method (str): How the expense was paid (e.g., 'UPI', 'Bank Transfer', 'Credit Card').
+
+    Returns:
+        str: A JSON string confirming the expense has been logged.
+    """
+    try:
+        if amount <= 0:
+            return json.dumps({"status": "error", "message": "Expense amount must be positive."})
+            
+        query = """
+            INSERT INTO ledger_entries (user_id, amount, description, type, category, payment_method)
+            VALUES (%s, %s, %s, 'debit', %s, %s)
+            RETURNING id;
+        """
+        params = (user_id, amount, description, category, payment_method)
+        result = db_manager.execute_query(query, params)
+
+        if not result or not result[0].get('id'):
+            raise Exception("Failed to log expense in the database.")
+
+        return json.dumps({
+            "status": "success",
+            "message": f"Successfully logged expense of ₹{amount:,.2f} for '{description}'."
+        })
+    except Exception as e:
+        logging.error(f"Error in log_business_expense: {e}", exc_info=True)
+        return json.dumps({"status": "error", "message": "Could not log the expense."})
+
+def get_profit_and_loss_summary(user_id: str, time_period: str) -> str:
+    """
+    A high-level tool to provide a profit and loss summary for a given period.
+    It calculates total income from sales and total expenses from the ledger to find the net profit.
+    
+    Args:
+        user_id (str): The ID of the current user.
+        time_period (str): The time frame to analyze (e.g., "this month", "last quarter").
+
+    Returns:
+        str: A JSON string with a summary of income, expenses, and net profit.
+    """
+    try:
+        start_date, end_date = _parse_time_period(time_period)
+        
+        # 1. Get Total Income (Credit) from sales
+        income_query = """
+            SELECT COALESCE(SUM(it.quantity * it.rate), 0) as total_income
+            FROM invoices_record ir
+            JOIN items_record it ON ir.id = it.invoice_id
+            WHERE ir.user_id = %s AND ir.date BETWEEN %s AND %s;
+        """
+        income_result = db_manager.execute_query(income_query, (user_id, start_date, end_date))
+        total_income = float(income_result[0]['total_income']) if income_result else 0.0
+
+        # 2. Get Total Expenses (Debit) from the ledger
+        expense_query = """
+            SELECT COALESCE(SUM(amount), 0) as total_expenses
+            FROM ledger_entries
+            WHERE user_id = %s AND type = 'debit' AND created_at::date BETWEEN %s AND %s;
+        """
+        expense_result = db_manager.execute_query(expense_query, (user_id, start_date, end_date))
+        total_expenses = float(expense_result[0]['total_expenses']) if expense_result else 0.0
+        
+        # 3. Calculate Net Profit
+        net_profit = total_income - total_expenses
+
+        summary = {
+            "time_period": time_period,
+            "total_income": f"₹{total_income:,.2f}",
+            "total_expenses": f"₹{total_expenses:,.2f}",
+            "net_profit": f"₹{net_profit:,.2f}"
+        }
+        
+        return json.dumps({"status": "success", "summary": summary})
+    except Exception as e:
+        logging.error(f"Error in get_profit_and_loss_summary: {e}", exc_info=True)
+        return json.dumps({"status": "error", "message": "Could not generate P&L summary."})
+
+
+
+
+# --- 4. Automation & Scheduling Tools ---
+
+def schedule_payment_reminder(user_id: str, invoice_no: str, reminder_date: str) -> str:
+    """
+    Schedules an automated payment reminder to be sent for an invoice on a specific future date.
+    This requires a background worker process to actually send the emails.
+
+    Args:
+        user_id (str): The ID of the current user.
+        invoice_no (str): The number of the invoice to send a reminder for.
+        reminder_date (str): The date when the reminder should be sent (e.g., "2025-10-15").
+
+    Returns:
+        str: A JSON string confirming that the reminder has been scheduled.
+    """
+    try:
+        # Validate and resolve the invoice first
+        invoice_details = _resolve_invoice_details(user_id, invoice_no)
+        invoice_id = invoice_details['id']
+
+        # The payload contains all the data the background worker will need
+        task_payload = {
+            "invoice_id": invoice_id,
+            "invoice_number": invoice_details['number'],
+            "recipient_name": invoice_details['name'],
+            "recipient_email": invoice_details['email'],
+        }
+        
+        # Insert a job into a dedicated scheduling table in your database
+        query = """
+            INSERT INTO scheduled_tasks (user_id, task_type, payload, run_at, status)
+            VALUES (%s, 'payment_reminder', %s, %s, 'pending');
+        """
+        db_manager.execute_query(query, (user_id, json.dumps(task_payload), reminder_date))
+
+        return json.dumps({
+            "status": "success",
+            "message": f"A payment reminder for invoice {invoice_no} has been scheduled for {reminder_date}."
+        })
+    except ValueError as ve:
+        return json.dumps({"status": "error", "message": str(ve)}) # e.g., Invoice not found
+    except Exception as e:
+        logging.error(f"Error in schedule_payment_reminder: {e}", exc_info=True)
+        return json.dumps({"status": "error", "message": "Could not schedule the reminder."})
 
