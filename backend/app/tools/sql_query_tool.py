@@ -2018,21 +2018,29 @@ def update_buyer_details(user_id: str, args: BuyerUpdateArgs) -> str:
         logging.error(f"Error in update_buyer_details: {e}", exc_info=True)
         return json.dumps({"status": "error", "message": "An error occurred while updating buyer details."})
 
+from langchain_community.agent_toolkits import create_sql_agent
+from langchain_community.utilities import SQLDatabase
 def answer_database_question(user_question: str, llm: Any) -> str:
     """Fallback tool for complex data questions not covered by other tools. Use as a last resort."""
-    logging.info(f"🧮 Using generic Text-to-SQL tool for question: '{user_question}'")
+    logging.info(f"🧮 Using modern SQL Agent for question: '{user_question}'")
     try:
-        from langchain_community.chains import SQLDatabaseChain
-        from langchain_community.utilities import SQLDatabase
+        # Initialize the database connection
+        db = SQLDatabase.from_uri(DB_CONNECTION_STRING)
         
-        db_for_chain = SQLDatabase.from_uri(DB_CONNECTION_STRING)
-        db_chain = SQLDatabaseChain.from_llm(llm, db_for_chain, verbose=True)
-        result = db_chain.run(user_question)
-        return result
-    except ImportError:
-        return "Error: LangChain community components not installed. `pip install langchain-community`."
+        # Create the SQL Agent Executor
+        agent_executor = create_sql_agent(llm, db=db, agent_type="openai-tools", verbose=True)
+        
+        # Invoke the agent with the user's question
+        result = agent_executor.invoke({"input": user_question})
+        
+        # The agent's output is in a dictionary, usually under the key 'output'
+        return result.get("output", "I found an answer but could not format it correctly.")
+
     except Exception as e:
+        # This will now catch any real errors during the process
+        logging.error(f"Error in SQL Agent: {e}")
         return f"Error: Could not answer the question. Details: {e}"
+
     
 
 def get_buyer_purchase_history(user_id: str, buyer_name: str) -> str:
