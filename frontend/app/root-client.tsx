@@ -19,7 +19,7 @@ export default function RootClient({ children }: { children: React.ReactNode }) 
           {children}
           {/* <Analytics /> */}
           <Toaster />
-          {showChatBot && <ChatBot />}
+          {/* {showChatBot && <ChatBot />} */}
         </ThemeProvider>
       </UserProvider>
     </LoadingProvider>

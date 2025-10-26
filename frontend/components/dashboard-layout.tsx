@@ -15,8 +15,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <div className="min-h-screen flex w-full">
         <Sidebar />
         <div className="flex-1 flex flex-col">
-          <Navbar />
-          <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-auto">{children}</main>
+          <div className="sticky inset-x-0 top-0 z-40"> <Navbar /></div>
+         
+          <main className="flex-1 overflow-hidden">{children}</main>
         </div>
       </div>
     </SidebarProvider>

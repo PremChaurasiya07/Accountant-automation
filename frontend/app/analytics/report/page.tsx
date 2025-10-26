@@ -193,10 +193,19 @@ export default function Reports() {
               <CardContent>
                 <div className="space-y-4">
                   {analyticsData.topProducts.map(([name, data]: [string, any]) => (
-                    <div key={name} className="flex justify-between items-center text-sm">
-                      <div><p className="font-medium truncate pr-2">{name}</p><p className="text-xs text-muted-foreground">{data.quantity} units sold</p></div>
-                      <p className="font-bold whitespace-nowrap">₹{data.sales.toLocaleString()}</p>
+                    <div
+                      key={name}
+                      className="flex flex-wrap justify-between items-start text-sm gap-y-1 border-b border-muted/30 pb-2 last:border-0"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium break-words text-sm leading-snug">{name}</p>
+                        <p className="text-xs text-muted-foreground">{data.quantity} units sold</p>
+                      </div>
+                      <p className="font-bold text-right mt-1 sm:mt-0 w-full sm:w-auto">
+                        ₹{data.sales.toLocaleString()}
+                      </p>
                     </div>
+
                   ))}
                 </div>
               </CardContent>

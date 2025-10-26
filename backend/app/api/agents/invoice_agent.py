@@ -96,28 +96,81 @@ Choose ONE of the following formats.
     Final Answer: My message to the user.
 
 ---
-**INVOICE UPDATE INSTRUCTIONS:**
-When the user wants to save changes to an invoice, you must use the `update_invoice` tool. First, use `load_invoice_for_editing` to get the invoice's current data. Then, construct the Action Input by wrapping the MODIFIED data inside a single `"update_data"` key, like this:
+INVOICE UPDATE INSTRUCTIONS 
+CRITICAL RULE: To update an invoice, you MUST follow these steps exactly. Failure to use the correct database IDs from the load_invoice_for_edit step will cause the update to fail.
 
-```json
+Step 1: Load the Invoice (Mandatory First Step)
+Goal: Get the current data and database IDs for the invoice and its items.
+
+Action: Call load_invoice_for_edit.
+
+Input: The invoice_number string (e.g., "005/2025-26").
+
+Output: The tool returns a JSON object containing the full invoice data. Carefully note the id field within the main object (this is the invoice_id) and the id field within each object in the items list (these are the item_ids).
+
+If this step fails (e.g., "not found"), STOP. Inform the user you couldn't find the invoice. Do NOT proceed.
+
+Step 2: Confirm Changes with User
+Goal: Understand exactly what the user wants to change.
+
+Action: Briefly summarize the key data you just loaded (e.g., buyer name, item names, and rates). Ask the user specifically what modifications they want to make.
+
+Step 3: Prepare the Update Payload
+Goal: Create the correctly formatted JSON payload for the update_invoice tool.
+
+Action:
+
+Start with the EXACT JSON data returned by load_invoice_for_edit in Step 1.
+
+Modify only the fields the user requested in Step 2.
+
+To UPDATE an item: Change its properties (rate, quantity, etc.) but KEEP its original id obtained from Step 1.
+
+To DELETE an item: Find the item, keep its original id, and add "delete": true to it.
+
+To ADD a new item: Add a new item object to the items list. This new object MUST have "id": null. Do NOT make up an ID.
+
+Ensure the invoice object still contains the correct id obtained from Step 1.
+
+Ensure the buyer object contains all required fields (like address if it's required by the tool).
+
+CRITICAL: Do NOT use IDs or data remembered from previous conversations. Only use the IDs and structure obtained directly from the load_invoice_for_edit call in Step 1.
+
+Step 4: Call update_invoice
+Goal: Save the changes to the database.
+
+Action: Call the update_invoice tool.
+
+Input: Construct the final JSON by wrapping the complete, modified data (from Step 3) inside a single "update_data" key.
+
+Example Input Structure:
+
+```JSON
+
 {{
-    "update_data": {{
-        "invoice": {{ "id": 187, "number": "118/2025-26", "date": "2025-09-16" }},
-        "buyer": {{ "name": "prashant", "address": "iits in system check" }},
-        "items": [
-            {{ "id": 212, "name": "milk", "quantity": 2, "rate": 40, "unit": "ltr" }}
-        ]
-    }}
+  "update_data": {{
+    // --- The ENTIRE modified invoice object goes here ---
+    "invoice": {{ "id": /* ID from Step 1 */, ... }},
+    "buyer": {{ ... }},
+    "items": [
+      {{ "id": /* ID from Step 1 */, ... /* updated fields */ }},
+      {{ "id": /* ID from Step 1 */, ..., "delete": true }},
+      {{ "id": null, ... /* new item fields */ }}
+    ]
+    // --- End of modified invoice object ---
+  }}
 }}
+                                                     
+Step 5: Report Result
+Goal: Inform the user if the update succeeded or failed.
 
-**CORE WORKFLOW: INVOICE UPDATING**
-Your goal is to gather the changes for an existing invoice step-by-step.
-- If the user wants to edit an invoice, your first goal is to call load_invoice_for_editing.
-- After the invoice is loaded successfully, your next goal is to ask the user what they want to change. You should briefly summarize the current data to provide context.
-- Do not call update_invoice until the user has provided the specific changes.
-- Once you have the changes, your final goal is to call update_invoice with the complete, updated invoice data, formatted correctly according to the INVOICE UPDATE INSTRUCTIONS.
-- After update_invoice runs, your final goal is to report its exact success or failure message.                                            
+Action: Report the exact message returned by the update_invoice tool. 
 
+disclaimer for update:- while creating the payload don't use random ids use the id loaded by `load_existing_invoice` tool only and it is in number format not uuid like {{"status": "found", "data": {{"id": 244,..., "buyers_record": {{"id": 124, "name": "Aatish Pharma Solution", ... }}, "items_record": [{{"id": 274, "hsn": "7326", "name": "SS mopping trolley 12ltr with 3 bucket set", "rate": 15000, "unit": "pcs", "gst_rate": 0, "quantity": 3, "invoice_id": 244}}, {{"id": 275, "hsn": "7326", "name": "SS mopping trolley 15ltr with 3 bucket set", "rate": 19000, "unit": "pcs", "gst_rate": 0, "quantity": 1, "invoice_id": 244}}]}}.
+use the id in the json.
+dont use random data use the data loaded from the used `load_existing_invoice` only.
+--- 
+                                                     
 **CORE WORKFLOW: INVOICE CREATION**
 Your goal is to gather information step-by-step. Focus only on the immediate next step.
 - If you don't know the buyer, your current goal is to call `search_existing_buyer`.
@@ -260,29 +313,32 @@ async def get_vyapari_agent_executor(user_id: str):
     llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", google_api_key=gemini_key_manager.get_initial_key(), temperature=0.0)
     
     memory = ConversationBufferWindowMemory(
-        k=10, memory_key="chat_history", input_key="input", output_key="output", return_messages=True
+        k=5, memory_key="chat_history", input_key="input", output_key="output", return_messages=True
     )
 
     
             
     # --- Define all available tools ---
     available_tools = {
-        "get_all_buyers": get_all_buyers,
-        "search_existing_buyer": search_existing_buyer,
-        "get_sales_summary": get_sales_summary,
-        "get_top_performing_entities": get_top_performing_entities,
-        "get_low_stock_alerts": get_low_stock_alerts,
-        "send_invoice_via_email": send_invoice_via_email,
-        "generate_whatsapp_link": generate_whatsapp_link,
-        "get_gstr3b_report": get_gstr3b_report,
         "get_next_invoice_number": get_next_invoice_number,
+        "search_existing_buyer": search_existing_buyer,
+        "get_all_buyers": get_all_buyers,
         "load_invoice_for_editing": load_invoice_for_edit,
         "create_invoice": create_invoice,
         "update_invoice": update_invoice,
+        
+        "get_sales_summary": get_sales_summary,
+        "get_top_performing_entities": get_top_performing_entities,
+        "get_low_stock_alerts": get_low_stock_alerts,
         "get_buyer_purchase_history": get_buyer_purchase_history,
         "log_business_expense": log_business_expense,
         "get_profit_and_loss_summary": get_profit_and_loss_summary,
         "schedule_payment_reminder": schedule_payment_reminder,
+        "get_unpaid_invoices": get_unpaid_invoices,
+
+        "send_invoice_via_email": send_invoice_via_email,
+        "generate_whatsapp_link": generate_whatsapp_link,
+        "get_gstr3b_report": get_gstr3b_report,
     }
 
     tools = []
@@ -296,7 +352,7 @@ async def get_vyapari_agent_executor(user_id: str):
     
     tools.append(Tool(
         name="answer_database_question",
-        func=lambda q: answer_database_question(user_question=q, llm=llm),
+        func=lambda q: answer_database_question(user_question=q, user_id=user_id, llm=llm),
         description="Use this as a fallback for complex questions about your data that are not covered by other specific tools."
     ))
     

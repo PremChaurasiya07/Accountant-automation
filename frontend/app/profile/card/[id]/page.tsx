@@ -123,11 +123,8 @@ export default function SellerCard() {
   }
 
   if (!seller) {
-    return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8 text-center text-xl text-red-600 dark:text-red-500">
-            Business Card Not Found.
-        </div>
-    );
+    router.push('/company_details');
+    return null;
   }
   
   const profileUrl = `${window.location.origin}/card/${seller.user_id}`;
