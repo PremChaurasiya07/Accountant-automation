@@ -6,7 +6,7 @@ from app.services.invoice_actions import (
     load_invoice_for_edit, create_invoice, update_invoice, get_next_invoice_number
 )
 from app.services.embedding import embed_and_store_invoice
-from utils.semantic import semantic_search_and_answer
+
 from num2words import num2words
 
 def _transform_and_calculate(invoice_data: dict) -> dict:
