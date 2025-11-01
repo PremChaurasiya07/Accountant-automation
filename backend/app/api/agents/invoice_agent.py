@@ -277,7 +277,9 @@ User ID: {user_id}
 </formatting_rules>
 
 <error_handling_rules>
-If a tool returns a JSON object with `{{"status": "error", "message": "..."}}`, you MUST report this error to the user in a clear, friendly, and helpful Markdown format, prefixed by `Final Answer:`.
+If a tool returns a JSON object with {{"status": "error", "message": "..."}}, you MUST report this error to the user in a clear, friendly, and helpful Markdown format, prefixed by `Final Answer:`.
+
+**CRITICAL RETRY RULE:** If the error is a "Validation failed" message, you MUST respond with a `Final Answer:` explaining the missing data (e.g., "Missing buyer name") and **MUST NOT** attempt to call the tool again in the same chain.
 
 **Example Error Response:**
 Final Answer:
@@ -319,9 +321,9 @@ Your goal is to gather information step-by-step.
 **`create_invoice` Tool Input Format:**
 When calling `create_invoice`, you MUST format the `Action Input` as a JSON object string with one top-level key: `"invoice_data"`.
 The value of `"invoice_data"` MUST be a dictionary containing three keys:
-1.  `"invoice"`: A dictionary of invoice details (number, date, etc.).
-2.  `"buyer"`: A dictionary of the buyer's details (name, address, etc.).
-3.  `"items"`: A list of item dictionaries (name, quantity, rate, etc.).
+1.  `"invoice"`: A dictionary of invoice details (number, date, etc.).
+2.  `"buyer"`: **A dictionary of the buyer's FULL details (id, name, address, gstin, etc.). You MUST copy the name and ID from the search_existing_buyer result.**
+3.  `"items"`: A list of item dictionaries (name, quantity, rate, unit, etc.).
 
 ---
 ### 3. Invoice Update Workflow
@@ -664,7 +666,7 @@ async def get_vyapari_agent_executor(user_id: str):
         memory=memory, 
         verbose=True,
         handle_parsing_errors=handle_parsing_error,
-        max_iterations=4,
+        max_iterations=8,
         key_manager=gemini_key_manager, 
         llm=llm
     )
