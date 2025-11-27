@@ -685,6 +685,7 @@ import { useRouter } from "next/navigation"
 
 // --- Supabase ---
 import { supabase } from "@/lib/supabase"
+
 // --- UI Components ---
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -731,79 +732,86 @@ interface ProductRecord {
 const GoToProfileButton: FC = () => {
   const router = useRouter()
   const { userId } = useUserId()
-
-  const handleClick = () => {
-    if (userId) router.push(`/company_details`)
-  }
+  const handleClick = () => { if (userId) router.push(`/company_details`) }
 
   return (
-    <Button onClick={handleClick} className="mt-4 group relative overflow-hidden rounded-xl bg-gradient-to-r from-primary to-primary/80 hover:shadow-lg hover:shadow-primary/25 transition-all duration-300">
+    <Button onClick={handleClick} className="mt-4 group relative overflow-hidden rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300">
       <span className="relative z-10 flex items-center gap-2">
         Create Your Business Profile
         <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
       </span>
-      <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-white/20 to-primary/0 translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700" />
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-700" />
     </Button>
   )
 }
 
 const TypingIndicator: FC = () => (
-  <div className="flex items-center space-x-2 px-4 py-3">
-    <div className="flex space-x-1">
-      <div className="w-2.5 h-2.5 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-      <div className="w-2.5 h-2.5 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-      <div className="w-2.5 h-2.5 bg-primary/60 rounded-full animate-bounce"></div>
-    </div>
-    <span className="text-xs text-muted-foreground">AI is thinking...</span>
+  <div className="flex items-center space-x-1.5 px-2 py-1">
+    <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+    <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+    <div className="w-2 h-2 bg-primary/60 rounded-full animate-bounce"></div>
+    <span className="ml-2 text-xs text-muted-foreground font-medium">AI is thinking...</span>
   </div>
 )
 
-// --- Formatting & Markdown ---
+// --- STRICT FORMATTING COMPONENT (MOBILE OPTIMIZED) ---
 const FormattedMessage: FC<{ content: string; actionButton?: React.ReactNode }> = ({ content, actionButton }) => {
   return (
-    <div className="prose dark:prose-invert max-w-none w-full text-sm sm:text-base break-words prose-p:leading-relaxed prose-pre:bg-muted prose-pre:p-0 prose-pre:border prose-pre:border-border/50 prose-pre:rounded-lg">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          a: ({ node, ...props }) => {
-            const isSpecialLink = props.href?.includes("supabase.co/storage") || props.href?.includes("wa.me")
-            return (
-              <Link {...props} href={props.href || ''} target="_blank"
-                className="inline-flex items-center gap-1.5 underline decoration-primary/30 underline-offset-4 font-medium text-primary hover:text-primary/80 hover:decoration-primary/60 transition-all duration-200 break-all">
-                <Link2 className="w-3.5 h-3.5 flex-shrink-0" />
-                {isSpecialLink ? `Click to View` : props.children}
-              </Link>
-            )
-          },
-          p: ({ node, ...props }) => <p {...props} className="my-2 leading-relaxed break-words whitespace-pre-wrap" />,
-          ul: ({ node, ...props }) => <ul {...props} className="my-3 pl-5 space-y-1.5 list-disc marker:text-primary/60" />,
-          li: ({ node, ...props }) => <li {...props} className="leading-relaxed" />,
-          table: ({ node, ...props }) => (
-            <div className="my-4 w-full overflow-x-auto rounded-lg border border-border/50">
-              <table {...props} className="w-full border-collapse min-w-[300px]" />
-            </div>
-          ),
-          thead: ({ node, ...props }) => <thead {...props} className="bg-muted/50 backdrop-blur-sm" />,
-          tbody: ({ node, ...props }) => <tbody {...props} className="divide-y divide-border/30" />,
-          tr: ({ node, ...props }) => <tr {...props} className="hover:bg-muted/30 transition-colors" />,
-          td: ({ node, ...props }) => <td {...props} className="p-2 sm:p-3 text-sm border-r last:border-r-0 border-border/20" />,
-          th: ({ node, ...props }) => <th {...props} className="p-2 sm:p-3 text-left text-sm font-semibold border-r last:border-r-0 border-border/20" />,
-          code: ({ node, inline, ...props }: any) =>
-            inline ? (
-              <code {...props} className="px-1.5 py-0.5 rounded bg-muted/80 text-primary font-mono text-xs sm:text-sm break-all" />
-            ) : (
-              <div className="w-full overflow-x-auto bg-zinc-950/50 dark:bg-zinc-900/50 p-3 rounded-lg my-2">
-                 <code {...props} className="block font-mono text-xs sm:text-sm text-primary/90 whitespace-pre" />
+    // 'min-w-0' allows flex children to shrink below their content size (crucial for mobile)
+    <div className="w-full min-w-0 overflow-hidden"> 
+      <div className="prose prose-sm sm:prose-base dark:prose-invert max-w-none w-full break-words 
+        prose-p:leading-relaxed prose-p:my-1.5
+        prose-pre:bg-zinc-100 dark:prose-pre:bg-zinc-900/50 prose-pre:p-0 prose-pre:border prose-pre:border-border/50 prose-pre:rounded-lg
+        prose-table:my-2 prose-th:p-2 prose-td:p-2 prose-td:align-top">
+        
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            a: ({ node, ...props }) => {
+              const isSpecialLink = props.href?.includes("supabase.co/storage") || props.href?.includes("wa.me")
+              return (
+                <Link {...props} href={props.href || ''} target="_blank"
+                  // break-all ensures long URLs don't push the width out
+                  className="inline-flex items-center gap-1 underline decoration-primary/30 underline-offset-4 font-medium text-primary hover:text-primary/80 transition-all break-all bg-primary/5 px-1 rounded">
+                  <Link2 className="w-3.5 h-3.5 flex-shrink-0" />
+                  {isSpecialLink ? `View Link` : props.children}
+                </Link>
+              )
+            },
+            // FIXED: RESPONSIVE TABLE WRAPPER
+            // 1. overflow-x-auto: Allows horizontal scroll if content is absolutely too wide
+            // 2. whitespace-normal: Forces text inside cells to wrap (User request)
+            // 3. min-w-full: Ensures table uses available width
+            table: ({ node, ...props }) => (
+              <div className="my-3 w-full overflow-x-auto rounded-lg border border-border/40 bg-background/50 scrollbar-thin scrollbar-thumb-border">
+                <table {...props} className="w-full border-collapse text-xs sm:text-sm" /> 
               </div>
             ),
-          pre: ({ node, ...props }) => (
-             <pre {...props} className="m-0 w-full overflow-hidden" />
-          )
-        }}
-      >
-        {content}
-      </ReactMarkdown>
-      {actionButton && <div className="mt-3">{actionButton}</div>}
+            thead: ({ node, ...props }) => <thead {...props} className="bg-muted/40 border-b border-border/50" />,
+            tbody: ({ node, ...props }) => <tbody {...props} className="divide-y divide-border/20" />,
+            tr: ({ node, ...props }) => <tr {...props} className="hover:bg-muted/20 transition-colors" />,
+            
+            // WRAPPING FIXES HERE:
+            // Removed 'whitespace-nowrap'. Added 'min-w-[80px]' to ensure columns don't get crushed too small.
+            td: ({ node, ...props }) => <td {...props} className="p-2 whitespace-normal break-words min-w-[100px]" />, 
+            th: ({ node, ...props }) => <th {...props} className="p-2 text-left font-semibold text-muted-foreground whitespace-nowrap" />,
+            
+            // FIXED: CODE BLOCK WRAPPER
+            code: ({ node, inline, ...props }: any) =>
+              inline ? (
+                <code {...props} className="px-1 py-0.5 rounded bg-muted/80 text-foreground font-mono text-xs font-medium break-all border border-border/30" />
+              ) : (
+                <div className="w-full overflow-x-auto p-3 rounded-lg my-2 bg-zinc-50 dark:bg-zinc-900 border border-border/30">
+                   <code {...props} className="block font-mono text-xs sm:text-sm text-foreground whitespace-pre" />
+                </div>
+              ),
+            pre: ({ node, ...props }) => <pre {...props} className="m-0 w-full overflow-hidden bg-transparent" />
+          }}
+        >
+          {content}
+        </ReactMarkdown>
+        {actionButton && <div className="mt-3">{actionButton}</div>}
+      </div>
     </div>
   )
 }
@@ -815,18 +823,18 @@ const MessageContent: FC<{ msg: Message; sendMessage: (text: string) => Promise<
     <>
       <FormattedMessage content={content} actionButton={msg.actionButton} />
       {msg.suggestions && msg.suggestions.length > 0 && (
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap gap-2">
           {msg.suggestions.map((s, i) => (
             <motion.div
               key={`${msg.id}-suggestion-${i}`}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: i * 0.1 }}
+              transition={{ delay: i * 0.05 }}
             >
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                className="rounded-full border border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10 text-primary hover:bg-primary/20 hover:border-primary/40 hover:shadow-md transition-all duration-300 backdrop-blur-sm text-xs sm:text-sm"
+                className="rounded-full text-xs border-primary/20 bg-background hover:bg-primary/5 hover:text-primary transition-all shadow-sm h-8 px-3"
                 onClick={() => sendMessage(s)}
               >
                 {s}
@@ -837,14 +845,7 @@ const MessageContent: FC<{ msg: Message; sendMessage: (text: string) => Promise<
       )}
     </>
   )
-}, (prevProps, nextProps) => {
-  return (
-    prevProps.msg.id === nextProps.msg.id &&
-    prevProps.msg.text === nextProps.msg.text &&
-    prevProps.msg.isTyping === nextProps.msg.isTyping &&
-    JSON.stringify(prevProps.msg.suggestions) === JSON.stringify(nextProps.msg.suggestions)
-  )
-})
+}, (prev, next) => prev.msg.text === next.msg.text && prev.msg.isTyping === next.msg.isTyping)
 MessageContent.displayName = 'MessageContent';
 
 
@@ -856,7 +857,7 @@ export function DashboardContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [message, setMessage] = useState("")
   
-  // Pagination State
+  // Pagination
   const [fullHistory, setFullHistory] = useState<Message[]>([])
   const [displayedMessages, setDisplayedMessages] = useState<Message[]>([])
   const [page, setPage] = useState(1)
@@ -867,15 +868,15 @@ export function DashboardContent() {
   const [isBotTyping, setIsBotTyping] = useState(false)
   const [isListening, setIsListening] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
-  const [recognitionInstance, setRecognitionInstance] = useState<any>(null)
+  const [isSending, setIsSending] = useState(false) // Prevents double submission
 
-  // Copy State
+  const [recognitionInstance, setRecognitionInstance] = useState<any>(null)
   const [copiedId, setCopiedId] = useState<number | null>(null)
 
-  // Mentions State
+  // Mentions
   const [mentionType, setMentionType] = useState<SuggestionType>(null)
   const [mentionQuery, setMentionQuery] = useState("")
-  const [fetchedSuggestions, setFetchedSuggestions] = useState<(BuyerRecord | ProductRecord)[]>([])
+  const [fetchedSuggestions, setFetchedSuggestions] = useState<any[]>([])
   const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -885,8 +886,10 @@ export function DashboardContent() {
   const abortControllerRef = useRef<AbortController | null>(null)
   const autoTextIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  
+  const hasLoadedHistory = useRef(false)
 
-  // --- SCROLL TO BOTTOM ---
+  // --- SCROLL ---
   const scrollToBottom = (behavior: "smooth" | "auto" = "smooth") => {
     if (scrollContainerRef.current) {
       const { scrollHeight, clientHeight } = scrollContainerRef.current
@@ -894,93 +897,85 @@ export function DashboardContent() {
     }
   }
 
-  // --- COPY FUNCTIONALITY ---
+  // --- COPY ---
   const copyToClipboard = async (text: string, id: number) => {
     try {
       await navigator.clipboard.writeText(text)
       setCopiedId(id)
       setTimeout(() => setCopiedId(null), 2000)
-      toast({ description: "Copied to clipboard" })
-    } catch (err) {
-      toast({ description: "Failed to copy", variant: "destructive" })
-    }
+      toast({ description: "Copied!" })
+    } catch { toast({ description: "Failed to copy", variant: "destructive" }) }
   }
 
-  // --- SAVE MESSAGE ---
+  // --- SAVE DB ---
   const saveMessageToMemory = async (text: string, type: 'human' | 'ai') => {
     if (!userId) return;
-    const newMessageObject = { type: type, data: { content: text, additional_kwargs: {}, type: type, example: false } };
     try {
-      await supabase.rpc('append_chat_message', { p_user_id: userId, new_msg: newMessageObject });
+      await supabase.rpc('append_chat_message', { 
+        p_user_id: userId, 
+        new_msg: { type, data: { content: text, type, example: false } } 
+      });
     } catch (err) { console.error("Failed to save:", err); }
   };
 
-  // --- LOAD FULL HISTORY ---
+  // --- LOAD HISTORY ---
   useEffect(() => {
+    if (hasLoadedHistory.current) return; 
+    
     const loadHistory = async () => {
       setIsLoading(true);
-      if (!userId) {
-        setFullHistory([]);
-        setIsLoading(false);
-        return;
-      }
+      if (!userId) { setFullHistory([]); setIsLoading(false); return; }
+      
+      hasLoadedHistory.current = true;
 
-      const { data, error } = await supabase.from('conversation_memory').select('memory').eq('user_id', userId).single();
-      
+      const { data } = await supabase.from('conversation_memory').select('memory').eq('user_id', userId).single();
       const history = data?.memory || [];
-      let allMsgs: Message[] = [];
       
+      let allMsgs: Message[] = [];
       if (history.length > 0) {
         allMsgs = history.map((item: any, index: number) => ({
-          id: Date.now() + index,
+          id: Date.now() + index, 
           text: item.data?.content || item.content || "",
           isBot: item.type === 'ai' || item.type === 'assistant'
         }));
       } else if (sellerDetails) {
-        allMsgs = [{ id: 1, text: "Hi! I'm your Vyapari Assistant. How can I help you today?", isBot: true,  suggestions: ["Create an invoice", "Summarize my monthly earnings", "Who are my top buyers?", "List all my buyers"] }];
+        allMsgs = [{ id: 1, text: "Hi! I'm your Vyapari Assistant. How can I help you today?", isBot: true, suggestions: ["Create an invoice", "Summarize sales"] }];
       } else {
         allMsgs = [{ id: 1, text: "Welcome! Please create your business profile.", isBot: true, actionButton: <GoToProfileButton /> }];
       }
 
       setFullHistory(allMsgs);
-      
-      // Load last N messages
-      const initialSlice = allMsgs.slice(-MESSAGES_PER_PAGE);
-      setDisplayedMessages(initialSlice);
+      setDisplayedMessages(allMsgs.slice(-MESSAGES_PER_PAGE));
       setPage(1);
       setIsLoading(false);
-      
       setTimeout(() => scrollToBottom("auto"), 100);
     };
 
     loadHistory();
   }, [userId, sellerDetails, supabase]);
 
-  // --- SCROLL PAGINATION HANDLER ---
+  // --- PAGINATION ---
   const handleScroll = () => {
     if (!scrollContainerRef.current) return;
     const { scrollTop, scrollHeight } = scrollContainerRef.current;
 
     if (scrollTop === 0 && !isFetchingMore && displayedMessages.length < fullHistory.length) {
-      prevScrollHeightRef.current = scrollHeight; // Capture height before adding items
+      prevScrollHeightRef.current = scrollHeight;
       setIsFetchingMore(true);
 
       setTimeout(() => {
         const nextCount = (page + 1) * MESSAGES_PER_PAGE;
         const nextSlice = fullHistory.slice(-nextCount);
-        
         setDisplayedMessages(nextSlice);
-        setPage(prev => prev + 1);
+        setPage(p => p + 1);
       }, 300);
     }
   };
 
-  // --- SCROLL RESTORATION ---
   useLayoutEffect(() => {
     if (isFetchingMore && scrollContainerRef.current) {
-      const newScrollHeight = scrollContainerRef.current.scrollHeight;
-      const heightDifference = newScrollHeight - prevScrollHeightRef.current;
-      scrollContainerRef.current.scrollTop = heightDifference;
+      const newHeight = scrollContainerRef.current.scrollHeight;
+      scrollContainerRef.current.scrollTop = newHeight - prevScrollHeightRef.current;
       setIsFetchingMore(false);
     } else if (!isFetchingMore && !isBotTyping && !isLoading) {
         if (displayedMessages.length > 0 && displayedMessages[displayedMessages.length - 1].id > (Date.now() - 2000)) {
@@ -991,10 +986,30 @@ export function DashboardContent() {
 
   useEffect(() => { if (isBotTyping) scrollToBottom("smooth"); }, [isBotTyping, displayedMessages.length > 0 ? displayedMessages[displayedMessages.length-1].text : null]);
 
-  // --- MENTIONS LOGIC ---
+  // --- MENTIONS (FIXED: CURSOR POSITION) ---
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value; 
+    setMessage(val);
+
+    const cursorPosition = e.target.selectionStart || val.length;
+    const textBeforeCursor = val.slice(0, cursorPosition);
+    const match = textBeforeCursor.match(/(?:\s|^)([@#])(\w*)$/);
+    
+    if (match) {
+      const trigger = match[1];
+      const query = match[2];
+      setMentionType(trigger === '@' ? 'buyer' : 'item');
+      setMentionQuery(query);
+    } else {
+      setMentionType(null);
+      setMentionQuery("");
+    }
+  };
+
   useEffect(() => {
     if (!mentionType || !userId) { setFetchedSuggestions([]); return; }
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    
     searchTimeoutRef.current = setTimeout(async () => {
       setIsFetchingSuggestions(true);
       try {
@@ -1007,44 +1022,50 @@ export function DashboardContent() {
     return () => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current) };
   }, [mentionType, mentionQuery, userId, supabase]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value; setMessage(val);
-    const words = val.split(" "); const lastWord = words[words.length - 1];
-    if (lastWord.startsWith("@")) { setMentionType("buyer"); setMentionQuery(lastWord.slice(1)); }
-    else if (lastWord.startsWith("#")) { setMentionType("item"); setMentionQuery(lastWord.slice(1)); }
-    else { setMentionType(null); setMentionQuery(""); }
-  };
-
   const insertMention = (name: string) => {
-    const words = message.split(" "); words.pop();
-    setMessage([...words, name].join(" ") + " "); setMentionType(null); inputRef.current?.focus();
+    if (!inputRef.current) return;
+    const cursor = inputRef.current.selectionStart || message.length;
+    const textBefore = message.slice(0, cursor);
+    const textAfter = message.slice(cursor);
+
+    const newTextBefore = textBefore.replace(/([@#])(\w*)$/, name + " ");
+    const newMessage = newTextBefore + textAfter;
+    
+    setMessage(newMessage); 
+    setMentionType(null); 
+    inputRef.current.focus();
   };
-  const forceOpenMention = (type: SuggestionType) => { setMessage(prev => prev + " " + (type === 'buyer' ? '@' : '#')); setMentionType(type); inputRef.current?.focus(); };
 
-  // --- EVENT HANDLERS ---
-  const handleStopSpeech = useCallback(() => { if (window.speechSynthesis.speaking) { window.speechSynthesis.cancel(); setIsSpeaking(false); } }, []);
-  const handleStopAutotext = () => { if (autoTextIntervalRef.current) { clearInterval(autoTextIntervalRef.current); autoTextIntervalRef.current = null; } };
-  const handleStopExecution = () => { handleStopSpeech(); handleStopAutotext(); if (abortControllerRef.current) abortControllerRef.current.abort(); setIsBotTyping(false); };
+  const forceOpenMention = (type: SuggestionType) => { 
+    setMessage(prev => prev + (prev.endsWith(' ') || prev.length === 0 ? '' : ' ') + (type === 'buyer' ? '@' : '#')); 
+    setMentionType(type); 
+    inputRef.current?.focus(); 
+  };
 
-  // --- SEND MESSAGE ---
+  // --- HANDLERS ---
+  const handleStopExecution = () => { 
+    if (window.speechSynthesis.speaking) window.speechSynthesis.cancel();
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+    if (autoTextIntervalRef.current) clearInterval(autoTextIntervalRef.current);
+    setIsSpeaking(false); setIsBotTyping(false); setIsSending(false);
+  };
+
   const sendMessage = async (text: string) => {
-    const trimmedText = text.trim()
-    if (!trimmedText) return
+    const trimmedText = text.trim();
+    if (!trimmedText) return;
+    if (!userId || !session) return toast({ title: "Login Required", variant: "destructive" });
+    if (isSending) return; 
 
-    if (!userId || !session) { toast({ title: "Error", description: "Please log in.", variant: "destructive" }); return; }
-    if (!sellerDetails) { 
-        const msg = { id: Date.now(), text: "Please create your business profile first.", isBot: true, actionButton: <GoToProfileButton /> };
-        setFullHistory(prev => [...prev, msg]); setDisplayedMessages(prev => [...prev, msg]);
-        return; 
-    }
-
+    setIsSending(true);
     handleStopExecution();
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
     const userMsg = { id: Date.now(), text: trimmedText, isBot: false };
-    setFullHistory(prev => [...prev, userMsg]);
-    setDisplayedMessages(prev => [...prev, userMsg]);
+    
+    const newHistory = [...fullHistory, userMsg];
+    setFullHistory(newHistory);
+    setDisplayedMessages(newHistory.slice(-((page) * MESSAGES_PER_PAGE))); 
     
     setMessage(""); setMentionType(null); setIsBotTyping(true);
     saveMessageToMemory(trimmedText, 'human');
@@ -1058,66 +1079,75 @@ export function DashboardContent() {
       if (!response.ok) throw new Error(`Server error: ${response.status}`);
       const data = await response.json();
       
-      let botText = data?.url ? `${data.message}\n${data.url}` : data?.message;
+      let botText = data?.url ? `${data.message}\n\n[View Invoice](${data.url})` : data?.message;
       if (botText) botText = botText.replace(/^```(markdown)?\n?/, '').replace(/\n?```$/, '').trim();
 
       if (botText) {
-        setIsBotTyping(false);
         const botMsg = { id: Date.now() + 1, text: botText, isBot: true };
-        setFullHistory(prev => [...prev, botMsg]);
-        setDisplayedMessages(prev => [...prev, botMsg]);
+        const updatedHistory = [...newHistory, botMsg];
+        setFullHistory(updatedHistory);
+        setDisplayedMessages(updatedHistory.slice(-((page) * MESSAGES_PER_PAGE)));
         saveMessageToMemory(botText, 'ai');
-      } else {
-        const errMsg = { id: Date.now() + 1, text: "I didn't get a response.", isBot: true };
-        setFullHistory(prev => [...prev, errMsg]);
-        setDisplayedMessages(prev => [...prev, errMsg]);
-        setIsBotTyping(false);
-      }
+      } 
     } catch (err: any) {
       if (err.name !== 'AbortError') {
         const errMsg = { id: Date.now(), text: `❌ ${err.message}`, isBot: true };
         setFullHistory(prev => [...prev, errMsg]);
         setDisplayedMessages(prev => [...prev, errMsg]);
       }
-      setIsBotTyping(false);
-    } finally { if (abortControllerRef.current === controller) abortControllerRef.current = null; }
+    } finally { 
+      setIsBotTyping(false); 
+      setIsSending(false); 
+      if (abortControllerRef.current === controller) abortControllerRef.current = null; 
+    }
   };
 
   // --- SPEECH ---
   const startListening = () => {
     const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-    if (!SpeechRecognition) { toast({ title: "Error", description: "Browser not supported.", variant: "destructive" }); return; }
-    handleStopSpeech();
-    const recognition = new SpeechRecognition(); recognition.continuous = true; recognition.interimResults = true; recognition.lang = "en-IN";
+    if (!SpeechRecognition) return toast({ title: "Not Supported", description: "Use Chrome.", variant: "destructive" });
+    
+    handleStopExecution();
+    const recognition = new SpeechRecognition(); 
+    recognition.continuous = true; recognition.interimResults = true; recognition.lang = "en-IN";
+    
     setIsListening(true);
     recognition.onresult = (event: any) => {
-      let interim = "", final = "";
+      let final = "";
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) final += event.results[i][0].transcript;
-        else interim += event.results[i][0].transcript;
       }
-      transcriptBuffer.current = final + interim; setMessage(transcriptBuffer.current);
+      if (final) transcriptBuffer.current += final + " ";
+      setMessage(transcriptBuffer.current + (event.results[event.results.length-1][0].transcript));
     };
-    recognition.onend = () => { setIsListening(false); if (transcriptBuffer.current.trim()) sendMessage(transcriptBuffer.current); else setMessage(""); transcriptBuffer.current = ""; };
+    recognition.onend = () => { 
+        setIsListening(false); 
+        if (transcriptBuffer.current.trim()) sendMessage(transcriptBuffer.current); 
+        transcriptBuffer.current = ""; 
+    };
     recognition.start(); setRecognitionInstance(recognition);
   };
   const stopListening = () => { recognitionInstance?.stop(); setIsListening(false); };
 
+
+  // --- RENDER ---
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] relative bg-gradient-to-b from-background via-background to-muted/20">
+    <div className="flex flex-col h-[100dvh] md:h-[calc(100vh-4rem)] relative bg-background transition-colors duration-300">
       
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary/3 rounded-full blur-3xl animate-pulse [animation-delay:2s]" />
+      {/* Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent to-muted/20" />
+        <div className="absolute top-1/4 left-1/4 w-64 md:w-96 h-64 md:h-96 bg-blue-500/5 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-64 md:w-96 h-64 md:h-96 bg-purple-500/5 rounded-full blur-3xl animate-pulse [animation-delay:2s]" />
       </div>
 
-      {/* Messages Area */}
+      {/* Chat Area */}
       <div 
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto overflow-x-hidden py-6 space-y-4 pb-48 relative z-10 scroll-smooth"
+        className="flex-1 overflow-y-auto overflow-x-hidden py-4 px-2 md:px-4 space-y-5 pb-32 md:pb-48 relative z-10 scroll-smooth scrollbar-thin scrollbar-thumb-border"
       >
-        <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 space-y-6">
+        <div className="w-full max-w-4xl mx-auto space-y-6">
           
           {isFetchingMore && (
              <div className="flex justify-center py-2">
@@ -1126,7 +1156,7 @@ export function DashboardContent() {
           )}
 
           {isLoading ? (
-            <div className="space-y-4">
+            <div className="space-y-4 p-4">
               <Skeleton className="h-20 w-3/4 rounded-2xl" />
               <Skeleton className="h-16 w-1/2 rounded-2xl ml-auto" />
             </div>
@@ -1136,40 +1166,44 @@ export function DashboardContent() {
                 <motion.div
                   key={msg.id}
                   layout
-                  className={`flex items-end gap-3 ${msg.isBot ? "justify-start" : "justify-end"}`}
-                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                  className={`flex items-end gap-2 md:gap-3 ${msg.isBot ? "justify-start" : "justify-end"}`}
+                  initial={{ opacity: 0, y: 20, scale: 0.98 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{ duration: 0.4, type: "spring", stiffness: 100 }}
+                  transition={{ duration: 0.3 }}
                 >
                   {msg.isBot && (
-                    <div className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground p-2.5 rounded-2xl self-start flex-shrink-0 shadow-lg shadow-primary/20">
-                      <Bot className="w-5 h-5" />
+                    <div className="bg-white dark:bg-zinc-800 text-primary p-2 rounded-xl self-start flex-shrink-0 border border-border/40 shadow-sm">
+                      <Bot className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
                   )}
                   
-                  {/* MESSAGE BUBBLE */}
-                  <div className={`group relative px-4 py-3 sm:px-5 sm:py-4 rounded-2xl max-w-[85%] sm:max-w-[80%] lg:max-w-3xl shadow-lg overflow-hidden ${msg.isBot ? "bg-gradient-to-br from-muted/95 to-muted/80 border border-border/50 rounded-tl-sm" : "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground rounded-br-sm shadow-primary/25"}`}>
-                    
-                    {/* COPY BUTTON */}
+                  {/* BUBBLE */}
+                  <div className={`group relative px-3 py-2.5 md:px-5 md:py-4 rounded-2xl max-w-[90%] md:max-w-[85%] lg:max-w-3xl shadow-sm overflow-hidden 
+                    ${msg.isBot 
+                      ? "bg-white dark:bg-zinc-900 border border-border/60 rounded-tl-sm text-foreground" 
+                      : "bg-gradient-to-br from-blue-600 to-blue-500 text-white rounded-br-sm shadow-md border border-blue-600/20"
+                    }`}
+                  >
+                    {/* Copy Button */}
                     <Button
                         onClick={() => copyToClipboard(msg.text, msg.id)}
                         size="icon"
                         variant="ghost"
-                        className={`absolute top-2 right-2 w-6 h-6 p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-full ${
-                            msg.isBot 
-                            ? "text-muted-foreground hover:text-foreground bg-background/50 hover:bg-background/80" 
-                            : "text-primary-foreground/80 hover:text-white bg-primary-foreground/10 hover:bg-primary-foreground/20"
-                        }`}
+                        className={`absolute top-1 right-1 w-6 h-6 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity rounded-full 
+                            ${msg.isBot 
+                                ? "text-muted-foreground hover:bg-muted" 
+                                : "text-white/70 hover:text-white hover:bg-white/10"
+                            }`}
                     >
                         {copiedId === msg.id ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                     </Button>
 
-                    {msg.isBot ? <MessageContent msg={msg} sendMessage={sendMessage} /> : <p className="my-0 leading-relaxed break-words whitespace-pre-wrap text-sm sm:text-base">{msg.text}</p>}
+                    {msg.isBot ? <MessageContent msg={msg} sendMessage={sendMessage} /> : <p className="text-sm md:text-base leading-relaxed break-words whitespace-pre-wrap">{msg.text}</p>}
                   </div>
 
                   {!msg.isBot && (
-                    <div className="bg-gradient-to-br from-primary/15 to-primary/10 text-primary p-2.5 rounded-2xl self-start flex-shrink-0 backdrop-blur-sm border border-primary/20">
-                      <User className="w-5 h-5" />
+                    <div className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 p-2 rounded-xl self-start flex-shrink-0 border border-blue-100 dark:border-blue-800">
+                      <User className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
                   )}
                 </motion.div>
@@ -1178,11 +1212,11 @@ export function DashboardContent() {
           )}
 
           {isBotTyping && !displayedMessages.some(m => m.isBot && m.isTyping) && (
-            <motion.div className="flex justify-start items-end gap-3" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-              <div className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground p-2.5 rounded-2xl self-start shadow-lg shadow-primary/20">
-                <Bot className="w-5 h-5" />
+            <motion.div className="flex justify-start items-end gap-2 md:gap-3" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              <div className="bg-white dark:bg-zinc-800 text-primary p-2 rounded-xl self-start border border-border/40">
+                <Bot className="w-4 h-4 md:w-5 md:h-5" />
               </div>
-              <div className="bg-gradient-to-br from-muted/80 to-muted/60 backdrop-blur-sm rounded-2xl rounded-tl-sm border border-border/50 shadow-lg">
+              <div className="bg-white dark:bg-zinc-900 border border-border/40 px-4 py-3 rounded-2xl rounded-tl-sm shadow-sm">
                 <TypingIndicator />
               </div>
             </motion.div>
@@ -1190,56 +1224,55 @@ export function DashboardContent() {
         </div>
       </div>
 
-      {/* Input Area */}
-      <div className="absolute bottom-0 left-0 right-0 z-20">
+      {/* INPUT AREA */}
+      <div className="absolute bottom-0 left-0 right-0 z-50">
         <AnimatePresence>
           {mentionType && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute bottom-full left-0 right-0 mb-2 mx-auto max-w-4xl px-4 z-50 pointer-events-none">
-               <div className="bg-background/95 backdrop-blur-xl border border-border/50 rounded-xl shadow-2xl overflow-hidden pointer-events-auto max-h-60 overflow-y-auto w-full md:w-80 md:ml-12">
-                 <div className="p-2 border-b flex justify-between bg-muted/30"><span className="text-xs font-semibold uppercase pl-2">Select {mentionType}</span><Button variant="ghost" size="icon" className="h-6 w-6" onClick={()=>setMentionType(null)}><X className="w-3 h-3"/></Button></div>
-                 <div className="p-1.5 space-y-0.5">
+               <div className="bg-background/95 backdrop-blur-xl border border-border rounded-xl shadow-2xl overflow-hidden pointer-events-auto max-h-52 overflow-y-auto w-full md:w-80 md:ml-12">
+                 <div className="p-2 border-b flex justify-between bg-muted/40"><span className="text-xs font-semibold uppercase pl-2">Select {mentionType}</span><Button variant="ghost" size="icon" className="h-6 w-6" onClick={()=>setMentionType(null)}><X className="w-3 h-3"/></Button></div>
+                 <div className="p-1">
                    {isFetchingSuggestions ? <div className="p-4 flex justify-center"><Loader2 className="w-4 h-4 animate-spin"/></div> : fetchedSuggestions.length > 0 ? fetchedSuggestions.map((item: any) => (
-                        <button key={item.id} onClick={() => insertMention(item.name)} className="w-full flex items-center gap-3 p-2.5 text-sm rounded-lg hover:bg-primary/10 text-left group">
-                          <div className="p-1.5 rounded bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground"><Users className="w-4 h-4"/></div>
-                          <div><div className="font-medium">{item.name}</div><div className="text-xs text-muted-foreground">{mentionType === 'buyer' ? `GST: ${item.gstin||'N/A'}` : `Rate: ₹${item.rate}`}</div></div>
+                        <button key={item.id} onClick={() => insertMention(item.name)} className="w-full flex items-center gap-3 p-2 text-sm rounded-lg hover:bg-accent text-left transition-colors">
+                          <div className="p-1.5 rounded bg-primary/10 text-primary"><Users className="w-4 h-4"/></div>
+                          <div className="min-w-0"><div className="font-medium truncate">{item.name}</div><div className="text-xs text-muted-foreground truncate">{mentionType === 'buyer' ? `GST: ${item.gstin||'N/A'}` : `Rate: ₹${item.rate}`}</div></div>
                         </button>
-                   )) : <div className="p-3 text-sm text-center text-muted-foreground">No matches</div>}
+                   )) : <div className="p-3 text-xs text-center text-muted-foreground">No matches</div>}
                  </div>
                </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        <div className="md:hidden border-t border-border/30 bg-background/80 backdrop-blur-md px-4 py-2 flex gap-3 overflow-x-auto no-scrollbar">
-          <Button variant="secondary" size="sm" onClick={() => forceOpenMention('buyer')} className="flex-shrink-0 gap-2 rounded-full h-8 text-xs border border-border/50"><Users className="w-3.5 h-3.5" /> Buyers</Button>
-          <Button variant="secondary" size="sm" onClick={() => forceOpenMention('item')} className="flex-shrink-0 gap-2 rounded-full h-8 text-xs border border-border/50"><Package className="w-3.5 h-3.5" /> Items</Button>
+        {/* Mobile Accessory Bar */}
+        <div className="md:hidden border-t border-border/40 bg-background/95 backdrop-blur-md px-3 py-2 flex gap-2 overflow-x-auto no-scrollbar">
+          <Button variant="secondary" size="sm" onClick={() => forceOpenMention('buyer')} className="flex-shrink-0 h-8 text-xs rounded-full border border-border/50"><Users className="w-3.5 h-3.5 mr-1.5" /> Buyers</Button>
+          <Button variant="secondary" size="sm" onClick={() => forceOpenMention('item')} className="flex-shrink-0 h-8 text-xs rounded-full border border-border/50"><Package className="w-3.5 h-3.5 mr-1.5" /> Items</Button>
         </div>
 
-        <div className="py-5 sm:py-6 border-t border-border/50 bg-background/95 backdrop-blur-xl shadow-2xl">
-          <div className="w-full max-w-4xl mx-auto px-4 sm:px-6">
-            <AnimatePresence mode="wait">
-              {isBotTyping ? (
-                <motion.div key="stop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-full flex justify-center">
-                  <Button onClick={handleStopExecution} variant="outline" className="rounded-full px-6 py-6 border-2 border-primary/30 hover:border-primary hover:bg-primary/10 shadow-lg"><StopCircle className="mr-2 h-5 w-5" /> Stop Generating</Button>
-                </motion.div>
-              ) : isListening ? (
-                <motion.div key="listening" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-full flex justify-center items-center gap-4">
-                  <div className="flex items-center gap-3 px-5 py-3 bg-primary/10 rounded-full border border-primary/20"><div className="relative"><div className="w-3 h-3 bg-primary rounded-full animate-ping absolute" /><div className="w-3 h-3 bg-primary rounded-full" /></div><span className="text-sm font-medium text-primary">Listening...</span></div>
-                  <Button onClick={stopListening} variant="destructive" size="sm" className="rounded-full px-5 shadow-lg"><StopCircle className="mr-2 w-4 h-4" /> Stop</Button>
-                </motion.div>
-              ) : (
-                <motion.form key="input" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onSubmit={(e) => { e.preventDefault(); sendMessage(message); }} className="w-full flex items-center gap-2 sm:gap-3 bg-muted/50 rounded-full p-2 border border-border/50 shadow-xl backdrop-blur-sm">
-                  <Button type="button" onClick={handleStopSpeech} variant="ghost" size="icon" className="rounded-full flex-shrink-0 hover:bg-muted" disabled={!isSpeaking}>{isSpeaking ? <Volume2 className="w-5 h-5 text-primary animate-pulse" /> : <VolumeX className="w-5 h-5 text-muted-foreground/50" />}</Button>
-                  <Button type="button" onClick={startListening} variant="ghost" size="icon" className="rounded-full flex-shrink-0 hover:bg-primary/10 hover:text-primary"><Mic className="w-5 h-5" /></Button>
-                  <Input ref={inputRef} value={message} onChange={handleInputChange} placeholder="Type @ for buyers, # for items..." className="flex-1 border-0 bg-transparent focus-visible:ring-0 text-base placeholder:text-muted-foreground/60" />
-                  <Button type="submit" size="icon" className="rounded-full flex-shrink-0 bg-gradient-to-r from-primary to-primary/80 hover:shadow-lg group" disabled={!message.trim()}><Send className="w-5 h-5 group-hover:-translate-y-0.5 transition-transform" /></Button>
-                </motion.form>
-              )}
-            </AnimatePresence>
+        {/* Main Input */}
+        <div className="py-3 md:py-5 bg-background border-t border-border/50 shadow-[0_-4px_20px_-5px_rgba(0,0,0,0.1)]">
+          <div className="w-full max-w-4xl mx-auto px-3 md:px-6">
+            {isBotTyping ? (
+                <div className="w-full flex justify-center">
+                  <Button onClick={handleStopExecution} variant="outline" className="rounded-full px-6 border-primary/30 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50 transition-all"><StopCircle className="mr-2 h-4 w-4" /> Stop Generating</Button>
+                </div>
+            ) : isListening ? (
+                <div className="w-full flex justify-center items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  <div className="flex items-center gap-3 px-5 py-2.5 bg-primary text-primary-foreground rounded-full shadow-lg shadow-primary/20"><div className="relative flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span></div><span className="text-sm font-medium">Listening...</span></div>
+                  <Button onClick={stopListening} variant="secondary" size="icon" className="rounded-full h-10 w-10 shadow-md"><X className="h-5 w-5" /></Button>
+                </div>
+            ) : (
+                <form onSubmit={(e) => { e.preventDefault(); if (!isSending) sendMessage(message); }} className="w-full flex items-end gap-2 bg-muted/30 rounded-3xl p-1.5 border border-border/60 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50 transition-all">
+                  {/* <Button type="button" onClick={handleStopSpeech} variant="ghost" size="icon" className="rounded-full h-10 w-10 text-muted-foreground hover:text-primary hover:bg-primary/10" disabled={!isSpeaking}>{isSpeaking ? <Volume2 className="h-5 w-5 animate-pulse" /> : <VolumeX className="h-5 w-5" />}</Button> */}
+                  <Button type="button" onClick={startListening} variant="ghost" size="icon" className="rounded-full h-10 w-10 text-muted-foreground hover:text-primary hover:bg-primary/10"><Mic className="h-5 w-5" /></Button> 
+                  <Input ref={inputRef} value={message} onChange={handleInputChange} placeholder="Ask me anything..." className="flex-1 border-0 bg-transparent focus-visible:ring-0 text-base h-10 py-0 placeholder:text-muted-foreground/50" disabled={isSending} />
+                  <Button type="submit" size="icon" className={`rounded-full h-10 w-10 bg-primary text-primary-foreground shadow-md hover:shadow-lg hover:scale-105 transition-all ${isSending || !message.trim() ? 'opacity-50 cursor-not-allowed hover:scale-100' : ''}`} disabled={isSending || !message.trim()}><Send className="h-4 w-4" /></Button>
+                </form>
+            )}
           </div>
         </div>
       </div>
     </div>
   )
 }
-

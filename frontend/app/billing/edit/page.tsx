@@ -854,14 +854,15 @@ const InvoiceCard = memo(
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: -20 }}
         transition={{ duration: 0.3, type: "spring", stiffness: 100 }}
-        whileHover={{ y: -8, transition: { duration: 0.2 } }}
+        whileHover={{ y: -4, transition: { duration: 0.2 } }} // Reduced hover lift for mobile stability
+        className="w-full"
       >
-        <Card className={`relative group overflow-hidden border-border/50 bg-gradient-to-br from-card to-card/50 backdrop-blur-sm hover:shadow-2xl transition-all duration-300 ${
-          isPaid ? 'hover:shadow-emerald-500/10 border-t-4 border-t-emerald-500' : 'hover:shadow-indigo-500/10 border-t-4 border-t-indigo-500'
-        }`}>
+        <Card className={`relative group overflow-hidden border-border/50 bg-gradient-to-br from-card to-card/50 backdrop-blur-sm transition-all duration-300 ${
+          isPaid ? 'border-t-4 border-t-emerald-500' : 'border-t-4 border-t-indigo-500'
+        } hover:shadow-lg`}>
           
           {/* Decorative gradient overlay */}
-          <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-20 ${
+          <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-10 pointer-events-none ${
             isPaid ? 'bg-emerald-500' : 'bg-indigo-500'
           }`} />
           
@@ -871,47 +872,47 @@ const InvoiceCard = memo(
               isPaid 
                 ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30 dark:text-emerald-400' 
                 : 'bg-amber-500/15 text-amber-600 border-amber-500/30 dark:text-amber-400'
-            } border backdrop-blur-sm`}>
+            } border backdrop-blur-sm px-2 py-1`}>
               {isPaid ? (
-                <>
-                  <CheckCircle className="w-3 h-3 mr-1" />
-                  Paid
-                </>
+                <div className="flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" />
+                  <span>Paid</span>
+                </div>
               ) : (
-                <>
-                  <XCircle className="w-3 h-3 mr-1" />
-                  Unpaid
-                </>
+                <div className="flex items-center gap-1">
+                  <XCircle className="w-3 h-3" />
+                  <span>Unpaid</span>
+                </div>
               )}
             </Badge>
           </div>
 
-          {/* Action Menu */}
-          <div className="absolute top-4 right-4 z-10">
-            <DropdownMenu>
+          {/* Action Menu - FIX APPLIED HERE */}
+          <div className="absolute top-3 right-3 z-20" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenu modal={false}> {/* modal={false} PREVENTS SCROLL LOCKING */}
               <DropdownMenuTrigger asChild>
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  className="h-9 w-9 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background border border-border/50 shadow-lg" 
+                  className="h-10 w-10 rounded-full bg-background/60 backdrop-blur-sm hover:bg-accent border border-border/50 shadow-sm" 
                   disabled={isUpdating}
                 >
-                  <MoreVertical className="h-4 w-4" />
+                  <MoreVertical className="h-5 w-5 text-foreground/70" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 bg-background/95 backdrop-blur-xl border-border/50">
-                <DropdownMenuItem onClick={() => onEdit(invoice.id)} disabled={isUpdating} className="cursor-pointer">
+              <DropdownMenuContent align="end" className="w-48 bg-popover/95 backdrop-blur-xl border-border shadow-xl z-50">
+                <DropdownMenuItem onClick={() => onEdit(invoice.id)} disabled={isUpdating} className="cursor-pointer py-2.5">
                   <Edit className="mr-2 h-4 w-4" />
                   Edit Invoice
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {isPaid ? (
-                  <DropdownMenuItem onClick={() => onStatusChange(invoice, 'unpaid')} disabled={isUpdating} className="cursor-pointer">
+                  <DropdownMenuItem onClick={() => onStatusChange(invoice, 'unpaid')} disabled={isUpdating} className="cursor-pointer py-2.5">
                     <XCircle className="mr-2 h-4 w-4 text-amber-500" />
                     Mark as Unpaid
                   </DropdownMenuItem>
                 ) : (
-                  <DropdownMenuItem onClick={() => onStatusChange(invoice, 'paid')} disabled={isUpdating} className="cursor-pointer">
+                  <DropdownMenuItem onClick={() => onStatusChange(invoice, 'paid')} disabled={isUpdating} className="cursor-pointer py-2.5">
                     <CheckCircle className="mr-2 h-4 w-4 text-emerald-500" />
                     Mark as Paid
                   </DropdownMenuItem>
@@ -919,7 +920,7 @@ const InvoiceCard = memo(
                 <DropdownMenuSeparator />
                 <DropdownMenuItem 
                   onClick={() => onDelete(invoice.id, invoice.number)} 
-                  className="text-red-500 focus:text-red-600 cursor-pointer" 
+                  className="text-red-500 focus:text-red-600 cursor-pointer py-2.5" 
                   disabled={isUpdating}
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
@@ -929,21 +930,26 @@ const InvoiceCard = memo(
             </DropdownMenu>
           </div>
 
-          <CardHeader className="pb-3 pt-16">
-            <CardTitle className="text-xl font-bold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+          <CardHeader className="pb-2 pt-16 px-5">
+            {/* Invoice Number - Breaks word if too long */}
+            <CardTitle className="text-xl font-bold tracking-tight text-foreground break-all">
               #{invoice.number}
             </CardTitle>
-            <CardDescription className="flex items-center gap-2 text-sm">
-              <div className="p-1.5 rounded-lg bg-primary/10">
+            
+            {/* Buyer Name - Wraps properly on mobile */}
+            <CardDescription className="flex items-start gap-2 text-sm pt-1">
+              <div className="p-1.5 rounded-md bg-primary/10 mt-0.5 shrink-0">
                 <User className="h-3.5 w-3.5 text-primary" />
               </div>
-              <span className="font-medium">{invoice.buyerName || 'N/A'}</span>
+              <span className="font-medium text-foreground/80 leading-tight break-words">
+                {invoice.buyerName || 'N/A'}
+              </span>
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="space-y-3">
+          <CardContent className="px-5 pb-4 space-y-4">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <div className="p-1.5 rounded-lg bg-muted">
+              <div className="p-1.5 rounded-md bg-muted shrink-0">
                 <Calendar className="h-3.5 w-3.5" />
               </div>
               <span>{new Date(invoice.date).toLocaleDateString('en-IN', { 
@@ -953,46 +959,46 @@ const InvoiceCard = memo(
               })}</span>
             </div>
             
-            <div className="pt-2 border-t border-border/50">
-              <div className="flex items-baseline gap-2">
-                <span className="text-xs text-muted-foreground">Total Amount</span>
-                <span className="text-2xl font-bold text-primary ml-auto">
+            <div className="pt-3 border-t border-border/50">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Total Amount</span>
+                <span className="text-2xl font-bold text-primary">
                   ₹{invoice.total_amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                 </span>
               </div>
             </div>
           </CardContent>
 
-          <CardFooter className="flex gap-2 pt-0 pb-4">
+          <CardFooter className="flex gap-3 px-5 pb-5 pt-0">
             <Button 
               variant="outline" 
               size="sm" 
               onClick={() => invoice.invoice_url && onPreview(invoice.invoice_url)} 
               disabled={!invoice.invoice_url || isUpdating} 
-              className="flex-1 group/btn hover:bg-primary/5 hover:border-primary/30 transition-all duration-300"
+              className="flex-1 h-9 text-sm font-medium hover:bg-primary/5 border-primary/20"
             >
-              <Eye className="h-4 w-4 mr-2 group-hover/btn:text-primary transition-colors" />
+              <Eye className="h-4 w-4 mr-2 text-primary" />
               Preview
             </Button>
             
-            <DropdownMenu>
+            <DropdownMenu modal={false}> {/* Fix here too */}
               <DropdownMenuTrigger asChild>
                 <Button 
                   variant="default" 
                   size="sm" 
-                  className="flex-1 bg-gradient-to-r from-primary to-primary/90 hover:shadow-lg hover:shadow-primary/30 transition-all duration-300" 
+                  className="flex-1 h-9 bg-gradient-to-r from-primary to-primary/90 shadow-sm" 
                   disabled={isUpdating}
                 >
                   <Share2 className="h-4 w-4 mr-2" />
                   Share
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44 bg-background/95 backdrop-blur-xl border-border/50">
-                <DropdownMenuItem onClick={() => handleShare('whatsapp')} className="cursor-pointer">
+              <DropdownMenuContent align="end" className="w-48 bg-popover backdrop-blur-xl border-border z-50">
+                <DropdownMenuItem onClick={() => handleShare('whatsapp')} className="cursor-pointer py-2.5">
                   <MessageCircle className="h-4 w-4 mr-2 text-green-500" />
                   WhatsApp
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleShare('gmail')} className="cursor-pointer">
+                <DropdownMenuItem onClick={() => handleShare('gmail')} className="cursor-pointer py-2.5">
                   <Mail className="h-4 w-4 mr-2 text-red-500" />
                   Gmail
                 </DropdownMenuItem>
@@ -1090,60 +1096,32 @@ export default function EditBilling() {
   }, [filterText, invoices]);
 
   const handlePreviewClick = (url: string) => window.open(url, "_blank");
-  const handleEditClick = (id: string) => router.push(`/dashboard/invoices/edit/${id}`);
+  const handleEditClick = (id: string) => router.push(`/billing/edit/${id}`);
 
-const handleDeleteClick = async (id: string, invoice_number: string) => {
-  if (!confirm("Are you sure? This will delete the invoice, payment records, and the PDF file.")) return;
-  setUpdatingStatusId(id);
-  try {
-    // Step 1: Delete the PDF file from Supabase Storage
-    const safeInvoiceNo = invoice_number.replace(/[\/\\]/g, "-").replace(/\s+/g, "_");
-    const filePath = `${userId}/${safeInvoiceNo}.pdf`;
-    
-    const { error: storageError } = await supabase.storage
-      .from("invoices")
-      .remove([filePath]);
-    
-    if (storageError && storageError.message !== "Not found") {
-      console.warn(`Storage deletion warning: ${storageError.message}`);
-      // Don't throw - file might already be deleted or path might be different
+  const handleDeleteClick = async (id: string, invoice_number: string) => {
+    if (!confirm("Are you sure? This will delete the invoice, payment records, and the PDF file.")) return;
+    setUpdatingStatusId(id);
+    try {
+      const safeInvoiceNo = invoice_number.replace(/[\/\\]/g, "-").replace(/\s+/g, "_");
+      const filePath = `${userId}/${safeInvoiceNo}.pdf`;
+      
+      const { error: storageError } = await supabase.storage.from("invoices").remove([filePath]);
+      if (storageError && storageError.message !== "Not found") console.warn(`Storage warning: ${storageError.message}`);
+
+      const { error: ledgerError } = await supabase.from('ledger_entries').delete().eq('user_id', userId).contains('tags', [`invoice_id:${id}`]);
+      if (ledgerError) throw new Error(`Ledger Error: ${ledgerError.message}`);
+      
+      const { error: invoiceError } = await supabase.from("invoices_record").delete().eq("id", id);
+      if (invoiceError) throw new Error(`Invoice Error: ${invoiceError.message}`);
+
+      setInvoices((prev) => prev.filter((i) => i.id !== id));
+      toast({ title: "Success", description: `Invoice #${invoice_number} deleted successfully.` });
+    } catch (error: any) {
+      toast({ title: "Error", description: `Failed to delete: ${error.message}`, variant: "destructive" });
+    } finally {
+      setUpdatingStatusId(null);
     }
-
-    // Step 2: Delete ledger entries associated with this invoice
-    const { error: ledgerError } = await supabase
-      .from('ledger_entries')
-      .delete()
-      .eq('user_id', userId)
-      .contains('tags', [`invoice_id:${id}`]);
-    
-    if (ledgerError) throw new Error(`Ledger Error: ${ledgerError.message}`);
-    
-    // Step 3: Delete the invoice record from database (items cascade delete)
-    const { error: invoiceError } = await supabase
-      .from("invoices_record")
-      .delete()
-      .eq("id", id);
-    
-    if (invoiceError) throw new Error(`Invoice Error: ${invoiceError.message}`);
-
-    // Step 4: Update local state
-    setInvoices((prev) => prev.filter((i) => i.id !== id));
-    
-    toast({ 
-      title: "Success", 
-      description: `Invoice #${invoice_number} and its PDF file deleted successfully.` 
-    });
-  } catch (error: any) {
-    console.error("Delete error:", error);
-    toast({ 
-      title: "Error", 
-      description: `Failed to delete invoice: ${error.message}`, 
-      variant: "destructive" 
-    });
-  } finally {
-    setUpdatingStatusId(null);
-  }
-};
+  };
 
   const handleStatusChange = async (invoice: Invoice, newStatus: 'paid' | 'unpaid') => {
     if (!userId) return;
@@ -1166,16 +1144,11 @@ const handleDeleteClick = async (id: string, invoice_number: string) => {
         const { error: invoiceError } = await supabase.from('invoices_record').update({ status: newStatus }).eq('id', invoice.id);
         if (invoiceError) throw invoiceError;
 
-        setInvoices(prevInvoices =>
-            prevInvoices.map(inv =>
-                inv.id === invoice.id ? { ...inv, status: newStatus } : inv
-            )
-        );
+        setInvoices(prev => prev.map(inv => inv.id === invoice.id ? { ...inv, status: newStatus } : inv));
         toast({ title: "Status Updated", description: `Invoice #${invoice.number} marked as ${newStatus}.` });
 
     } catch (error: any) {
-        toast({ title: "Error", description: `Failed to update status: ${error.message}`, variant: "destructive" });
-        setInvoices(prev => [...prev]); 
+        toast({ title: "Error", description: `Failed to update: ${error.message}`, variant: "destructive" });
     } finally {
         setUpdatingStatusId(null);
     }
@@ -1192,7 +1165,7 @@ const handleDeleteClick = async (id: string, invoice_number: string) => {
       return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {[...Array(8)].map((_, i) => (
-            <div key={i} className="h-80 rounded-2xl bg-gradient-to-br from-muted/50 to-muted/30 animate-pulse" />
+            <div key={i} className="h-80 rounded-2xl bg-gradient-to-br from-muted/50 to-muted/30 animate-pulse border border-border/30" />
           ))}
         </div>
       );
@@ -1200,15 +1173,11 @@ const handleDeleteClick = async (id: string, invoice_number: string) => {
     
     if (invoices.length > 0 && filteredInvoices.length === 0) {
         return (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="col-span-full text-center py-20"
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="col-span-full text-center py-20">
             <div className="p-4 rounded-full bg-muted/30 w-20 h-20 mx-auto mb-6 flex items-center justify-center">
               <FileSearch className="h-10 w-10 text-muted-foreground/50" />
             </div>
-            <h3 className="text-xl font-semibold mb-2">No Invoices Match Your Search</h3>
+            <h3 className="text-xl font-semibold mb-2">No matches found</h3>
             <p className="text-muted-foreground">Try adjusting your search filters</p>
           </motion.div>
         );
@@ -1216,19 +1185,14 @@ const handleDeleteClick = async (id: string, invoice_number: string) => {
     
     if (invoices.length === 0) {
       return (
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="col-span-full text-center py-20"
-        >
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="col-span-full text-center py-20">
           <div className="p-4 rounded-full bg-gradient-to-br from-primary/10 to-primary/5 w-20 h-20 mx-auto mb-6 flex items-center justify-center">
-            <FileSearch className="h-10 w-10 text-primary/50" />
+            <Sparkles className="h-10 w-10 text-primary/50" />
           </div>
-          <h3 className="text-xl font-semibold mb-2">No Invoices Found</h3>
-          <p className="text-muted-foreground mb-6">Create your first invoice to see it here</p>
-          <Button onClick={() => router.push('/dashboard/invoices/create')} className="bg-gradient-to-r from-primary to-primary/90">
-            <Sparkles className="w-4 h-4 mr-2" />
-            Create Invoice
+          <h3 className="text-xl font-semibold mb-2">No Invoices Yet</h3>
+          <p className="text-muted-foreground mb-6">Create your first invoice to get started</p>
+          <Button onClick={() => router.push('/billing/create')} className="bg-gradient-to-r from-primary to-primary/90 shadow-lg shadow-primary/20">
+            <Sparkles className="w-4 h-4 mr-2" /> Create Invoice
           </Button>
         </motion.div>
       );
@@ -1255,67 +1219,62 @@ const handleDeleteClick = async (id: string, invoice_number: string) => {
   
   return (
     <DashboardLayout>
-      <div className="p-4 md:p-8 space-y-8">
+      <div className="w-full max-w-screen-2xl mx-auto p-4 sm:p-6 md:p-8 space-y-8 pb-32">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4"
         >
-          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
-            Invoice Management
-          </h1>
-          <p className="text-muted-foreground mt-2 text-lg">
-            Manage, track, and organize all your invoices in one place
-          </p>
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+              Invoices
+            </h1>
+            <p className="text-muted-foreground mt-2 text-base">
+              Manage and track your billing history
+            </p>
+          </div>
+          <div className="hidden sm:block">
+            <Button onClick={() => router.push('/billing/create')} className="bg-primary shadow-lg shadow-primary/20">
+                <Sparkles className="w-4 h-4 mr-2" /> Create New
+            </Button>
+          </div>
         </motion.div>
 
-        {/* Stats Cards */}
+        {/* Stats Cards - Stacks on mobile */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
+          transition={{ delay: 0.1 }}
           className="grid grid-cols-1 sm:grid-cols-3 gap-4"
         >
-          <Card className="border-border/50 bg-gradient-to-br from-card to-card/50 backdrop-blur-sm hover:shadow-lg transition-all duration-300">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Invoices</p>
-                  <p className="text-3xl font-bold mt-2">{stats.total}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-primary/10">
-                  <FileSearch className="h-6 w-6 text-primary" />
-                </div>
+          <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+            <CardContent className="p-5 flex justify-between items-center">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Invoices</p>
+                <p className="text-2xl sm:text-3xl font-bold mt-1">{stats.total}</p>
               </div>
+              <div className="p-3 rounded-xl bg-primary/10"><FileSearch className="h-5 w-5 text-primary" /></div>
             </CardContent>
           </Card>
 
-          <Card className="border-border/50 bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 backdrop-blur-sm hover:shadow-lg hover:shadow-emerald-500/10 transition-all duration-300">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Paid Invoices</p>
-                  <p className="text-3xl font-bold mt-2 text-emerald-600 dark:text-emerald-400">{stats.paid}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-emerald-500/20">
-                  <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-                </div>
+          <Card className="border-border/50 bg-emerald-500/5">
+            <CardContent className="p-5 flex justify-between items-center">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Paid</p>
+                <p className="text-2xl sm:text-3xl font-bold mt-1 text-emerald-600 dark:text-emerald-400">{stats.paid}</p>
               </div>
+              <div className="p-3 rounded-xl bg-emerald-500/10"><CheckCircle className="h-5 w-5 text-emerald-600" /></div>
             </CardContent>
           </Card>
 
-          <Card className="border-border/50 bg-gradient-to-br from-amber-500/5 to-amber-500/10 backdrop-blur-sm hover:shadow-lg hover:shadow-amber-500/10 transition-all duration-300">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Unpaid Invoices</p>
-                  <p className="text-3xl font-bold mt-2 text-amber-600 dark:text-amber-400">{stats.unpaid}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-amber-500/20">
-                  <XCircle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-                </div>
+          <Card className="border-border/50 bg-amber-500/5">
+            <CardContent className="p-5 flex justify-between items-center">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Pending</p>
+                <p className="text-2xl sm:text-3xl font-bold mt-1 text-amber-600 dark:text-amber-400">{stats.unpaid}</p>
               </div>
+              <div className="p-3 rounded-xl bg-amber-500/10"><XCircle className="h-5 w-5 text-amber-600" /></div>
             </CardContent>
           </Card>
         </motion.div>
@@ -1324,28 +1283,28 @@ const handleDeleteClick = async (id: string, invoice_number: string) => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="flex flex-col sm:flex-row gap-4"
+          transition={{ delay: 0.2 }}
+          className="flex flex-col sm:flex-row gap-4 sticky top-2 z-30 bg-background/80 backdrop-blur-md p-2 -mx-2 rounded-xl"
         >
           <div className="relative flex-grow group">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <Input
-              placeholder="Search by invoice #, date, or buyer name..."
+              placeholder="Search invoices..."
               value={filterText}
               onChange={(e) => setFilterText(e.target.value)}
-              className="pl-10 h-11 border-border/50 bg-background/50 backdrop-blur-sm focus:bg-background transition-all duration-300"
+              className="pl-9 h-11 border-border/50 bg-background/50 focus:bg-background transition-all shadow-sm"
             />
           </div>
           
           <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-full sm:w-[220px] h-11 border-border/50 bg-background/50 backdrop-blur-sm">
-              <Filter className="h-4 w-4 mr-2" />
+            <SelectTrigger className="w-full sm:w-[200px] h-11 border-border/50 bg-background/50">
+              <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
-            <SelectContent className="bg-background/95 backdrop-blur-xl border-border/50">
-              <SelectItem value="date_desc">Latest First</SelectItem>
+            <SelectContent>
+              <SelectItem value="date_desc">Newest First</SelectItem>
               <SelectItem value="date_asc">Oldest First</SelectItem>
-              <SelectItem value="number_desc">By Invoice Number</SelectItem>
+              <SelectItem value="number_desc">Invoice Number</SelectItem>
             </SelectContent>
           </Select>
         </motion.div>
@@ -1354,10 +1313,21 @@ const handleDeleteClick = async (id: string, invoice_number: string) => {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
+          transition={{ delay: 0.3 }}
         >
           {renderContent()}
         </motion.div>
+      </div>
+
+      {/* Mobile Create Button (Floating) */}
+      <div className="sm:hidden fixed bottom-6 right-6 z-40">
+        <Button 
+            onClick={() => router.push('billing/create')} 
+            size="icon"
+            className="h-14 w-14 rounded-full bg-primary shadow-xl shadow-primary/30 hover:scale-105 transition-transform"
+        >
+            <Sparkles className="h-6 w-6" />
+        </Button>
       </div>
     </DashboardLayout>
   );

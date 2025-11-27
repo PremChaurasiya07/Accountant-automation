@@ -488,6 +488,7 @@
 
 
 "use client";
+
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -499,12 +500,15 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import SvgLoader from "./ui/loader";
+import SvgLoader from "@/components/ui/loader"; // Ensure you have this or replace with text
 import { supabase } from "@/lib/supabase";
 import { useUserId } from "@/hooks/context/UserContext";
-import { useToast } from "../hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { indianStates } from "@/lib/indianStates";
-import { FileText, User, Building, Banknote, Trash2, PlusCircle, Save, Bell, Send, Copy, Settings, Phone, Mail, Palette } from 'lucide-react';
+import { 
+  FileText, User, Building, Banknote, Trash2, PlusCircle, Save, 
+  Bell, Send, Copy, Settings, Phone, Mail, Palette, CheckCircle2 
+} from 'lucide-react';
 import Image from "next/image";
 import { logEvent } from '@/lib/gtag';
 
@@ -512,7 +516,7 @@ import { logEvent } from '@/lib/gtag';
 interface Item {
     srNo: number; 
     name: string;
-    description?: string; // Added Description
+    description?: string;
     hsn: string; 
     quantity: number | ''; 
     unit: string; 
@@ -553,33 +557,75 @@ const useClickOutside = (ref: React.RefObject<HTMLElement>, callback: () => void
 };
 
 // --- UI SUB-COMPONENTS ---
-const PageHeader = () => ( <div><h1 className="text-2xl md:text-3xl font-bold tracking-tight">Create Invoice</h1><p className="text-muted-foreground">Fill in the details below to generate a new invoice.</p></div> );
-const FormSectionCard = ({ title, icon, children }: { title: string, icon?: React.ReactNode, children: React.ReactNode }) => ( <Card><CardHeader><div className="flex items-center gap-3">{icon} <CardTitle>{title}</CardTitle></div></CardHeader><CardContent>{children}</CardContent></Card> );
-const LoadingSkeleton = () => ( <div className="p-4 md:p-6 space-y-6"><div className="flex justify-between items-center"><Skeleton className="h-10 w-1/3" /></div><div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start"><div className="lg:col-span-2 space-y-6"><Skeleton className="h-40 w-full" /><Skeleton className="h-56 w-full" /><Skeleton className="h-64 w-full" /></div><div className="lg:col-span-1 space-y-6"><Skeleton className="h-32 w-full" /><Skeleton className="h-48 w-full" /></div></div></div> );
+const PageHeader = () => ( 
+    <div className="flex flex-col gap-1">
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">Create Invoice</h1>
+        <p className="text-sm md:text-base text-muted-foreground">Fill in the details below to generate a new invoice.</p>
+    </div> 
+);
+
+const FormSectionCard = ({ title, icon, children }: { title: string, icon?: React.ReactNode, children: React.ReactNode }) => ( 
+    <Card className="overflow-hidden shadow-sm border-border/50">
+        <CardHeader className="bg-muted/20 border-b border-border/50 py-4">
+            <div className="flex items-center gap-3 text-primary">
+                {icon} 
+                <CardTitle className="text-lg font-semibold">{title}</CardTitle>
+            </div>
+        </CardHeader>
+        <CardContent className="p-4 md:p-6 space-y-4">
+            {children}
+        </CardContent>
+    </Card> 
+);
+
+const LoadingSkeleton = () => ( 
+    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
+        <div className="flex justify-between items-center"><Skeleton className="h-10 w-1/3 rounded-lg" /></div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            <div className="lg:col-span-2 space-y-6">
+                <Skeleton className="h-40 w-full rounded-xl" />
+                <Skeleton className="h-56 w-full rounded-xl" />
+                <Skeleton className="h-64 w-full rounded-xl" />
+            </div>
+            <div className="lg:col-span-1 space-y-6">
+                <Skeleton className="h-32 w-full rounded-xl" />
+                <Skeleton className="h-48 w-full rounded-xl" />
+            </div>
+        </div>
+    </div> 
+);
 
 // --- TEMPLATE DIALOG COMPONENT ---
 const TemplateDialog = ({ isOpen, onClose, currentTemplate, onSelectTemplate, onSetDefault, isSavingDefault }: { isOpen: boolean; onClose: () => void; currentTemplate: string; onSelectTemplate: (id: string) => void; onSetDefault: () => void; isSavingDefault: boolean; }) => {
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col">
-                <DialogHeader>
-                    <DialogTitle>Choose Invoice Template</DialogTitle>
-                    <DialogDescription>Select a layout for your invoice. You can set one as your default for future use.</DialogDescription>
+            <DialogContent className="sm:max-w-4xl w-[95vw] max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-xl">
+                <DialogHeader className="p-6 pb-2">
+                    <DialogTitle className="text-xl">Choose Invoice Template</DialogTitle>
+                    <DialogDescription>Select a layout for your invoice.</DialogDescription>
                 </DialogHeader>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-6 py-4 overflow-y-auto">
-                    {availableTemplates.map((template) => (
-                        <div key={template.id} className="group cursor-pointer" onClick={() => onSelectTemplate(template.id)}>
-                            <div className={`relative aspect-[3/4] rounded-lg overflow-hidden border-2 transition-all ${currentTemplate === template.id ? 'border-primary ring-4 ring-primary/30' : 'border-muted hover:border-primary/50'}`}>
-                                <Image src={template.imageUrl} alt={template.name} layout="fill" objectFit="cover" />
-                                <div className="absolute inset-0 bg-black/10 group-hover:bg-black/30 transition-all" />
+                <div className="flex-1 overflow-y-auto p-6 pt-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                        {availableTemplates.map((template) => (
+                            <div key={template.id} className="group cursor-pointer relative" onClick={() => onSelectTemplate(template.id)}>
+                                <div className={`relative aspect-[3/4] rounded-xl overflow-hidden border-2 transition-all duration-200 ${currentTemplate === template.id ? 'border-primary ring-4 ring-primary/20 shadow-lg' : 'border-muted hover:border-primary/50'}`}>
+                                    <Image src={template.imageUrl} alt={template.name} layout="fill" objectFit="cover" className="transition-transform duration-500 group-hover:scale-105"/>
+                                    {currentTemplate === template.id && (
+                                        <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-1 shadow-md">
+                                            <CheckCircle2 size={20} />
+                                        </div>
+                                    )}
+                                </div>
+                                <p className={`text-sm font-medium text-center mt-3 ${currentTemplate === template.id ? 'text-primary' : 'text-muted-foreground'}`}>{template.name}</p>
                             </div>
-                            <p className={`text-sm font-medium text-center mt-2 ${currentTemplate === template.id ? 'text-primary' : 'text-muted-foreground'}`}>{template.name}</p>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
-                <DialogFooter className="mt-auto pt-4 border-t">
-                    <Button variant="outline" onClick={onSetDefault} disabled={isSavingDefault}>{isSavingDefault ? <SvgLoader /> : <><Save size={16} className="mr-2" /> Save as Default</>}</Button>
-                    <DialogClose asChild><Button>Done</Button></DialogClose>
+                <DialogFooter className="p-4 border-t bg-muted/10 gap-2">
+                    <Button variant="outline" onClick={onSetDefault} disabled={isSavingDefault} className="flex-1 sm:flex-none">
+                        {isSavingDefault ? <SvgLoader /> : <><Save size={16} className="mr-2" /> Save as Default</>}
+                    </Button>
+                    <DialogClose asChild><Button className="flex-1 sm:flex-none">Done</Button></DialogClose>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -592,8 +638,6 @@ export default function Invoice() {
     const { userId, userSession } = useUserId();
     const { toast } = useToast();
     const today = new Date().toISOString().split('T')[0];
-    
-    // Default due date can remain, but user can clear it
     const defaultDueDate = new Date(new Date().setDate(new Date().getDate() + 15)).toISOString().split('T')[0];
     
     const [seller, setSeller] = useState<Seller | null>(null);
@@ -614,15 +658,7 @@ export default function Invoice() {
     const productSuggestionRefs = useRef<(HTMLDivElement | null)[]>([]);
 
     const [formState, setFormState] = useState<FormState>({
-        invoice_no: "", 
-        invoice_date: today, 
-        due_date: defaultDueDate, 
-        client_name: "", 
-        client_address: "", 
-        client_gstin: "", 
-        client_state_name: "", 
-        client_phone: "", 
-        client_email: "",
+        invoice_no: "", invoice_date: today, due_date: defaultDueDate, client_name: "", client_address: "", client_gstin: "", client_state_name: "", client_phone: "", client_email: "",
         products: [{ srNo: 1, name: "", description: "", hsn: "", quantity: 1, unit: "Pcs", rate: '', gst_rate: 0 }],
         terms_and_conditions: "1. Payment is due within 15 days.\n2. All goods remain the property of the seller until paid in full.", seller_id: null,
     });
@@ -745,41 +781,32 @@ export default function Invoice() {
             hsn: product.hsn || "", 
             unit: product.unit || "Pcs", 
             rate: product.rate || '', 
-            gst_rate: product.gst || 0, // Default to 0 if null 
+            gst_rate: product.gst || 0, 
         }; 
         setFormState(prev => ({ ...prev, products: newProducts })); 
         setActiveProductSuggestion(null); 
     };
 
     const addProductRow = () => setFormState(prev => ({ ...prev, products: [...prev.products, { srNo: prev.products.length + 1, name: "", description: "", hsn: "", quantity: 1, unit: "Pcs", rate: '', gst_rate: 0 }] }));
-    
     const deleteProductRow = (index: number) => setFormState(prev => ({ ...prev, products: prev.products.filter((_, i) => i !== index).map((p, i) => ({...p, srNo: i + 1})) }));
     
-    // --- UPDATED VALIDATION LOGIC ---
+    // Validation logic remains the same...
     const validateForm = () => {
         const { invoice_no, invoice_date, client_name, client_address, client_state_name, client_gstin, products } = formState;
         const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
-
-        // Mandatory fields checks
         if (!invoice_no.trim()) { toast({ title: "Validation Error", description: "Invoice number is required.", variant: "destructive" }); return false; }
         if (!invoice_date) { toast({ title: "Validation Error", description: "Invoice date is required.", variant: "destructive" }); return false; }
         if (!client_name.trim()) { toast({ title: "Validation Error", description: "Client name is required.", variant: "destructive" }); return false; }
         if (!client_address.trim()) { toast({ title: "Validation Error", description: "Client address is required.", variant: "destructive" }); return false; }
         if (!client_state_name) { toast({ title: "Validation Error", description: "Client state is required.", variant: "destructive" }); return false; }
-        
-        // GSTIN Format check (if provided)
         if (client_gstin && !gstinRegex.test(client_gstin)) { toast({ title: "Invalid GSTIN", description: "Please enter a valid 15-character GSTIN format.", variant: "destructive" }); return false; }
-
         for (let i = 0; i < products.length; i++) {
             const item = products[i];
             if (!item.name.trim()) { toast({ title: "Validation Error", description: `Item #${i + 1}: Name is required.`, variant: "destructive" }); return false; }
             if (isNaN(parseFloat(item.quantity as string)) || parseFloat(item.quantity as string) <= 0) { toast({ title: "Validation Error", description: `Item #${i + 1}: Quantity must be > 0.`, variant: "destructive" }); return false; }
             if (isNaN(parseFloat(item.rate as string)) || parseFloat(item.rate as string) <= 0) { toast({ title: "Validation Error", description: `Item #${i + 1}: Rate must be > 0.`, variant: "destructive" }); return false; }
-            
-            // Conditional HSN/GST Validation
-            // Only require HSN and GST Rate if the client has a GSTIN
             if (client_gstin) {
-                if (!item.hsn || !String(item.hsn).trim()) { toast({ title: "Validation Error", description: `Item #${i + 1}: HSN is required for B2B invoices (GSTIN provided).`, variant: "destructive" }); return false; }
+                if (!item.hsn || !String(item.hsn).trim()) { toast({ title: "Validation Error", description: `Item #${i + 1}: HSN is required for B2B invoices.`, variant: "destructive" }); return false; }
                 if (item.gst_rate === '' || item.gst_rate === null || item.gst_rate === undefined) { toast({ title: "Validation Error", description: `Item #${i + 1}: GST Rate is required for B2B invoices.`, variant: "destructive" }); return false; }
             }
         }
@@ -790,193 +817,248 @@ export default function Invoice() {
         if (!seller) return;
         setIsSavingDefault(true);
         const { error } = await supabase.from('sellers_record').update({ default_template: selectedTemplate }).eq('id', seller.id);
-        if (error) {
-            toast({ title: "Error", description: "Could not save default template. " + error.message, variant: "destructive" });
-        } else {
-            toast({ title: "Success", description: `Template '${availableTemplates.find(t => t.id === selectedTemplate)?.name}' is now your default.` });
-            setSeller(prev => prev ? { ...prev, default_template: selectedTemplate } : null);
-        }
+        if (error) { toast({ title: "Error", description: "Could not save default template.", variant: "destructive" }); } 
+        else { toast({ title: "Success", description: `Template '${availableTemplates.find(t => t.id === selectedTemplate)?.name}' is now your default.` }); setSeller(prev => prev ? { ...prev, default_template: selectedTemplate } : null); }
         setIsSavingDefault(false);
     };
 
     const handleCreateInvoice = async () => {
         if (!validateForm()) return;
-        if (!seller) { toast({ title: "Seller information is not loaded.", variant: "destructive" }); return; }
+        if (!seller) { toast({ title: "Seller info not loaded.", variant: "destructive" }); return; }
         setIsSaving(true);
-
-        // Normalize Data for Backend
-        // 1. Handle Nullable Due Date
         const dueDatePayload = formState.due_date && formState.due_date.trim() !== "" ? formState.due_date : null;
-
-        // 2. Normalize Items based on GST logic
-        // If NO GSTIN is provided, we force HSN to empty and GST Rate to 0 to ensure clean data
         const itemsPayload = formState.products.map(p => {
             const hasClientGst = !!formState.client_gstin;
-            return {
-                name: p.name,
-                description: p.description || "", // Send description
-                hsn: hasClientGst ? p.hsn : "",   // Clear HSN if no client GST
-                unit: p.unit,
-                quantity: parseFloat(p.quantity as string) || 0,
-                rate: parseFloat(p.rate as string) || 0,
-                gst_rate: hasClientGst ? (parseFloat(p.gst_rate as string) || 0) : 0 // Force 0 if no client GST
-            };
+            return { name: p.name, description: p.description || "", hsn: hasClientGst ? p.hsn : "", unit: p.unit, quantity: parseFloat(p.quantity as string) || 0, rate: parseFloat(p.rate as string) || 0, gst_rate: hasClientGst ? (parseFloat(p.gst_rate as string) || 0) : 0 };
         });
-
-        const payload = {
-            template: selectedTemplate,
-            invoice: { 
-                title: formState.client_gstin ? "Tax Invoice" : "Retail Invoice", 
-                number: formState.invoice_no, 
-                date: formState.invoice_date, 
-                due_date: dueDatePayload // Send null if empty
-            },
-            company: { name: seller.name || "", address: seller.address || "", state: seller.state || "", gstin: seller.gstin || "", contact: seller.contact || "", email: seller.email || "", logo_url: seller.logo_url|| "", sign_url: seller.sign_url,stamp: seller.stamp },
-            buyer: { name: formState.client_name, address: formState.client_address, state: formState.client_state_name, gstin: formState.client_gstin, phone_no: formState.client_phone, email: formState.client_email, signature_path: "" },
-            items: itemsPayload,
-            bank: { name: seller.bank_name || "", account: seller.account_no || "", branch_ifsc: seller.ifsc_code || "" },
-            terms_and_conditions: formState.terms_and_conditions.split('\n').filter(line => line.trim() !== ""),
-            auto_send_email: autoSendEmail, set_payment_reminder: setPaymentReminder, generate_copies: generateCopies,
-        };
-
+        const payload = { template: selectedTemplate, invoice: { title: formState.client_gstin ? "Tax Invoice" : "Retail Invoice", number: formState.invoice_no, date: formState.invoice_date, due_date: dueDatePayload }, company: { name: seller.name || "", address: seller.address || "", state: seller.state || "", gstin: seller.gstin || "", contact: seller.contact || "", email: seller.email || "", logo_url: seller.logo_url|| "", sign_url: seller.sign_url,stamp: seller.stamp }, buyer: { name: formState.client_name, address: formState.client_address, state: formState.client_state_name, gstin: formState.client_gstin, phone_no: formState.client_phone, email: formState.client_email, signature_path: "" }, items: itemsPayload, bank: { name: seller.bank_name || "", account: seller.account_no || "", branch_ifsc: seller.ifsc_code || "" }, terms_and_conditions: formState.terms_and_conditions.split('\n').filter(line => line.trim() !== ""), auto_send_email: autoSendEmail, set_payment_reminder: setPaymentReminder, generate_copies: generateCopies };
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/invoice/create`, {
-                method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${userSession?.access_token}` }, body: JSON.stringify(payload),
-            });
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/invoice/create`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${userSession?.access_token}` }, body: JSON.stringify(payload) });
             const response = await res.json();
             if (!res.ok) throw new Error(response.detail || "Failed to create invoice.");
-            toast({ title: "Invoice Created ✅", description: "Invoice PDF has been generated successfully." });
+            toast({ title: "Invoice Created ✅", description: "Invoice generated successfully." });
             logEvent('create_invoice', { category: 'engagement', label: 'User created a new invoice', value: 1 });
-            
             if (response.url) window.open(response.url, '_blank');
             if (seller) await incremented_invoice_no(seller.id);
-        } catch (e: any) {
-            toast({ title: "Error ❌", description: e.message, variant: "destructive" });
-        } finally {
-            setIsSaving(false);
-        }
+        } catch (e: any) { toast({ title: "Error ❌", description: e.message, variant: "destructive" }); } 
+        finally { setIsSaving(false); }
     };
     
     if (isLoading) return <DashboardLayout><LoadingSkeleton /></DashboardLayout>;
     
     return (
         <DashboardLayout>
-            <div className="p-3 sm:p-4 md:p-6 space-y-6 pb-24">
+            <div className="w-full max-w-7xl mx-auto p-4 md:p-6 space-y-6 pb-32">
                 <PageHeader />
+                
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                     <div className="lg:col-span-2 space-y-6">
+                        
+                        {/* --- CLIENT DETAILS --- */}
                         <FormSectionCard title="Client Details" icon={<User className="h-5 w-5"/>}>
                             <div className="space-y-4">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div className="space-y-1.5 relative" ref={clientDetailsRef}>
-                                        <Label htmlFor="client_name">Client Name <span className="text-red-500">*</span></Label>
-                                        <Input id="client_name" value={formState.client_name} onChange={(e) => handleInputChange('client_name', e.target.value)} onFocus={() => setIsClientListVisible(true)} required autoComplete="off" />
+                                    <div className="space-y-2 relative" ref={clientDetailsRef}>
+                                        <Label htmlFor="client_name" className="text-sm font-medium">Client Name <span className="text-red-500">*</span></Label>
+                                        <Input id="client_name" value={formState.client_name} onChange={(e) => handleInputChange('client_name', e.target.value)} onFocus={() => setIsClientListVisible(true)} required autoComplete="off" className="h-10" placeholder="Enter client name"/>
                                         {isClientListVisible && filteredClients.length > 0 && (
                                             <div className="absolute z-10 w-full mt-1 bg-background border rounded-md shadow-lg max-h-60 overflow-y-auto">
-                                                {filteredClients.map(client => ( <div key={client.id} className="px-4 py-2 hover:bg-accent cursor-pointer" onMouseDown={() => handleSelectClient(client)}>{client.name}</div> ))}
+                                                {filteredClients.map(client => ( <div key={client.id} className="px-4 py-2 hover:bg-accent cursor-pointer text-sm" onMouseDown={() => handleSelectClient(client)}>{client.name}</div> ))}
                                             </div>
                                         )}
                                     </div>
-                                    <div className="space-y-1.5">
-                                        <Label htmlFor="client_gstin">GSTIN (Optional)</Label>
-                                        <Input id="client_gstin" value={formState.client_gstin} onChange={(e) => handleInputChange('client_gstin', e.target.value)} placeholder="If B2B" />
+                                    <div className="space-y-2">
+                                        <Label htmlFor="client_gstin" className="text-sm font-medium">GSTIN (Optional)</Label>
+                                        <Input id="client_gstin" value={formState.client_gstin} onChange={(e) => handleInputChange('client_gstin', e.target.value)} placeholder="For B2B Invoices" className="h-10"/>
                                     </div>
                                 </div>
-                                <div className="space-y-1.5"><Label htmlFor="client_address">Address <span className="text-red-500">*</span></Label><Textarea id="client_address" value={formState.client_address} onChange={(e) => handleInputChange('client_address', e.target.value)} required /></div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div className="space-y-1.5"><Label htmlFor="client_phone">Phone No.</Label><Input id="client_phone" type="tel" value={formState.client_phone} onChange={(e) => handleInputChange('client_phone', e.target.value)} /></div>
-                                    <div className="space-y-1.5"><Label htmlFor="client_email">Email</Label><Input id="client_email" type="email" value={formState.client_email} onChange={(e) => handleInputChange('client_email', e.target.value)} /></div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="client_address" className="text-sm font-medium">Address <span className="text-red-500">*</span></Label>
+                                    <Textarea id="client_address" value={formState.client_address} onChange={(e) => handleInputChange('client_address', e.target.value)} required className="min-h-[80px] resize-none"/>
                                 </div>
-                                <div className="space-y-1.5">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="space-y-2"><Label htmlFor="client_phone">Phone No.</Label><Input id="client_phone" type="tel" inputMode="tel" value={formState.client_phone} onChange={(e) => handleInputChange('client_phone', e.target.value)} className="h-10"/></div>
+                                    <div className="space-y-2"><Label htmlFor="client_email">Email</Label><Input id="client_email" type="email" inputMode="email" value={formState.client_email} onChange={(e) => handleInputChange('client_email', e.target.value)} className="h-10"/></div>
+                                </div>
+                                <div className="space-y-2">
                                     <Label htmlFor="client_state_name">State <span className="text-red-500">*</span></Label>
                                     <Select value={formState.client_state_name} onValueChange={(v) => handleInputChange('client_state_name', v)} required>
-                                        <SelectTrigger><SelectValue placeholder="Select State" /></SelectTrigger>
-                                        <SelectContent>{indianStates.map((s) => (<SelectItem key={s.code} value={s.name}>{s.name}</SelectItem>))}</SelectContent>
+                                        <SelectTrigger className="h-10"><SelectValue placeholder="Select State" /></SelectTrigger>
+                                        <SelectContent className="max-h-60">{indianStates.map((s) => (<SelectItem key={s.code} value={s.name}>{s.name}</SelectItem>))}</SelectContent>
                                     </Select>
                                 </div>
                             </div>
                         </FormSectionCard>
+
+                        {/* --- PRODUCTS / SERVICES (Modernized Card Layout) --- */}
                         <FormSectionCard title="Products / Services" icon={<FileText className="h-5 w-5"/>}>
-                            <div className="space-y-4">
+                            <div className="space-y-6">
                                 {formState.products.map((p, i) => (
-                                    <div key={i} className="border rounded-lg p-3 space-y-3 bg-slate-50 dark:bg-slate-800/50" ref={el => productSuggestionRefs.current[i] = el}>
-                                        <div className="flex justify-between items-center">
-                                            <p className="font-semibold text-sm text-slate-600 dark:text-slate-300">Item #{i + 1}</p>
-                                            <Button variant="ghost" size="icon" onClick={() => deleteProductRow(i)}><Trash2 size={16} className="text-red-500"/></Button>
+                                    <div key={i} className="group relative border border-border/60 rounded-xl p-4 bg-card hover:shadow-sm transition-all space-y-4" ref={el => productSuggestionRefs.current[i] = el}>
+                                        {/* Header Row: Title + Delete */}
+                                        <div className="flex justify-between items-center border-b border-border/50 pb-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-1 rounded">Item #{i + 1}</span>
+                                            </div>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" onClick={() => deleteProductRow(i)}>
+                                                <Trash2 size={16}/>
+                                            </Button>
                                         </div>
-                                        <div className="space-y-1.5 relative">
-                                            <Label htmlFor={`item_name_${i}`}>Item Name <span className="text-red-500">*</span></Label>
-                                            <Textarea id={`item_name_${i}`} value={p.name} onChange={(e) => handleProductChange(i, "name", e.target.value)} onFocus={() => setActiveProductSuggestion(i)} rows={1} autoComplete="off" placeholder="Product/Service Name" />
+
+                                        {/* Row 1: Name (Full Width) */}
+                                        <div className="space-y-2 relative">
+                                            <Label htmlFor={`item_name_${i}`} className="text-sm font-medium">Item Name <span className="text-red-500">*</span></Label>
+                                            <Textarea 
+                                                id={`item_name_${i}`} 
+                                                value={p.name} 
+                                                onChange={(e) => handleProductChange(i, "name", e.target.value)} 
+                                                onFocus={() => setActiveProductSuggestion(i)} 
+                                                rows={1} 
+                                                className="min-h-[42px] resize-none"
+                                                placeholder="Search or enter product name" 
+                                            />
                                             {activeProductSuggestion === i && filteredProducts(i).length > 0 && (
-                                                <div className="absolute z-20 w-full mt-1 bg-background border rounded-md shadow-lg max-h-48 overflow-y-auto">
-                                                    {filteredProducts(i).map((product, idx) => ( <div key={`${product.name}-${idx}-mobile`} className="px-4 py-2 hover:bg-accent cursor-pointer text-sm" onMouseDown={() => handleSelectProduct(i, product)}>{product.name}</div> ))}
+                                                <div className="absolute z-20 w-full mt-1 bg-background border rounded-md shadow-xl max-h-48 overflow-y-auto">
+                                                    {filteredProducts(i).map((product, idx) => ( 
+                                                        <div key={`${product.name}-${idx}-mobile`} className="px-4 py-3 hover:bg-accent cursor-pointer text-sm border-b last:border-0" onMouseDown={() => handleSelectProduct(i, product)}>
+                                                            <p className="font-medium">{product.name}</p>
+                                                            <p className="text-xs text-muted-foreground mt-0.5">Rate: ₹{product.rate} | GST: {product.gst}%</p>
+                                                        </div> 
+                                                    ))}
                                                 </div>
                                             )}
                                         </div>
                                         
-                                        {/* Added Description Input */}
-                                        <div className="space-y-1.5">
-                                            <Label htmlFor={`item_desc_${i}`}>Description (Optional)</Label>
-                                            <Input id={`item_desc_${i}`} value={p.description || ""} onChange={(e) => handleProductChange(i, "description", e.target.value)} placeholder="Extra details about the item" />
+                                        {/* Row 2: Description (Full Width) */}
+                                        <div className="space-y-2">
+                                            <Label htmlFor={`item_desc_${i}`} className="text-sm font-medium">Description (Optional)</Label>
+                                            <Input id={`item_desc_${i}`} value={p.description || ""} onChange={(e) => handleProductChange(i, "description", e.target.value)} placeholder="Additional details" className="h-10"/>
                                         </div>
 
+                                        {/* Row 3: HSN, Qty, Unit (Grid) */}
                                         <div className="grid grid-cols-3 gap-3">
-                                            <div className="space-y-1.5">
-                                                <Label htmlFor={`hsn_${i}`}>HSN</Label>
-                                                <Input id={`hsn_${i}`} value={p.hsn} onChange={(e) => handleProductChange(i, "hsn", e.target.value)} placeholder={formState.client_gstin ? "Required" : "Optional"} />
+                                            <div className="space-y-2">
+                                                <Label htmlFor={`hsn_${i}`} className="text-xs md:text-sm">HSN</Label>
+                                                <Input id={`hsn_${i}`} value={p.hsn} onChange={(e) => handleProductChange(i, "hsn", e.target.value)} placeholder={formState.client_gstin ? "Req" : "Opt"} className="h-10"/>
                                             </div>
-                                            <div className="space-y-1.5">
-                                                <Label htmlFor={`qty_${i}`}>Qty <span className="text-red-500">*</span></Label>
-                                                <Input id={`qty_${i}`} type="number" value={p.quantity} onChange={(e) => handleProductChange(i, "quantity", e.target.value)} />
+                                            <div className="space-y-2">
+                                                <Label htmlFor={`qty_${i}`} className="text-xs md:text-sm">Qty <span className="text-red-500">*</span></Label>
+                                                <Input id={`qty_${i}`} type="number" inputMode="decimal" value={p.quantity} onChange={(e) => handleProductChange(i, "quantity", e.target.value)} className="h-10"/>
                                             </div>
-                                            <div className="space-y-1.5">
-                                                <Label htmlFor={`unit_${i}`}>Unit</Label>
-                                                <Input id={`unit_${i}`} value={p.unit} onChange={(e) => handleProductChange(i, "unit", e.target.value)} />
+                                            <div className="space-y-2">
+                                                <Label htmlFor={`unit_${i}`} className="text-xs md:text-sm">Unit</Label>
+                                                <Input id={`unit_${i}`} value={p.unit} onChange={(e) => handleProductChange(i, "unit", e.target.value)} className="h-10"/>
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div className="space-y-1.5">
-                                                <Label htmlFor={`rate_${i}`}>Rate <span className="text-red-500">*</span></Label>
-                                                <Input id={`rate_${i}`} type="number" value={p.rate} onChange={(e) => handleProductChange(i, "rate", e.target.value)} />
+
+                                        {/* Row 4: Rate, GST (Grid) */}
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor={`rate_${i}`} className="text-xs md:text-sm">Rate (₹) <span className="text-red-500">*</span></Label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-2.5 text-muted-foreground">₹</span>
+                                                    <Input id={`rate_${i}`} type="number" inputMode="decimal" value={p.rate} onChange={(e) => handleProductChange(i, "rate", e.target.value)} className="pl-7 h-10"/>
+                                                </div>
                                             </div>
-                                            <div className="space-y-1.5">
-                                                <Label htmlFor={`gst_${i}`}>GST %</Label>
-                                                <Input id={`gst_${i}`} type="number" value={p.gst_rate} onChange={(e) => handleProductChange(i, "gst_rate", e.target.value)} placeholder={formState.client_gstin ? "Required" : "Optional"} />
+                                            <div className="space-y-2">
+                                                <Label htmlFor={`gst_${i}`} className="text-xs md:text-sm">GST %</Label>
+                                                <Input id={`gst_${i}`} type="number" inputMode="decimal" value={p.gst_rate} onChange={(e) => handleProductChange(i, "gst_rate", e.target.value)} placeholder={formState.client_gstin ? "Req" : "Opt"} className="h-10"/>
                                             </div>
                                         </div>
                                     </div>
                                 ))}
                             </div>
-                            <Button onClick={addProductRow} className="mt-4" variant="outline"><PlusCircle size={16} className="mr-2" />Add Item</Button>
+                            <Button onClick={addProductRow} className="mt-6 w-full sm:w-auto" variant="outline">
+                                <PlusCircle size={16} className="mr-2" /> Add Another Item
+                            </Button>
                         </FormSectionCard>
-                        <FormSectionCard title="Terms & Conditions" icon={<FileText className="h-5 w-5"/>}><Textarea value={formState.terms_and_conditions} onChange={(e) => handleInputChange('terms_and_conditions', e.target.value)} rows={5} /></FormSectionCard>
+
+                        <FormSectionCard title="Terms & Conditions" icon={<FileText className="h-5 w-5"/>}>
+                            <Textarea value={formState.terms_and_conditions} onChange={(e) => handleInputChange('terms_and_conditions', e.target.value)} rows={4} className="resize-none"/>
+                        </FormSectionCard>
                     </div>
+
+                    {/* --- SIDEBAR SECTION --- */}
                     <div className="lg:col-span-1 space-y-6">
                         <FormSectionCard title="Invoice Meta" icon={<FileText className="h-5 w-5"/>}>
                             <div className="space-y-4">
-                                <div className="space-y-1.5"><Label htmlFor="invoice_no">Invoice No. <span className="text-red-500">*</span></Label><Input id="invoice_no" value={formState.invoice_no} onChange={(e) => handleInputChange('invoice_no', e.target.value)} /></div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4">
-                                    <div className="space-y-1.5"><Label htmlFor="invoice_date">Invoice Date <span className="text-red-500">*</span></Label><Input id="invoice_date" type="date" value={formState.invoice_date} onChange={(e) => handleInputChange('invoice_date', e.target.value)} /></div>
-                                    <div className="space-y-1.5"><Label htmlFor="due_date">Due Date</Label><Input id="due_date" type="date" value={formState.due_date} onChange={(e) => handleInputChange('due_date', e.target.value)} /></div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="invoice_no">Invoice No. <span className="text-red-500">*</span></Label>
+                                    <Input id="invoice_no" value={formState.invoice_no} onChange={(e) => handleInputChange('invoice_no', e.target.value)} className="h-10 font-mono"/>
+                                </div>
+                                <div className="grid grid-cols-1 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="invoice_date">Invoice Date <span className="text-red-500">*</span></Label>
+                                        <Input id="invoice_date" type="date" value={formState.invoice_date} onChange={(e) => handleInputChange('invoice_date', e.target.value)} className="h-10"/>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="due_date">Due Date</Label>
+                                        <Input id="due_date" type="date" value={formState.due_date} onChange={(e) => handleInputChange('due_date', e.target.value)} className="h-10"/>
+                                    </div>
                                 </div>
                             </div>
                         </FormSectionCard>
-                        <FormSectionCard title="Seller Details" icon={<Building className="h-5 w-5"/>}>{seller ? <div className="space-y-2 text-sm text-muted-foreground"><p className="font-semibold text-primary">{seller.name}</p><p>{seller.address}</p>{seller.gstin && <p>GST: {seller.gstin}</p>}{seller.contact && <p className="flex items-center gap-2"><Phone size={14} /> {seller.contact}</p>}{seller.email && <p className="flex items-center gap-2"><Mail size={14} /> {seller.email}</p>}</div> : <Skeleton className="h-20 w-full" />}</FormSectionCard>
-                        <FormSectionCard title="Bank Details" icon={<Banknote className="h-5 w-5"/>}>{seller ? <div className="space-y-1 text-sm text-muted-foreground"><p><span className="font-semibold text-primary">Bank:</span> {seller.bank_name}</p><p><span className="font-semibold text-primary">A/C No:</span> {seller.account_no}</p><p><span className="font-semibold text-primary">IFSC:</span> {seller.ifsc_code}</p></div> : <Skeleton className="h-12 w-full" />}</FormSectionCard>
-                        <FormSectionCard title="Automation & Copies" icon={<Settings className="h-5 w-5"/>}><div className="space-y-4"><div className="flex items-center justify-between p-2 rounded-md border"><Label htmlFor="auto-send" className="flex items-center gap-2 cursor-pointer"><Send size={16}/>Auto Send Invoice</Label><Switch id="auto-send" checked={autoSendEmail} onCheckedChange={setAutoSendEmail} /></div><div className="flex items-center justify-between p-2 rounded-md border"><Label htmlFor="payment-reminder" className="flex items-center gap-2 cursor-pointer"><Bell size={16}/>Set Payment Reminder</Label><Switch id="payment-reminder" checked={setPaymentReminder} onCheckedChange={setSetPaymentReminder} /></div><div className="flex items-center justify-between p-2 rounded-md border"><Label htmlFor="generate-copies" className="flex items-center gap-2 cursor-pointer"><Copy size={16}/>Generate Duplicate/Triplicate</Label><Switch id="generate-copies" checked={generateCopies} onCheckedChange={setGenerateCopies} /></div></div></FormSectionCard>
+
+                        <FormSectionCard title="Seller Details" icon={<Building className="h-5 w-5"/>}>
+                            {seller ? (
+                                <div className="space-y-3 text-sm text-muted-foreground border rounded-lg p-3 bg-muted/20">
+                                    <p className="font-semibold text-foreground text-base">{seller.name}</p>
+                                    <p className="leading-relaxed">{seller.address}</p>
+                                    <div className="space-y-1 pt-2 border-t border-border/50">
+                                        {seller.gstin && <p><span className="font-medium">GST:</span> {seller.gstin}</p>}
+                                        {seller.contact && <p className="flex items-center gap-2"><Phone size={14} /> {seller.contact}</p>}
+                                        {seller.email && <p className="flex items-center gap-2"><Mail size={14} /> {seller.email}</p>}
+                                    </div>
+                                </div>
+                            ) : <Skeleton className="h-28 w-full rounded-lg" />}
+                        </FormSectionCard>
+
+                        <FormSectionCard title="Automation" icon={<Settings className="h-5 w-5"/>}>
+                            <div className="space-y-2 divide-y divide-border/50">
+                                <div className="flex items-center justify-between py-2">
+                                    <Label htmlFor="auto-send" className="cursor-pointer flex flex-col">
+                                        <span>Auto Email</span>
+                                        <span className="text-xs text-muted-foreground font-normal">Send to client immediately</span>
+                                    </Label>
+                                    <Switch id="auto-send" checked={autoSendEmail} onCheckedChange={setAutoSendEmail} />
+                                </div>
+                                <div className="flex items-center justify-between py-2">
+                                    <Label htmlFor="payment-reminder" className="cursor-pointer flex flex-col">
+                                        <span>Payment Reminder</span>
+                                        <span className="text-xs text-muted-foreground font-normal">Remind on due date</span>
+                                    </Label>
+                                    <Switch id="payment-reminder" checked={setPaymentReminder} onCheckedChange={setSetPaymentReminder} />
+                                </div>
+                                <div className="flex items-center justify-between py-2">
+                                    <Label htmlFor="generate-copies" className="cursor-pointer flex flex-col">
+                                        <span>Generate Copies</span>
+                                        <span className="text-xs text-muted-foreground font-normal">Original/Duplicate/Triplicate</span>
+                                    </Label>
+                                    <Switch id="generate-copies" checked={generateCopies} onCheckedChange={setGenerateCopies} />
+                                </div>
+                            </div>
+                        </FormSectionCard>
                     </div>
                 </div>
             </div>
-            <div className="sticky bottom-0 left-0 right-0 z-10 bg-background/95 backdrop-blur-sm border-t">
-                <div className="container mx-auto flex items-center justify-end h-16 px-4 md:px-6 gap-4">
-                    <Button variant="outline" onClick={() => setIsTemplateDialogOpen(true)}>
-                        <Palette className="mr-2 h-4 w-4" /> Choose Template
+
+            {/* --- STICKY BOTTOM ACTION BAR --- */}
+            <div className="fixed bottom-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-md border-t shadow-lg p-4 md:px-8">
+                <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+                    <Button variant="outline" onClick={() => setIsTemplateDialogOpen(true)} className="hidden sm:flex">
+                        <Palette className="mr-2 h-4 w-4" /> Change Template
                     </Button>
-                    <Button onClick={handleCreateInvoice} disabled={isSaving || isLoading} size="lg">
-                        {isSaving ? <SvgLoader /> : <><Save className="mr-2 h-4 w-4" />Create Invoice</>}
+                    {/* Mobile Template Icon Button */}
+                    <Button variant="outline" size="icon" onClick={() => setIsTemplateDialogOpen(true)} className="sm:hidden">
+                        <Palette className="h-5 w-5" />
+                    </Button>
+                    
+                    <Button onClick={handleCreateInvoice} disabled={isSaving || isLoading} size="lg" className="w-full sm:w-auto shadow-md hover:shadow-lg transition-all bg-primary text-primary-foreground">
+                        {isSaving ? <SvgLoader /> : <><Save className="mr-2 h-5 w-5" /> Create Invoice</>}
                     </Button>
                 </div>
             </div>
+
             <TemplateDialog 
                 isOpen={isTemplateDialogOpen} 
                 onClose={() => setIsTemplateDialogOpen(false)} 
@@ -988,7 +1070,6 @@ export default function Invoice() {
         </DashboardLayout>
     );
 }
-
 
 // "use client";
 // import React, { useState, useMemo, useEffect, useRef } from "react";
