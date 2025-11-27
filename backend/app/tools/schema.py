@@ -1,157 +1,147 @@
-# Create this new file: app/tools/schemas.py
+from typing import List, Optional, Literal, Any
+from pydantic import BaseModel, Field, model_validator
 
-from pydantic import BaseModel, Field
-from typing import List, Optional, Literal, Union
+# --- SHARED ITEM MODEL ---
 
-# --- 1. Reusable Data Models ---
-class ItemData(BaseModel):
-    """A simple, reusable model for a single line item's data."""
-    name: str = Field(..., description="Name of the item, e.g., 'chair'.")
-    quantity: float = Field(..., description="Quantity of the item, e.g., 2.0.")
-    rate: Optional[float] = Field(None, description="Rate per unit (Optional. If not provided, I will try to find it in your history/products).")
-    unit: str = Field("pcs", description="Unit of the item, e.g., 'pcs' or 'kg'.")
-    hsn: Optional[str] = Field(None, description="HSN code for the item.")
-    gst_rate: Optional[float] = Field(None, description="GST rate for this item, e.g., 18.0.")
-    description: Optional[str] = Field(None, description="An optional description for the item.")
-    product_id: Optional[str] = Field(None, description="Optional: The UUID from the 'products' table this item is linked to for inventory.")
+class InvoiceItem(BaseModel):
+    name: str = Field(..., description="Name of the product or service")
+    quantity: float = Field(default=1.0, description="Quantity of the item")
+    # Agent often confuses rate/price. We handle this via validator.
+    rate: Optional[float] = Field(default=0.0, description="Unit price/rate.") 
+    gst_rate: Optional[float] = Field(default=0.0, description="GST percentage (e.g. 18).")
+    hsn: Optional[str] = Field(default=None, description="HSN Code.")
+    unit: Optional[str] = Field(default="pcs", description="Unit (e.g. kg, pcs).")
+    description: Optional[str] = Field(default="", description="Item description.")
 
-class GstUpdateCommand(BaseModel):
-    """Defines a command to apply or remove GST from the *entire* invoice."""
-    action: Literal["apply", "remove"] = Field(..., description="Action to perform on GST.")
-    rate: float = Field(..., description="The GST rate to apply, e.g., 18.0.")
-    apply_to_all_items: bool = Field(True, description="Whether to apply this GST to all items.")
+    @model_validator(mode='before')
+    @classmethod
+    def map_price_to_rate(cls, data: Any) -> Any:
+        """Fix common AI hallucination: using 'price' instead of 'rate'"""
+        if isinstance(data, dict):
+            if 'price' in data and ('rate' not in data or data['rate'] == 0):
+                data['rate'] = data.pop('price')
+            
+            # Handle 'gst' vs 'gst_rate'
+            if 'gst' in data and 'gst_rate' not in data:
+                data['gst_rate'] = data.pop('gst')
+        return data
 
-class DiscountUpdateCommand(BaseModel):
-    """Defines a command to apply or remove a discount from the *entire* invoice."""
-    action: Literal["apply", "remove"]
-    type: Literal["percentage", "fixed"]
-    value: float
-    scope: Literal["total"] = "total"
+# --- INVOICE CREATION MODELS ---
 
-# --- 2. Models for Tool 1: Invoice Creation ---
 class InvoiceCreateCommand(BaseModel):
-    """
-    This is the main payload the agent must construct for 'run_invoice_creation_workflow'.
-    It passes *only* the information the user provides.
-    """
-    buyer_name: str = Field(..., description="The name of the buyer, e.g., 'Aatish Pharma Solutions'.")
-    items: List[ItemData] = Field(..., description="A list of all items to add to the invoice.")
-    gst: Optional[GstUpdateCommand] = Field(None, description="GST command, if user mentioned it (e.g., 'include 18% gst').")
-    discount: Optional[DiscountUpdateCommand] = Field(None, description="Discount command, if user mentioned it.")
-    date: Optional[str] = Field(None, description="Invoice date (YYYY-MM-DD), if specified. Defaults to today.")
-    due_date: Optional[str] = Field(None, description="Invoice due date (YYYY-MM-DD), if specified.")
+    buyer_name: str = Field(..., description="Name of the buyer")
+    items: List[InvoiceItem] = Field(..., description="List of items")
+    date: Optional[str] = Field(default=None, description="Invoice Date (YYYY-MM-DD)")
+    due_date: Optional[str] = Field(default=None, description="Due Date (YYYY-MM-DD)")
 
-# --- 3. Models for Tool 2: Invoice Update ---
-class ItemAddCommand(BaseModel):
-    action: Literal["add"]
-    item: ItemData = Field(..., description="The new item to add.")
+# --- INVOICE UPDATE MODELS ---
 
-class ItemRemoveCommand(BaseModel):
-    action: Literal["remove"]
-    identifier: str = Field(..., description="Name of the item to remove, e.g., 'chair'.")
+class UpdateItemAction(BaseModel):
+    action: Literal['add', 'update', 'remove'] = Field(..., description="Action to perform")
+    identifier: Optional[str] = Field(default=None, description="Item name to update/remove")
+    item: Optional[InvoiceItem] = Field(default=None, description="New item details (for add)")
+    changes: Optional[InvoiceItem] = Field(default=None, description="Changes (for update)")
 
-class ItemPartialUpdateData(BaseModel):
-    name: Optional[str] = Field(None, description="The new name for the item.")
-    quantity: Optional[float] = Field(None, description="The new quantity.")
-    rate: Optional[float] = Field(None, description="The new rate.")
-    gst_rate: Optional[float] = Field(None, description="The new GST rate.")
+    @model_validator(mode='after')
+    def smart_consolidate(self):
+        """
+        Fix AI structural errors in Update actions.
+        If AI sends 'item' for an update (instead of 'changes'), fix it.
+        """
+        # Case: Update action, but AI put data in 'item' instead of 'changes'
+        if self.action == 'update':
+            if not self.changes and self.item:
+                self.changes = self.item
+            
+            # Case: Identifier missing, but Name is present in changes
+            if not self.identifier and self.changes and self.changes.name:
+                self.identifier = self.changes.name
+        
+        # Case: Remove action, missing identifier but has item
+        if self.action == 'remove' and not self.identifier and self.item:
+             self.identifier = self.item.name
+             
+        return self
 
-class ItemUpdateCommand(BaseModel):
-    action: Literal["update"]
-    identifier: str = Field(..., description="Name of the item to update, e.g., 'chair'.")
-    changes: ItemPartialUpdateData = Field(..., description="The specific fields to change.")
+class GstUpdate(BaseModel):
+    action: Literal['apply', 'remove']
+    rate: float
 
-class InvoiceDetailsUpdateCommand(BaseModel):
-    date: Optional[str] = Field(None, description="New invoice date (YYYY-MM-DD).")
-    due_date: Optional[str] = Field(None, description="New due date (YYYY-MM-DD).")
-    title: Optional[str] = Field(None, description="New title, e.g., 'Proforma Invoice'.")
+class InvoiceDetailsUpdate(BaseModel):
+    date: Optional[str] = None
+    due_date: Optional[str] = None
 
 class InvoiceUpdateCommands(BaseModel):
-    """
-    This is the main payload for the 'run_invoice_update_workflow' tool.
-    It is a container for one or more commands to update an invoice.
-    """
-    gst: Optional[GstUpdateCommand] = Field(None, description="Command to update the invoice's overall GST.")
-    discount: Optional[DiscountUpdateCommand] = Field(None, description="Command to update the invoice's overall discount.")
-    details: Optional[InvoiceDetailsUpdateCommand] = Field(None, description="Command to update invoice details like due_date.")
-    line_items: Optional[List[Union[ItemAddCommand, ItemUpdateCommand, ItemRemoveCommand]]] = Field(None, description="List of commands to add, remove, or update line items.")
+    line_items: Optional[List[UpdateItemAction]] = Field(default=None)
+    gst: Optional[GstUpdate] = Field(default=None)
+    details: Optional[InvoiceDetailsUpdate] = Field(default=None)
 
-# --- 4. Models for Tool 3: Buyer Update ---
-class BuyerUpdateArgs(BaseModel):
-    """A set of partial updates for a buyer. All fields are optional."""
-    name: str = Field(..., description="The name of the buyer to update.") # Added name
-    email: Optional[str] = Field(None, description="The new email address for the buyer.")
-    phone_no: Optional[str] = Field(None, description="The new phone number for the buyer.")
-    address: Optional[str] = Field(None, description="The new address for the buyer.")
-    gstin: Optional[str] = Field(None, description="The new GSTIN for the buyer.")
-    state: Optional[str] = Field(None, description="The new state for the buyer.")
-    
-# --- 5. Models for Low-Level Functions (Your existing models) ---
-# These are used *internally* by your low-level helpers.
+# --- INTERNAL MODELS (DB/PDF) ---
+
 class CreateItem(BaseModel):
     name: str
     quantity: float
     rate: float
+    gst_rate: float
+    hsn: str
     unit: str
-    hsn: Optional[str] = ""
-    gst_rate: Optional[float] = 0
-    description: Optional[str] = None # <-- ADDED
-    product_id: Optional[str] = None  # <-- ADDED
+    description: str
+    product_id: Optional[str] = None
 
 class CreateBuyer(BaseModel):
+    id: int
     name: str
     address: str
-    state: Optional[str] = ""
-    gstin: Optional[str] = ""
-    phone_no: Optional[str] = ""
-    email: Optional[str] = ""
+    state: Optional[str] = None
+    gstin: Optional[str] = None
+    phone_no: Optional[str] = None
+    email: Optional[str] = None
 
 class CreateInvoiceDetails(BaseModel):
     number: str
     date: str
     due_date: str
-    title: Optional[str] = "Tax Invoice"
 
 class InvoiceCreateData(BaseModel):
-    """The main payload the *low-level create_invoice* function expects."""
     invoice: CreateInvoiceDetails
     buyer: CreateBuyer
-    items: List[CreateItem] # <-- This now uses the fixed CreateItem
-    terms_and_conditions: Optional[List[str]] = []
-    set_payment_reminder: Optional[bool] = False
+    items: List[CreateItem]
 
 class UpdateItem(BaseModel):
-    id: Optional[int] = Field(None, description="ID of existing item. Leave None for new items.")
-    name: Optional[str] = None
-    quantity: Optional[float] = None
-    rate: Optional[float] = None
-    unit: Optional[str] = None
-    hsn: Optional[str] = None
-    gst_rate: Optional[float] = None
+    id: Optional[int] = None
+    name: str
+    quantity: float
+    rate: float
+    gst_rate: float
+    hsn: Optional[str] = ""
+    unit: str = "pcs"
+    description: str = ""
     delete: Optional[bool] = False
-    description: Optional[str] = None # <-- ADDED
-    product_id: Optional[str] = None  # <-- ADDED
-
+    product_id: Optional[str] = None
 
 class UpdateBuyer(BaseModel):
     name: str
     address: str
-    state: Optional[str] = ""
-    gstin: Optional[str] = ""
-    phone_no: Optional[str] = ""
-    email: Optional[str] = ""
+    state: Optional[str]
+    gstin: Optional[str]
+    phone_no: Optional[str]
+    email: Optional[str]
 
 class UpdateInvoiceDetails(BaseModel):
-    id: int = Field(..., description="The database ID of the invoice to update.")
+    id: int
     number: str
     date: str
     due_date: str
-    title: Optional[str] = "Tax Invoice"
+    title: str
 
 class InvoiceUpdateData(BaseModel):
-    """This is the main payload the *low-level update_invoice* function expects."""
     invoice: UpdateInvoiceDetails
     buyer: UpdateBuyer
-    items: List[UpdateItem] # <-- This now uses the fixed UpdateItem
-    terms_and_conditions: Optional[List[str]] = []
-    set_payment_reminder: Optional[bool] = False
+    items: List[UpdateItem]
+
+class BuyerUpdateArgs(BaseModel):
+    name: str
+    email: Optional[str] = None
+    phone_no: Optional[str] = None
+    address: Optional[str] = None
+    gstin: Optional[str] = None

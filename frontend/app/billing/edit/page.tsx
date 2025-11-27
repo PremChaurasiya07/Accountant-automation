@@ -1092,24 +1092,58 @@ export default function EditBilling() {
   const handlePreviewClick = (url: string) => window.open(url, "_blank");
   const handleEditClick = (id: string) => router.push(`/dashboard/invoices/edit/${id}`);
 
-  const handleDeleteClick = async (id: string, invoice_number: string) => {
-    if (!confirm("Are you sure? This will delete the invoice and any associated payment records.")) return;
-    setUpdatingStatusId(id);
-    try {
-      const { error: ledgerError } = await supabase.from('ledger_entries').delete().eq('user_id', userId).contains('tags', [`invoice_id:${id}`]);
-      if (ledgerError) throw new Error(`Ledger Error: ${ledgerError.message}`);
-      
-      const { error: invoiceError } = await supabase.from("invoices_record").delete().eq("id", id);
-      if (invoiceError) throw new Error(`Invoice Error: ${invoiceError.message}`);
-
-      setInvoices((prev) => prev.filter((i) => i.id !== id));
-      toast({ title: "Success", description: `Invoice #${invoice_number} deleted successfully.` });
-    } catch (error: any) {
-        toast({ title: "Error", description: `Failed to delete invoice: ${error.message}`, variant: "destructive" });
-    } finally {
-      setUpdatingStatusId(null);
+const handleDeleteClick = async (id: string, invoice_number: string) => {
+  if (!confirm("Are you sure? This will delete the invoice, payment records, and the PDF file.")) return;
+  setUpdatingStatusId(id);
+  try {
+    // Step 1: Delete the PDF file from Supabase Storage
+    const safeInvoiceNo = invoice_number.replace(/[\/\\]/g, "-").replace(/\s+/g, "_");
+    const filePath = `${userId}/${safeInvoiceNo}.pdf`;
+    
+    const { error: storageError } = await supabase.storage
+      .from("invoices")
+      .remove([filePath]);
+    
+    if (storageError && storageError.message !== "Not found") {
+      console.warn(`Storage deletion warning: ${storageError.message}`);
+      // Don't throw - file might already be deleted or path might be different
     }
-  };
+
+    // Step 2: Delete ledger entries associated with this invoice
+    const { error: ledgerError } = await supabase
+      .from('ledger_entries')
+      .delete()
+      .eq('user_id', userId)
+      .contains('tags', [`invoice_id:${id}`]);
+    
+    if (ledgerError) throw new Error(`Ledger Error: ${ledgerError.message}`);
+    
+    // Step 3: Delete the invoice record from database (items cascade delete)
+    const { error: invoiceError } = await supabase
+      .from("invoices_record")
+      .delete()
+      .eq("id", id);
+    
+    if (invoiceError) throw new Error(`Invoice Error: ${invoiceError.message}`);
+
+    // Step 4: Update local state
+    setInvoices((prev) => prev.filter((i) => i.id !== id));
+    
+    toast({ 
+      title: "Success", 
+      description: `Invoice #${invoice_number} and its PDF file deleted successfully.` 
+    });
+  } catch (error: any) {
+    console.error("Delete error:", error);
+    toast({ 
+      title: "Error", 
+      description: `Failed to delete invoice: ${error.message}`, 
+      variant: "destructive" 
+    });
+  } finally {
+    setUpdatingStatusId(null);
+  }
+};
 
   const handleStatusChange = async (invoice: Invoice, newStatus: 'paid' | 'unpaid') => {
     if (!userId) return;

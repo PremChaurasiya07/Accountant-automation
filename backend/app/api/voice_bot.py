@@ -1,48 +1,60 @@
-
-# app/routes/voice_bot.py
-
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from dotenv import load_dotenv
+import re
+import logging
+from typing import Optional  # <-- Import Optional
 
+# Ensure you import the getter
 from app.api.agents.invoice_agent import get_vyapari_agent_executor
 
-# --- Load Environment Variables ---
+logger = logging.getLogger(__name__)
 load_dotenv()
-
-# --- Router and Request Model ---
 router = APIRouter()
 
 class InputData(BaseModel):
     user_id: str
     input_value: str
 
-#======================================================================
-#   VOICE BOT API ENDPOINT
-#======================================================================
 @router.post("/voice_bot")
 async def voice_bot(data: InputData):
-    """
-    This endpoint uses a voice bot to handle user requests.
-    """
     if not data.user_id or not data.input_value:
         raise HTTPException(status_code=400, detail="user_id and input_value are required.")
 
     try:
-        # 1. Get the agent for the specific user. This loads their unique
-        #    conversation history and tools.
         agent_executor = await get_vyapari_agent_executor(data.user_id)
+        result = await agent_executor.ainvoke({"input": data.input_value})
+        raw_text = result.get("output", "") 
+        
+        final_message = _extract_final_answer(raw_text)
+        extracted_url = _extract_url(final_message) # Extract URL for UI button
 
-        # 2. Invoke the agent with the user's input.
-        #    The agent will now autonomously reason, use tools, and
-        #    generate a response.
-        response = await agent_executor.ainvoke({"input": data.input_value})
-
-        # 3. Return the agent's final output to the user.
-        return {"message": response.get("output", "I'm sorry, I encountered an issue. Please try again.")}
+        return {
+            "message": final_message or "Task completed.", 
+            "status": "success",
+            "url": extracted_url
+        }
 
     except Exception as e:
-        # Log the full error for debugging
-        print(f"An error occurred in the autonomous agent: {e}")
-        # Return a generic error to the user
-        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+        logger.error(f"Agent Execution Error: {e}", exc_info=True)
+        # Return 200 with error status so UI handles it gracefully
+        return {
+            "message": "I encountered a technical issue. Please try again.", 
+            "status": "error"
+        }
+
+def _extract_final_answer(text: str) -> str:
+    if not text: return ""
+    if "Final Answer" in text:
+        text = text.rsplit("Final Answer", 1)[-1]
+        text = re.sub(r'^[\s:\-]*', '', text)
+    # Robustly remove code blocks
+    text = re.sub(r"```[a-zA-Z]*\s*(.*?)```", r"\1", text, flags=re.DOTALL)
+    return text.strip()
+
+# Fixed Type Hint here: changed 'str | None' to 'Optional[str]'
+def _extract_url(text: str) -> Optional[str]:
+    url_pattern = r'(https?://[^\s]+)'
+    match = re.search(url_pattern, text)
+    if match: return match.group(1).rstrip('.,;)}')
+    return None
