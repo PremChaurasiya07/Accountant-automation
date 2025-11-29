@@ -2681,6 +2681,9 @@ from langchain_core.messages import SystemMessage
 from langchain_community.agent_toolkits import create_sql_agent
 from langchain_community.utilities import SQLDatabase
 
+import dateparser # pip install dateparser
+from dateutil.relativedelta import relativedelta
+from datetime import datetime, date, timedelta
 # --- App-specific Imports ---
 from app.core.supabase import get_supabase_admin_client, get_supabase_client
 from app.services.embedding import embed_and_store_invoice
@@ -2711,64 +2714,205 @@ if not DB_CONNECTION_STRING:
     raise ValueError("Database connection string not found.")
 
 try:
-    db_pool = pool.SimpleConnectionPool(1, 10, dsn=DB_CONNECTION_STRING)
-    logging.info("✅ Database connection pool created successfully.")
-except psycopg2.OperationalError as e:
-    logging.error(f"❌ Could not connect to database: {e}")
+    db_pool = psycopg2.pool.ThreadedConnectionPool(1, 20, dsn=DB_CONNECTION_STRING)
+    logging.info("✅ DB Threaded Connection Pool Created")
+except Exception as e:
+    logging.error(f"DB Pool Error: {e}")
     db_pool = None
 
 class DatabaseManager:
     def __init__(self, connection_pool):
-        if not connection_pool: raise ConnectionError("DB pool not available.")
         self.pool = connection_pool
+
     def execute_query(self, query: str, params: Tuple = None) -> List[Dict[str, Any]]:
+        if not self.pool: return []
+        
         conn = None
         try:
+            # Attempt 1
             conn = self.pool.getconn()
             with conn.cursor(cursor_factory=RealDictCursor) as cursor:
                 cursor.execute(query, params or ())
-                if cursor.description: return [dict(row) for row in cursor.fetchall()]
+                if cursor.description: 
+                    result = [dict(row) for row in cursor.fetchall()]
+                    conn.commit()
+                    return result
+                conn.commit()
                 return []
-        except psycopg2.Error as e:
-            logging.error(f"DB Query failed: {e}")
+        
+        except psycopg2.OperationalError as e:
+            # This catches "SSL connection closed" or "server closed the connection unexpectedly"
+            logging.warning(f"⚠️ DB Connection Dead ({e}). Retrying with fresh connection...")
+            
+            if conn:
+                try:
+                    # Throw away the dead connection so it's not reused
+                    self.pool.putconn(conn, close=True)
+                except Exception: pass
+                conn = None
+            
+            # Attempt 2 (Retry)
+            try:
+                conn = self.pool.getconn()
+                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    cursor.execute(query, params or ())
+                    if cursor.description: 
+                        result = [dict(row) for row in cursor.fetchall()]
+                        conn.commit()
+                        return result
+                    conn.commit()
+                    return []
+            except Exception as retry_err:
+                logging.error(f"❌ DB Retry Failed: {retry_err}")
+                raise retry_err
+
+        except Exception as e:
+            logging.error(f"❌ DB Query Error: {e}")
+            if conn: conn.rollback()
             raise
+
         finally:
+            # Always return the connection to the pool if it's still valid-ish
             if conn: self.pool.putconn(conn)
 
 db_manager = DatabaseManager(db_pool)
 
 # --- Helper Functions ---
 
-def _parse_time_period(time_period: str) -> Tuple[date, date]:
-    """Parses natural language time periods into start/end dates."""
-    today = date.today()
-    tp = time_period.lower().strip().replace('"', '')
-    if tp == "today": return today, today
-    if tp == "yesterday": return today - relativedelta(days=1), today - relativedelta(days=1)
-    if tp == "this week": return today - relativedelta(days=today.weekday()), today
-    if tp == "last week":
-        end = today - relativedelta(days=today.weekday() + 1)
-        return end - relativedelta(days=6), end
-    if tp in ("this month", "current month"): return today.replace(day=1), today
-    if tp == "last month":
-        end = today.replace(day=1) - relativedelta(days=1)
-        return end.replace(day=1), end
-    if tp in ("this year", "current year"): return today.replace(month=1, day=1), today
-    if tp == "last year":
-        last_year = today.year - 1
-        return date(last_year, 1, 1), date(last_year, 12, 31)
+# def _parse_time_period(time_period: str) -> Tuple[date, date]:
+#     """Parses natural language time periods into start/end dates."""
+#     today = date.today()
+#     tp = time_period.lower().strip().replace('"', '')
     
-    try:
-        parsed_date = parse(tp).date()
-        return parsed_date, parsed_date
-    except ValueError:
-        logging.warning(f"Could not parse time period '{time_period}'. Defaulting to 'this month'.")
-        return today.replace(day=1), today
+#     if tp == "today": return today, today
+#     if tp == "yesterday": return today - relativedelta(days=1), today - relativedelta(days=1)
+#     if tp == "this week": return today - relativedelta(days=today.weekday()), today
+#     if tp == "last week":
+#         end = today - relativedelta(days=today.weekday() + 1)
+#         return end - relativedelta(days=6), end
+#     if tp in ("this month", "current month"): return today.replace(day=1), today
+#     if tp == "last month":
+#         end = today.replace(day=1) - relativedelta(days=1)
+#         return end.replace(day=1), end
+    
+#     # FIX: Handle "whole year" or "this year"
+#     if tp in ("this year", "current year", "whole year"): 
+#         return today.replace(month=1, day=1), today
+#     if tp == "last year":
+#         last_year = today.year - 1
+#         return date(last_year, 1, 1), date(last_year, 12, 31)
+    
+#     try:
+#         parsed_date = parse(tp).date()
+#         return parsed_date, parsed_date
+#     except ValueError:
+#         logging.warning(f"Could not parse time period '{time_period}'. Defaulting to 'this month'.")
+#         return today.replace(day=1), today
+
+# def _normalize_date(value: Any) -> str:
+#     if not isinstance(value, str) or not value.strip(): return date.today().isoformat()
+#     try: return datetime.strptime(value.strip(), "%Y-%m-%d").date().isoformat()
+#     except (ValueError, TypeError): return date.today().isoformat()
 
 def _normalize_date(value: Any) -> str:
-    if not isinstance(value, str) or not value.strip(): return date.today().isoformat()
-    try: return datetime.strptime(value.strip(), "%Y-%m-%d").date().isoformat()
-    except (ValueError, TypeError): return date.today().isoformat()
+    if not value: return date.today().isoformat()
+    try: return datetime.strptime(str(value).strip(), "%Y-%m-%d").date().isoformat()
+    except: return date.today().isoformat()
+
+def _parse_time_period(time_period: str) -> Tuple[date, date]:
+    """Robust date parsing for 'October', 'Q1', 'Last week', 'This Quarter'."""
+    today = date.today()
+    tp = time_period.lower().strip().replace('"', '').replace("'", "")
+    
+    # Handle typos (e.g. 'form' -> 'from')
+    tp = tp.replace('form ', 'from ')
+
+    # 0. Explicit Ranges ("from 15 oct to 15 nov", "Jan 1 - Jan 31")
+    range_seps = [" to ", " - ", " until ", " through "]
+    for sep in range_seps:
+        if sep in tp:
+            parts = tp.split(sep)
+            if len(parts) == 2:
+                # Clean up "from" if present in the first part
+                start_str = parts[0].replace("from ", "").strip()
+                end_str = parts[1].strip()
+                
+                d1 = dateparser.parse(start_str, settings={'DATE_ORDER': 'DMY', 'PREFER_DATES_FROM': 'past'})
+                d2 = dateparser.parse(end_str, settings={'DATE_ORDER': 'DMY', 'PREFER_DATES_FROM': 'past'})
+                
+                if d1 and d2:
+                    return d1.date(), d2.date()
+
+    # 1. Keywords
+    if tp == "today": return today, today
+    if tp == "yesterday": return today - timedelta(days=1), today - timedelta(days=1)
+    if tp in ("this month", "current month"): return today.replace(day=1), today
+    if tp == "last month":
+        end = today.replace(day=1) - timedelta(days=1)
+        return end.replace(day=1), end
+    if tp in ("this year", "current year"): return today.replace(month=1, day=1), today
+
+    # 2. Quarters (Explicit Q1-Q4)
+    q_match = re.search(r"q([1-4])", tp)
+    if q_match:
+        quarter = int(q_match.group(1))
+        year = today.year # Assume current year
+        start_month = (quarter - 1) * 3 + 1
+        end_month = start_month + 2
+        start = date(year, start_month, 1)
+        # Get last day
+        next_m = date(year, end_month, 28) + timedelta(days=4)
+        end = next_m - timedelta(days=next_m.day)
+        return start, end
+
+    # 3. Relative Quarters ("This Quarter", "Last Quarter")
+    if "quarter" in tp:
+        current_quarter = (today.month - 1) // 3 + 1
+        year = today.year
+        
+        if "this" in tp or "current" in tp:
+            target_q = current_quarter
+        elif "last" in tp or "previous" in tp:
+            target_q = current_quarter - 1
+            if target_q == 0:
+                target_q = 4
+                year -= 1
+        else:
+            # Default to current if unclear
+            target_q = current_quarter
+
+        start_month = (target_q - 1) * 3 + 1
+        start = date(year, start_month, 1)
+        
+        # Calculate end of quarter
+        if target_q == 4:
+            end = date(year, 12, 31)
+        else:
+            next_q_start = date(year, start_month + 3, 1)
+            end = next_q_start - timedelta(days=1)
+        
+        return start, end
+
+    # 4. Explicit Months ("October") using dateparser
+    try:
+        parsed = dateparser.parse(tp, settings={'PREFER_DAY_OF_MONTH': 'first'})
+        if parsed:
+            # If it's a month name only, return full month range
+            # Heuristic: if user says "October", dateparser gives Oct 1st.
+            # We want Oct 1 to Oct 31.
+            if parsed.year == today.year and parsed.month != today.month:
+                 # It's a past/future month
+                 start = parsed.date().replace(day=1)
+                 next_month = start + relativedelta(months=1)
+                 end = next_month - timedelta(days=1)
+                 return start, end
+            
+            # If input was a specific date range string that dateparser handled (rare without 'to'), return it
+            return parsed.date(), parsed.date()
+    except: pass
+
+    logging.warning(f"Could not parse robust time period '{time_period}'. Defaulting to 'this month'.")
+    return today.replace(day=1), today # Default fallback
 
 def _format_data_for_pdf(data: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -2932,7 +3076,14 @@ async def create_invoice(invoice_data: Dict[str, Any], user_id: str) -> str:
         if resp.data and resp.data.get("status") == "error": raise Exception(resp.data.get("message"))
         
         if resp.data.get("invoice_id"):
-             asyncio.create_task(asyncio.to_thread(embed_and_store_invoice, resp.data.get("invoice_id"), final_payload))
+        # Ensure user_id is part of the payload sent to embedding
+            final_payload['user_id'] = user_id 
+            
+            asyncio.create_task(
+                # We use asyncio.to_thread is WRONG for async functions.
+                # Just call the coroutine directly since it is async now:
+                embed_and_store_invoice(resp.data.get("invoice_id"), final_payload)
+            )
 
         return json.dumps({"status": "success", "invoice_number": invoice_data["invoice"]["number"], "url": result["url"]})
     except Exception as e:
@@ -2945,23 +3096,45 @@ async def update_invoice(update_data: Dict[str, Any], user_id: str) -> str:
         supabase_admin = await get_supabase_admin_client()
         invoice_id = update_data['invoice']['id']
         
+        # 1. Fetch existing invoice & seller
         inv_resp = await supabase_admin.table("invoices_record").select("seller_id").eq("id", invoice_id).single().execute()
         if not inv_resp.data: raise Exception("Invoice not found")
+        
         seller_resp = await supabase_admin.table("sellers_record").select("*").eq("id", inv_resp.data['seller_id']).single().execute()
+        seller = seller_resp.data
+
+        # 2. CONSTRUCT MISSING BANK DATA
+        bank_details = {
+            "name": seller.get("bank_name", ""),
+            "account": seller.get("account_no", ""),
+            "branch_ifsc": seller.get("ifsc_code", ""),
+            "branch": seller.get("bank_branch", "") 
+        }
+
+        # 3. Merge into Payload
+        full_pdf_payload = {
+            "company": seller, 
+            "bank": bank_details,
+            **update_data
+        }
         
-        # Sanitize and Format for PDF
-        full_pdf_payload = {"company": seller_resp.data, **update_data}
+        # 4. Generate PDF
         pdf_data = _format_data_for_pdf(full_pdf_payload)
-        
         pdf_path = await asyncio.to_thread(create_dynamic_invoice, pdf_data)
         
+        # 5. Upload to Storage
         sanitized_no = re.sub(r"[\/\\]", "-", update_data['invoice']['number'])
         storage_path = f"{user_id}/{sanitized_no}.pdf"
         
         with open(pdf_path, "rb") as f: content = await asyncio.to_thread(f.read)
-        await supabase_admin.storage.from_("invoices").upload(path=storage_path, file=content, file_options={"content-type": "application/pdf", "upsert": "true"})
+        await supabase_admin.storage.from_("invoices").upload(
+            path=storage_path, 
+            file=content, 
+            file_options={"content-type": "application/pdf", "upsert": "true"}
+        )
         url = await supabase_admin.storage.from_("invoices").get_public_url(storage_path)
         
+        # 6. Update Database
         update_data['invoice']['invoice_url'] = url
         
         items_list = []
@@ -2980,6 +3153,16 @@ async def update_invoice(update_data: Dict[str, Any], user_id: str) -> str:
         
         if resp.data.get("status") == "error": raise Exception(resp.data.get("message"))
         
+        # --- 7. UPDATE EMBEDDINGS (The Fix) ---
+        # Add user_id to payload so embedding service can use it for RLS/Filtering
+        full_pdf_payload['user_id'] = user_id
+        
+        # Run embedding in background (fire and forget) so UI response isn't delayed
+        asyncio.create_task(
+            embed_and_store_invoice(invoice_id, full_pdf_payload)
+        )
+        # --------------------------------------
+
         return json.dumps({"status": "success", "message": f"Invoice {update_data['invoice']['number']} updated.", "url": url})
 
     except Exception as e:
@@ -3264,27 +3447,56 @@ def update_buyer_details(user_id: str, payload: str) -> str:
 # ==============================================================================
 
 @tool
-def get_sales_summary(user_id: str, time_period: Optional[str] = None, start_date: Optional[str] = None, end_date: Optional[str] = None) -> str:
+def get_sales_summary(user_id: str, time_period: Optional[str] = None) -> str:
     """Gets high-level sales summary for a period."""
     try:
-        if start_date and end_date: s, e = _normalize_date(start_date), _normalize_date(end_date)
-        elif time_period: s, e = _parse_time_period(time_period)
-        else: raise ValueError("Missing time period")
+        s, e = _parse_time_period(time_period or "this month")
         
-        query = "WITH T AS (SELECT ir.id, COALESCE(SUM(it.quantity*it.rate),0) as t, COALESCE(SUM(it.quantity*it.rate*COALESCE(it.gst_rate,0)/100.0),0) as g FROM invoices_record ir LEFT JOIN items_record it ON ir.id=it.invoice_id WHERE ir.user_id=%s AND ir.date BETWEEN %s AND %s GROUP BY ir.id) SELECT COUNT(id) as c, SUM(t+g) as rev, SUM(g) as gst FROM T;"
+        query = """
+        WITH T AS (
+            SELECT ir.id, 
+                   COALESCE(SUM(it.quantity*it.rate),0) as t, 
+                   COALESCE(SUM(it.quantity*it.rate*COALESCE(it.gst_rate,0)/100.0),0) as g 
+            FROM invoices_record ir 
+            LEFT JOIN items_record it ON ir.id=it.invoice_id 
+            WHERE ir.user_id=%s AND ir.date BETWEEN %s AND %s 
+            GROUP BY ir.id
+        ) 
+        SELECT COUNT(id) as c, SUM(t+g) as rev, SUM(g) as gst FROM T;
+        """
+        
         res = db_manager.execute_query(query, (user_id, s, e))
-        if not res or res[0]['c'] is None: return json.dumps({"status": "no_data"})
+        
+        # If query returns nothing or count is 0
+        if not res or res[0]['c'] == 0: 
+            return json.dumps({
+                "status": "success",
+                "summary": {
+                    "total_revenue": "₹0.00",
+                    "total_gst": "₹0.00",
+                    "count": 0
+                }
+            })
         
         r = res[0]
+        
+        # --- FIX: Explicitly handle None values ---
+        # If no sales, SQL SUM returns None. We must convert None -> 0 before Decimal()
+        revenue = r['rev'] if r['rev'] is not None else 0
+        gst = r['gst'] if r['gst'] is not None else 0
+        # ------------------------------------------
+
         return json.dumps({
             "status": "success",
             "summary": {
-                "total_revenue": f"₹{Decimal(r['rev']):,.2f}",
-                "total_gst": f"₹{Decimal(r['gst']):,.2f}",
+                "total_revenue": f"₹{Decimal(revenue):,.2f}",
+                "total_gst": f"₹{Decimal(gst):,.2f}",
                 "count": r['c']
             }
         })
-    except Exception as e: return json.dumps({"status": "error", "message": str(e)})
+        
+    except Exception as e: 
+        return json.dumps({"status": "error", "message": str(e)})
 
 @tool
 def get_all_buyers(user_id: str, page: int = 1, page_size: int = 25) -> str:

@@ -1105,6 +1105,8 @@
 
 
 
+import asyncio
+import inspect
 import os
 import logging
 from datetime import date
@@ -1117,7 +1119,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.memory import ConversationBufferWindowMemory
 from langchain_core.tools import StructuredTool
-
+from app.services.embedding import semantic_search_invoices
 # App Imports
 from app.core.supabase_memory import SupabaseChatMessageHistory
 import app.tools.sql_query_tool as tools_module # For monkey patching
@@ -1171,6 +1173,7 @@ tools_module.get_next_invoice_number = unwrap_tool(get_next_invoice_number)
 tools_module._internal_search_buyer = unwrap_tool(_internal_search_buyer)
 tools_module._find_product_for_item = unwrap_tool(_find_product_for_item)
 tools_module._get_item_details_from_history = unwrap_tool(_get_item_details_from_history)
+tools_module.search_invoices = unwrap_tool(search_invoices)
 
 # ==============================================================================
 # --- 2. INPUT SCHEMAS (Pydantic Models for Agent) ---
@@ -1219,6 +1222,15 @@ class AgentItemSalesInput(BaseModel):
 class AgentSearchInvoiceInput(BaseModel):
     query: str = Field(description="Search term (buyer name or invoice number)")
     status: Optional[str] = Field(default=None, description="Optional status (paid/unpaid)")
+
+class AgentKnowledgeInput(BaseModel):
+    query: str = Field(description="Question about invoice history, specific items, or rates.")
+
+class AgentSearchInvoiceInput(BaseModel):
+    query: str = Field(description="Search term (buyer name or invoice number)")
+    status: Optional[str] = Field(default=None, description="Optional status (paid/unpaid)")
+
+
 
 # ==============================================================================
 # --- 3. AGENT EXECUTOR & MANAGER ---
@@ -1296,6 +1308,9 @@ async def get_vyapari_agent_executor(user_id: str):
         # We call _internal_search_buyer directly as the logic is identical for history/search in your codebase
         func = unwrap_tool(_internal_search_buyer)
         return await func(user_id=user_id, name=query)
+    
+    async def search_knowledge_wrapper(query: str, **kwargs) -> str:
+        return await semantic_search_invoices(user_id, query)
 
     def send_email_wrapper(invoice_no: str, email_address: Optional[str] = None, **kwargs) -> str:
         return unwrap_tool(send_invoice_via_email)(user_id=user_id, invoice_no=invoice_no, email_address=email_address)
@@ -1318,6 +1333,13 @@ async def get_vyapari_agent_executor(user_id: str):
 
     def get_item_sales_wrapper(item_name: str, **kwargs) -> str:
         return unwrap_tool(get_item_sales_summary)(user_id=user_id, item_name=item_name)
+    
+       # --- NEW: Next invoice number wrapper (async-safe) ---
+    async def get_next_invoice_no_wrapper(**kwargs) -> str:
+       func = unwrap_tool(get_next_invoice_number)
+       if inspect.iscoroutinefunction(func):
+           return await func(user_id=user_id)
+       return await asyncio.to_thread(func, user_id=user_id)
 
 
     # ==============================================================================
@@ -1357,6 +1379,14 @@ async def get_vyapari_agent_executor(user_id: str):
         StructuredTool.from_function(func=send_email_wrapper, name="agent_send_email", description="Email an invoice.", args_schema=AgentEmailInput),
         StructuredTool.from_function(func=send_whatsapp_wrapper, name="agent_send_whatsapp", description="Generate WhatsApp link for invoice.", args_schema=AgentWhatsAppInput),
         StructuredTool.from_function(func=schedule_reminder_wrapper, name="agent_schedule_reminder", description="Schedule payment reminder.", args_schema=AgentReminderInput),
+        StructuredTool.from_function(
+        func=None,
+        coroutine=search_knowledge_wrapper,
+        name="agent_search_knowledge",
+        description="Use this to answer specific questions about past sales, item rates, or buyer history. Example: 'What price did I sell the chair to ABC?'",
+        args_schema=AgentKnowledgeInput
+    ),
+        StructuredTool.from_function(func=None, coroutine=get_next_invoice_no_wrapper, name="agent_get_next_invoice_no", description="Get the next available invoice number.")
     ]
 
     llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", google_api_key=gemini_key_manager.get_key(), temperature=0.0)

@@ -406,7 +406,7 @@ def _generate_page_flowables(invoice_data, copy_label=""):
         line_amount = qty * rate
         sub_total += line_amount
         
-        tax_amount = line_amount * (gst_rate / 100)
+        tax_amount = line_amount * (gst_rate)
         
         if is_interstate:
             total_igst_val += tax_amount
